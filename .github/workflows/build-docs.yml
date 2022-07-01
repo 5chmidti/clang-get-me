@@ -1,0 +1,28 @@
+name: Build docs via Doxygen and publish to gh-pages
+on:
+  release:
+    types: [published]
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Generate Docs
+        run: |
+          pip install conan
+          sudo apt install doxygen graphviz
+          doxygen --version
+          mkdir build
+          cd build
+          cmake .. -DENABLE_DOXYGEN=TRUE
+          make doxygen-docs
+      - name: Deploy Docs
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./build/html
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
+          full_commit_message: Update docs for ${{ github.event.release.tag_name }}

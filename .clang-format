@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+IncludeCategories:
+- Priority: 1
+  Regex: ^<([A-Za-z0-9_])+>
+- Priority: 2
+  Regex: ^<
+- Priority: 3
+  Regex: .*
+IncludeBlocks: Regroup
