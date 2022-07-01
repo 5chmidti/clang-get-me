@@ -20,22 +20,32 @@ using namespace clang::tooling;
 using namespace clang::ast_matchers;
 
 static cl::OptionCategory ToolCategory("get_me");
-static cl::opt<std::string> Option("o", cl::desc("Some option"),
-                                   cl::value_desc("option"), cl::Required,
-                                   cl::ValueRequired, cl::cat(ToolCategory));
+static cl::opt<std::string> TypeName("t", cl::desc("Name of the type to get"),
+                                     cl::value_desc("type name"), cl::Required,
+                                     cl::ValueRequired, cl::cat(ToolCategory));
 
-class MyCallback : public MatchFinder::MatchCallback {
+class GetMeCallback : public MatchFinder::MatchCallback {
 public:
   void run(const MatchFinder::MatchResult &Result) final {
-    const auto *const MatchedExpr = Result.Nodes.getNodeAs<Expr>("expr");
+    const auto *const NDecl = Result.Nodes.getNodeAs<NamedDecl>("named-decl");
+    const auto FullLoc = Result.Context->getFullLoc(NDecl->getLocation());
     TextDiagnostic Diag(
         llvm::outs(), Result.Context->getLangOpts(),
         &Result.Context->getDiagnostics().getDiagnosticOptions());
 
-    Diag.emitDiagnostic(
-        Result.Context->getFullLoc(MatchedExpr->getBeginLoc()),
-        DiagnosticsEngine::Level::Note, "my message",
-        CharSourceRange::getTokenRange(MatchedExpr->getSourceRange()), None);
+    const auto Message = [&Result]() {
+      auto Res = fmt::format("found a source of '{}'", TypeName.getValue());
+      if (const auto *const ParentDecl =
+              Result.Nodes.getNodeAs<NamedDecl>("parent-decl");
+          ParentDecl != nullptr) {
+        return fmt::format("{} within '{}'", Res,
+                           ParentDecl->getDeclName().getAsString());
+      }
+      return Res;
+    }();
+    Diag.emitDiagnostic(FullLoc, DiagnosticsEngine::Level::Note, Message,
+                        CharSourceRange::getTokenRange(NDecl->getSourceRange()),
+                        None);
   }
 };
 
@@ -53,9 +63,16 @@ int main(int argc, const char **argv) {
                      ? OptionsParser->getCompilations().getAllFiles()
                      : Sources);
 
-  auto Callback = std::make_unique<MyCallback>();
+  auto Callback = std::make_unique<GetMeCallback>();
 
-  const auto Match = expr().bind("expr");
+  const auto Match =
+      namedDecl(
+          anyOf(functionDecl(returns(
+                    hasDeclaration(namedDecl(hasName(TypeName.getValue()))))),
+                mapAnyOf(varDecl, fieldDecl)
+                    .with(hasAncestor(namedDecl().bind("parent-decl")),
+                          hasType(namedDecl(hasName(TypeName.getValue()))))))
+          .bind("named-decl");
 
   MatchFinder Finder{};
   Finder.addMatcher(Match, Callback.get());

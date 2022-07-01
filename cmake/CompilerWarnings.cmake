@@ -3,7 +3,7 @@
 # https://github.com/lefticus/cppbestpractices/blob/master/02-Use_the_Tools_Available.md
 
 function(set_project_warnings project_name)
-  option(ENABLE_WARNINGS "Enable compiler warnings" OFF)
+  option(ENABLE_WARNINGS "Enable compiler warnings" ON)
   option(WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 
   set(MSVC_WARNINGS

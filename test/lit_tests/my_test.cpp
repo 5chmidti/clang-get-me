@@ -1,8 +1,22 @@
-// RUN: get_me %s -o qwerty -- | FileCheck %s
+// RUN: get_me %s -t A -- | FileCheck %s
 
-int main() {
-  int MyVar = 3;
-  // CHECK: :[[@LINE-1]]:15: note: my message
-  return MyVar;
-  // CHECK: :[[@LINE-1]]:10: note: my message
+struct A {};
+
+struct B {
+  A Asdf{};
+  // CHECK: :[[@LINE-1]]:5: note: found a source of 'A' within 'B'
+};
+
+struct C {
+  [[nodiscard]] A foo();
+  // CHECK: :[[@LINE-1]]:19: note: found a source of 'A'
+};
+
+[[nodiscard]] A foo();
+// CHECK: :[[@LINE-1]]:17: note: found a source of 'A'
+
+void bar() {
+  [[maybe_unused]] A Asdf{};
+  // CHECK: :[[@LINE-1]]:22: note: found a source of 'A'
+  [[maybe_unused]] int Qwerty{};
 }
