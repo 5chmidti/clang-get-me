@@ -3,7 +3,6 @@
 
 #include <clang/ASTMatchers/ASTMatchFinder.h>
 #include <clang/ASTMatchers/ASTMatchers.h>
-#include <clang/Basic/Diagnostic.h>
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Frontend/TextDiagnostic.h>
@@ -21,8 +20,8 @@ using namespace clang::ast_matchers;
 
 static cl::OptionCategory ToolCategory("get_me");
 static cl::opt<std::string> TypeName("t", cl::desc("Name of the type to get"),
-                                     cl::value_desc("type name"), cl::Required,
-                                     cl::ValueRequired, cl::cat(ToolCategory));
+                                     cl::Required, cl::ValueRequired,
+                                     cl::cat(ToolCategory));
 
 class GetMeCallback : public MatchFinder::MatchCallback {
 public:
@@ -34,11 +33,12 @@ public:
         &Result.Context->getDiagnostics().getDiagnosticOptions());
 
     const auto Message = [&Result]() {
-      auto Res = fmt::format("found a source of '{}'", TypeName.getValue());
+      auto Res = fmt::format("found '{}'", TypeName.getValue());
       if (const auto *const ParentDecl =
               Result.Nodes.getNodeAs<NamedDecl>("parent-decl");
           ParentDecl != nullptr) {
-        return fmt::format("{} within '{}'", Res,
+        return fmt::format("{} from {} '{}'", Res,
+                           ParentDecl->getDeclKindName(),
                            ParentDecl->getDeclName().getAsString());
       }
       return Res;
@@ -67,10 +67,13 @@ int main(int argc, const char **argv) {
 
   const auto Match =
       namedDecl(
-          anyOf(functionDecl(returns(
-                    hasDeclaration(namedDecl(hasName(TypeName.getValue()))))),
-                mapAnyOf(varDecl, fieldDecl)
-                    .with(hasAncestor(namedDecl().bind("parent-decl")),
+          anyOf(functionDecl(returns(hasDeclaration(
+                                 namedDecl(hasName(TypeName.getValue())))))
+                    .bind("parent-decl"),
+                varDecl(hasAncestor(namedDecl().bind("parent-decl")),
+                        hasType(namedDecl(hasName(TypeName.getValue()))),
+                        unless(parmVarDecl())),
+                fieldDecl(hasAncestor(namedDecl().bind("parent-decl")),
                           hasType(namedDecl(hasName(TypeName.getValue()))))))
           .bind("named-decl");
 
