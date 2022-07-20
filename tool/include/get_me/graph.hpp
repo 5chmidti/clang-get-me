@@ -70,9 +70,9 @@ struct GraphData {
 };
 
 template <typename T>
-concept IsGraphData = requires(T t) {
-  t.VertexData;
-  t.EdgeData;
+concept IsGraphData = requires(T Val) {
+  Val.VertexData;
+  Val.EdgeData;
 };
 
 [[nodiscard]] bool isSetIntersectionEmpty(const auto &Iter1, const auto &Iter2,

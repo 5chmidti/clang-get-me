@@ -6,7 +6,7 @@ find_package(
   REQUIRED)
 find_package(range-v3 REQUIRED)
 
-target_sources(get_me PRIVATE src/main.cpp)
+target_sources(get_me PRIVATE src/main.cpp src/formatting.cpp src/tooling.cpp)
 
 target_compile_options(get_me PRIVATE -fno-rtti)
 
