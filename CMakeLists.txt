@@ -32,6 +32,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Threads REQUIRED)
 find_package(Clang REQUIRED 14)
+find_package(LLVM REQUIRED 14)
 
 include(cmake/Conan.cmake)
 run_conan()

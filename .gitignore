@@ -1,3 +1,5 @@
 .vscode/
 build/
 .cache/
+test/lit_tests/Output/
+test/.lit_test_times.txt

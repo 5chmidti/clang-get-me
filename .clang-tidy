@@ -10,7 +10,6 @@ Checks: '
         -modernize-use-trailing-return-type
         '
 WarningsAsErrors: ''
-HeaderFilterRegex: '.*/src/.*'
 FormatStyle:     none
 CheckOptions:
   - key:             readability-identifier-naming.ClassCase
