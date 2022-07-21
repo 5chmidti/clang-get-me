@@ -8,6 +8,7 @@
 #include <stack>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <vector>
 
 #include <boost/graph/adjacency_list.hpp>
@@ -26,9 +27,6 @@
 
 using namespace std::string_view_literals;
 
-using TypeSetElementType = std::string;
-using TypeSet = std::set<TypeSetElementType, std::less<>>;
-
 template <typename Graph>
 using EdgeDescriptor = typename boost::graph_traits<Graph>::edge_descriptor;
 
@@ -37,34 +35,13 @@ using VertexDescriptor = typename boost::graph_traits<Graph>::vertex_descriptor;
 
 template <typename Graph> using PathType = std::vector<EdgeDescriptor<Graph>>;
 
-struct LinkType {
-  using name_type = std::string;
-
-  name_type Name{};
-  name_type TargetName{};
-  TypeSet Types{};
-
-  [[nodiscard]] friend bool operator<=>(const LinkType &,
-                                        const LinkType &) = default;
-};
-
-template <> struct fmt::formatter<LinkType> {
-  template <typename FormatContext>
-  [[nodiscard]] constexpr auto parse(FormatContext &Ctx)
-      -> decltype(Ctx.begin()) {
-    return Ctx.begin();
-  }
-
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const LinkType &Val, FormatContext &Ctx)
-      -> decltype(Ctx.out()) {
-    return fmt::format_to(Ctx.out(), "{} {}({})", Val.Name, Val.TargetName,
-                          fmt::join(Val.Types, ", "));
-  }
-};
-
-template <typename GraphType, typename VertexDataType, typename EdgeDataType>
+template <typename GraphType, typename EdgeWeightType, typename VertexDataType,
+          typename EdgeDataType>
 struct GraphData {
+  using edge_type =
+      std::pair<VertexDescriptor<GraphType>, VertexDescriptor<GraphType>>;
+  std::vector<edge_type> Edges{};
+  std::vector<EdgeWeightType> EdgeWeights{};
   std::map<VertexDescriptor<GraphType>, VertexDataType> VertexData{};
   std::map<EdgeDescriptor<GraphType>, EdgeDataType> EdgeData{};
 };
