@@ -42,7 +42,7 @@ struct GraphData {
       std::pair<VertexDescriptor<GraphType>, VertexDescriptor<GraphType>>;
   std::vector<edge_type> Edges{};
   std::vector<EdgeWeightType> EdgeWeights{};
-  std::map<VertexDescriptor<GraphType>, VertexDataType> VertexData{};
+  std::vector<VertexDataType> VertexData{};
   std::map<EdgeDescriptor<GraphType>, EdgeDataType> EdgeData{};
 };
 

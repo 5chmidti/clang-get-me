@@ -4,6 +4,8 @@
 #include <variant>
 
 #include <boost/graph/adjacency_list.hpp>
+#include <clang/AST/Decl.h>
+#include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
 
 #include "get_me/graph.hpp"
@@ -21,8 +23,23 @@ using GraphType = boost::adjacency_list<
     boost::listS, boost::vecS, boost::directedS, boost::no_property,
     boost::property<boost::edge_weight_t, TransitionDataType>>;
 
-using TypeSetValueType = std::variant<const clang::QualType *, clang::QualType,
-                                      const clang::NamedDecl *>;
+struct TypeValue {
+  using meta_type = std::variant<clang::QualType, const clang::NamedDecl *>;
+  const clang::Type *Value;
+  meta_type MetaValue;
+
+  [[nodiscard]] friend auto operator==(const TypeValue &Lhs,
+                                       const TypeValue &Rhs) {
+    return Lhs.Value == Rhs.Value;
+  }
+
+  [[nodiscard]] friend auto operator<=>(const TypeValue &Lhs,
+                                        const TypeValue &Rhs) {
+    return Lhs.Value <=> Rhs.Value;
+  }
+};
+
+using TypeSetValueType = TypeValue;
 using TypeSet = std::set<TypeSetValueType>;
 
 using GetMeGraphData =
@@ -30,5 +47,19 @@ using GetMeGraphData =
 
 using weight_map_type =
     typename boost::property_map<GraphType, boost::edge_weight_t>::type;
+
+// [[nodiscard]] inline TypeSetValueType
+// toNamedDeclOrQualType(const clang::QualType &QType) {
+//   if (const auto *RDecl = QType->getAsCXXRecordDecl()) {
+//     return RDecl;
+//   }
+//   if (const auto *RDecl = QType->getAsRecordDecl()) {
+//     return RDecl;
+//   }
+//   if (const auto *TDecl = QType->getAsTagDecl()) {
+//     return TDecl;
+//   }
+//   return QType;
+// }
 
 #endif

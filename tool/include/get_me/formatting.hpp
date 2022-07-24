@@ -47,16 +47,13 @@ template <> struct fmt::formatter<TypeSetValueType> {
       -> decltype(Ctx.out()) {
     return fmt::format_to(
         Ctx.out(), "{}",
-        std::visit(Overloaded{[](const clang::QualType *QType) {
-                                return QType->getAsString();
-                              },
-                              [](clang::QualType QType) {
+        std::visit(Overloaded{[](clang::QualType QType) {
                                 return QType.getAsString();
                               },
                               [](const clang::NamedDecl *NDecl) {
                                 return NDecl->getNameAsString();
                               }},
-                   Val));
+                   Val.MetaValue));
   }
 };
 
