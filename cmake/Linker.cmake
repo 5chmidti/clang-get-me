@@ -5,7 +5,11 @@ include(CheckCXXCompilerFlag)
 set(USER_LINKER_OPTION
     "lld"
     CACHE STRING "Linker to be used")
-set(USER_LINKER_OPTION_VALUES "lld" "gold" "bfd")
+set(USER_LINKER_OPTION_VALUES
+    "lld"
+    "gold"
+    "bfd"
+    "mold")
 set_property(CACHE USER_LINKER_OPTION PROPERTY STRINGS
                                                ${USER_LINKER_OPTION_VALUES})
 list(
@@ -41,6 +45,9 @@ option(ENABLE_IPO
 if(ENABLE_IPO)
   if(ENABLE_USER_LINKER)
     if(USER_LINKER_OPTION STREQUAL "lld")
+      add_link_options(-flto=thin)
+    endif()
+    if(USER_LINKER_OPTION STREQUAL "mold")
       add_link_options(-flto=thin)
     endif()
   else()
