@@ -1,18 +1,28 @@
 #ifndef get_me_tooling_hpp
 #define get_me_tooling_hpp
 
-#include <clang/AST/ASTConsumer.h>
+#include <memory>
+#include <utility>
+#include <vector>
+
 #include <clang/AST/RecursiveASTVisitor.h>
-#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/Tooling.h>
 
-#include "get_me/graph_types.hpp"
+#include "get_me/graph.hpp"
+
+namespace clang {
+class CompilerInstance;
+class ASTConsumer;
+} // namespace clang
 
 struct TransitionCollector {
   std::vector<TransitionDataType> Data{};
 
   template <typename T>
-  void emplace(T &&Value) requires std::convertible_to<T, TransitionDataType> {
+  void emplace(T &&Value)
+    requires std::convertible_to<T, TransitionDataType>
+  {
     Data.emplace_back(std::forward<T>(Value));
   }
 };
@@ -38,36 +48,16 @@ private:
 
 class GetMe : public clang::ASTConsumer {
 public:
-  explicit GetMe(TransitionCollector &Collector) : Visitor(Collector) {}
+  explicit GetMe(TransitionCollector &Collector) : Visitor{Collector} {}
 
-  void HandleTranslationUnit(clang::ASTContext &Context) override;
+  void HandleTranslationUnit(clang::ASTContext &Context) override {
+    // Traversing the translation unit decl via a RecursiveASTVisitor
+    // will visit all nodes in the AST.
+    Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+  }
 
 private:
   GetMeVisitor Visitor;
-};
-
-class GetMeAction : public clang::ASTFrontendAction {
-public:
-  explicit GetMeAction(TransitionCollector &Collector)
-      : CollectorRef{Collector} {}
-
-  [[nodiscard]] std::unique_ptr<clang::ASTConsumer>
-  CreateASTConsumer(clang::CompilerInstance & /*Compiler*/,
-                    llvm::StringRef /*InFile*/) override;
-
-private:
-  TransitionCollector &CollectorRef;
-};
-
-class GetMeActionFactory : public clang::tooling::FrontendActionFactory {
-public:
-  explicit GetMeActionFactory(TransitionCollector &Collector)
-      : CollectorRef(Collector) {}
-
-  [[nodiscard]] std::unique_ptr<clang::FrontendAction> create() override;
-
-private:
-  TransitionCollector &CollectorRef;
 };
 
 #endif
