@@ -247,42 +247,29 @@ buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
       continue;
     }
     const auto &RequiredTypeSet = std::get<2>(Transition);
-    constexpr auto ToIndex = [](const auto &Pair) { return Pair.second; };
 
-    ranges::range auto Acquired = ranges::views::transform(
-        ranges::views::filter(
-            ranges::views::zip(Data.VertexData, ranges::views::iota(0U)),
-            [&AcquiredTypeSet](const auto &EnumeratedTSet) {
-              return ranges::includes(EnumeratedTSet.first, AcquiredTypeSet);
-            }),
-        ToIndex);
-    const auto RequiredTypeSetEmpty = RequiredTypeSet.empty();
-    const auto RequiredComparator =
-        [&RequiredTypeSet, RequiredTypeSetEmpty](const auto &EnumeratedTSet) {
-          if (RequiredTypeSetEmpty) {
-            return ranges::empty(EnumeratedTSet.first);
-          }
-          return ranges::includes(EnumeratedTSet.first, RequiredTypeSet);
-        };
-    ranges::range auto Required = ranges::views::transform(
-        ranges::views::filter(
-            ranges::views::zip(Data.VertexData, ranges::views::iota(0U)),
-            RequiredComparator),
-        ToIndex);
-    spdlog::info("Transition: {}", Transition);
-    spdlog::info("Acquired: {}", Acquired);
-    spdlog::info("Required: {}", Required);
-    for (const auto [AcquiredIndex, RequiredIndex] :
-         ranges::views::cartesian_product(Acquired, Required)) {
+    ranges::range auto Acquired = ranges::views::filter(
+        ranges::views::zip(Data.VertexData, ranges::views::iota(0U)),
+        [&AcquiredTypeSet](const auto &EnumeratedTSet) {
+          return ranges::includes(EnumeratedTSet.first, AcquiredTypeSet);
+        });
+
+    for (auto AcquiredValueIndexPair : Acquired) {
+      const auto TargetTypeSet = mergeTypeSets(
+          subtractTypeSets(AcquiredValueIndexPair.first, AcquiredTypeSet),
+          RequiredTypeSet);
+      const auto TargetVertexIndex =
+          std::distance(Data.VertexData.begin(),
+                        ranges::find(Data.VertexData, TargetTypeSet));
       // FIXME: how do duplicate edges get inserted without this check?
       if (ranges::contains(Data.Edges,
-                           GraphData::EdgeType{AcquiredIndex, RequiredIndex})) {
+                           GraphData::EdgeType{AcquiredValueIndexPair.second,
+                                               TargetVertexIndex})) {
         continue;
       }
-      spdlog::info("adding: ({}, {}) i.e. {}", AcquiredIndex, RequiredIndex,
-                   Transition);
-      Data.Edges.emplace_back(AcquiredIndex, RequiredIndex);
-      Data.EdgeWeightMap.try_emplace({AcquiredIndex, RequiredIndex}, Function);
+      Data.Edges.emplace_back(AcquiredValueIndexPair.second, TargetVertexIndex);
+      Data.EdgeWeightMap.try_emplace(
+          {AcquiredValueIndexPair.second, TargetVertexIndex}, Function);
     }
   }
 }
