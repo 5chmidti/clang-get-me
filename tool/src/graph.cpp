@@ -366,3 +366,41 @@ getTypeSetTransitionData(const TransitionCollector &Collector) {
             Val);
       }));
 }
+
+VertexDescriptor
+getSourceVertexMatchingQueriedType(GraphData &Data,
+                                   const std::string &QueriedType) {
+  // FIXME: improve queried type matching:
+  // - better matching of names
+  // - allow matching mutiple to get around QualType vs NamedDecl problem
+  // - better: fix QualType vs NamedDecl problem
+  // FIXME: only getting the 'A' type, not the & qualified
+  const auto SourceVertex =
+      ranges::find_if(Data.VertexData, [&QueriedType](const TypeSet &TSet) {
+        return TSet.end() !=
+               ranges::find_if(
+                   TSet,
+                   [&QueriedType](
+                       const typename TypeSetValueType::meta_type &MetaVal) {
+                     return std::visit(
+                         Overloaded{
+                             [&QueriedType](clang::QualType QType) {
+                               return ranges::includes(QType.getAsString(),
+                                                       QueriedType);
+                             },
+                             [&QueriedType](const clang::NamedDecl *NDecl) {
+                               return NDecl->getName().contains(QueriedType);
+                             },
+                             [](std::monostate) { return false; }},
+                         MetaVal);
+                   },
+                   &TypeSetValueType::MetaValue);
+      });
+
+  if (SourceVertex == Data.VertexData.end()) {
+    spdlog::error("found no type matching {}", QueriedType);
+    return 0;
+  }
+  return static_cast<VertexDescriptor>(
+      std::distance(Data.VertexData.begin(), SourceVertex));
+}

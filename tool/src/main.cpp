@@ -53,53 +53,20 @@ int main(int argc, const char **argv) {
   }
 
   spdlog::info("{}", Collector.Data);
-  // build graph from gathered graph data
   const auto TypeSetTransitionData = getTypeSetTransitionData(Collector);
   spdlog::info("TypeSetTransitionData: {}", TypeSetTransitionData);
 
-  auto Data =
-      generateVertexAndEdgeWeigths(TypeSetTransitionData, TypeName.getValue());
+  const auto &QueriedType = TypeName.getValue();
+
+  auto Data = generateVertexAndEdgeWeigths(TypeSetTransitionData, QueriedType);
 
   // FIXME: apply greedy transition traversal strategy
 
   GraphType Graph(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                   Data.EdgeWeights.data(), Data.EdgeWeights.size());
 
-  const auto &QueriedType = TypeName.getValue();
-
-  // FIXME: improve queried type matching:
-  // - better matching of names
-  // - allow matching mutiple to get around QualType vs NamedDecl problem
-  // - better: fix QualType vs NamedDecl problem
-  // FIXME: only getting the 'A' type, not the & qualified
-  const auto SourceVertex = find_if(Data.VertexData, [&QueriedType](
-                                                         const TypeSet &TSet) {
-    return TSet.end() !=
-           find_if(
-               TSet,
-               [&QueriedType](
-                   const typename TypeSetValueType::meta_type &MetaVal) {
-                 return std::visit(
-                     Overloaded{[&QueriedType](clang::QualType QType) {
-                                  return includes(QType.getAsString(),
-                                                  QueriedType);
-                                },
-                                [&QueriedType](const clang::NamedDecl *NDecl) {
-                                  return NDecl->getName().contains(QueriedType);
-                                },
-                                [](std::monostate) { return false; }},
-                     MetaVal);
-               },
-               &TypeSetValueType::MetaValue);
-  });
-
-  if (SourceVertex == Data.VertexData.end()) {
-    spdlog::error("found no type matching {}", QueriedType);
-    return 1;
-  }
   const auto SourceVertexDesc =
-      static_cast<size_t>(std::distance(Data.VertexData.begin(), SourceVertex));
-
+      getSourceVertexMatchingQueriedType(Data, QueriedType);
   const auto Paths = pathTraversal(Graph, SourceVertexDesc);
 
   for (const auto [Path, Number] : views::zip(Paths, views::iota(0U))) {

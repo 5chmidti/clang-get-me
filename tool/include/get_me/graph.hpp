@@ -143,4 +143,8 @@ independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
 [[nodiscard]] std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
+[[nodiscard]] VertexDescriptor
+getSourceVertexMatchingQueriedType(GraphData &Data,
+                                   const std::string &QueriedType);
+
 #endif
