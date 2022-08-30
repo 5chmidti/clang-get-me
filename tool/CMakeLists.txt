@@ -39,10 +39,7 @@ target_link_libraries(
   PRIVATE LLVMSupport
           clangAST
           clangBasic
-          clangDriver
           clangFrontend
           clangRewriteFrontend
           clangSerialization
-          clangStaticAnalyzerFrontend
-          clangTooling
-          clangToolingSyntax)
+          clangTooling)
