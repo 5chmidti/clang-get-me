@@ -1,24 +1,27 @@
-// RUN: get_me %s -t A -- | FileCheck %s
-
 struct A {
-  int X;
+  int MemberIntOfA;
 };
 
 struct B {
-  A Asdf{};
-  // CHECK: :[[@LINE-1]]:5: note: found 'A' from source 'B'
+  A MemberAofB{};
 };
 
 struct C {
-  [[nodiscard]] A foo();
-  // CHECK: :[[@LINE-1]]:19: note: found 'A' from source 'foo'
+  [[nodiscard]] A getAofC();
 };
 
-[[nodiscard]] A foo();
-// CHECK: :[[@LINE-1]]:17: note: found 'A' from source 'foo'
+[[nodiscard]] A getA();
 
-void bar() {
-  [[maybe_unused]] A Asdf{};
-  // CHECK: :[[@LINE-1]]:22: note: found 'A'
-  [[maybe_unused]] int Qwerty{};
+void getNoneWithLocals() {
+  [[maybe_unused]] const A LocalA{};
+  [[maybe_unused]] const int LocalInt{};
 }
+
+[[nodiscard]] int getInt(float);
+[[nodiscard]] float getFloat();
+
+[[nodiscard]] A &getARef(C &Val);
+[[nodiscard]] A getA(C Val);
+[[nodiscard]] A getA(int Val);
+
+[[nodiscard]] C getC(int Val);
