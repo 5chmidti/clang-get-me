@@ -3,14 +3,18 @@
 
 #include <map>
 #include <set>
+#include <span>
 #include <variant>
 #include <vector>
 
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
+
+#include "get_me/utility.hpp"
 
 using namespace std::string_view_literals;
 
@@ -19,6 +23,8 @@ struct FunctionDecl;
 struct FieldDecl;
 struct NamedDecl;
 } // namespace clang
+
+class TransitionCollector;
 
 using TransitionDataType =
     std::variant<std::monostate, const clang::FunctionDecl *,
@@ -52,6 +58,9 @@ struct TypeValue {
 
 using TypeSetValueType = TypeValue;
 using TypeSet = std::set<TypeSetValueType>;
+
+using TypeSetTransitionDataType =
+    std::tuple<TypeSet, TransitionDataType, TypeSet>;
 
 struct GraphData {
   using EdgeWeightType = TransitionDataType;
@@ -97,5 +106,33 @@ pathTraversal(const GraphType &Graph, VertexDescriptor SourceVertex);
 
 [[nodiscard]] std::vector<PathType>
 independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
+
+[[nodiscard]] inline auto matchesName(std::string Name) {
+  return [Name = std::move(Name)](const TypeSetValueType &Val) {
+    const auto NameWithoutNull = std::span{Name.begin(), Name.end() - 1};
+    return std::visit(
+        Overloaded{[NameWithoutNull](const clang::NamedDecl *NDecl) {
+                     const auto NameOfDecl = NDecl->getName();
+                     const auto Res = NameOfDecl.contains(llvm::StringRef{
+                         NameWithoutNull.data(), NameWithoutNull.size()});
+                     return Res;
+                   },
+                   [&Name](const clang::QualType &QType) {
+                     QType->isIntegerType();
+                     const auto TypeAsString = QType.getAsString();
+                     const auto Res = boost::contains(TypeAsString, Name);
+                     return Res;
+                   },
+                   [](std::monostate) { return false; }},
+        Val.MetaValue);
+  };
+}
+
+[[nodiscard]] GraphData generateVertexAndEdgeWeigths(
+    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+    std::string TypeName);
+
+[[nodiscard]] std::vector<TypeSetTransitionDataType>
+getTypeSetTransitionData(const TransitionCollector &Collector);
 
 #endif

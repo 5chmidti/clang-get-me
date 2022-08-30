@@ -3,15 +3,24 @@
 #include <stack>
 
 #include <fmt/ranges.h>
+#include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
+#include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/permutation.hpp>
+#include <range/v3/algorithm/set_algorithm.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/cartesian_product.hpp>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/iota.hpp>
 #include <range/v3/view/transform.hpp>
+#include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
+#include "get_me/tooling.hpp"
 
 // FIXME: don't produce paths that end up with the queried type
 std::vector<PathType> pathTraversal(const GraphType &Graph,
@@ -131,4 +140,223 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
   }
 
   return Res;
+}
+
+static void addQueriedTypeSetsAndAddEdgeWeights(
+    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+    GraphData &Data, std::string TypeName) {
+  for (const auto &[Acquired, Transition, Required] : TypeSetTransitionData) {
+    if (const auto Iter =
+            ranges::find_if(Acquired, matchesName(std::move(TypeName)));
+        Iter != Acquired.end() &&
+        !ranges::contains(Data.VertexData, Acquired)) {
+      Data.VertexData.push_back(Acquired);
+    }
+    Data.EdgeWeights.push_back(Transition);
+  }
+}
+
+template <typename RangeType1, typename RangeType2>
+[[nodiscard]] static bool isSubset(RangeType1 &&Range1, RangeType2 &&Range2) {
+  return ranges::all_of(
+      std::forward<RangeType2>(Range2),
+      [Range = std::forward<RangeType1>(Range1)](const auto &Val) {
+        return ranges::contains(Range, Val);
+      });
+}
+
+[[nodiscard]] static auto
+containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
+  return [&AcquiredTypeSet](const TypeSet &Val) {
+    return isSubset(Val | ranges::views::transform(&TypeSetValueType::Value),
+                    AcquiredTypeSet |
+                        ranges::views::transform(&TypeSetValueType::Value));
+  };
+}
+
+[[nodiscard]] static TypeSet mergeTypeSets(TypeSet Lhs, TypeSet Rhs) {
+  Lhs.merge(Rhs);
+  return Lhs;
+}
+
+[[nodiscard]] static TypeSet subtractTypeSets(const TypeSet &Lhs,
+                                              const TypeSet &Rhs) {
+  TypeSet Res{};
+  ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()),
+                         std::less<>{});
+  return Res;
+}
+
+static void buildVertices(
+    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+    GraphData &Data) {
+  for (bool AddedTransitions = true; AddedTransitions;) {
+    std::vector<TypeSet> TemporaryVertexData{};
+    AddedTransitions = false;
+    spdlog::info("=======================");
+    for (const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
+         TypeSetTransitionData) {
+      for (const auto &VertexTypeSet : ranges::to_vector(
+               Data.VertexData | ranges::views::filter(containsAcquiredTypeSet(
+                                     AcquiredTypeSet)))) {
+        if (auto NewRequiredTypeSet =
+                mergeTypeSets(subtractTypeSets(VertexTypeSet, AcquiredTypeSet),
+                              RequiredTypeSet);
+            !ranges::contains(Data.VertexData, NewRequiredTypeSet)) {
+          TemporaryVertexData.push_back(std::move(NewRequiredTypeSet));
+          spdlog::info("added transition: {}", Transition);
+          AddedTransitions = true;
+        }
+      }
+      Data.VertexData.insert(
+          Data.VertexData.end(),
+          std::make_move_iterator(TemporaryVertexData.begin()),
+          std::make_move_iterator(TemporaryVertexData.end()));
+      TemporaryVertexData.clear();
+    }
+  }
+}
+
+static void
+buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+           GraphData &Data) {
+  // FIXME: only build graph for the queried type
+  // FIXME: check if this takes into account partially required type sets
+  // would not directly speed up the algorithm, but would save memory
+  // FIXME: the types for C are different (currently 3 and 6), this might be
+  // because one type is from getting the parent of a record member and the
+  // other is a return type/parameter type of a function
+  for (const auto &Transition : TypeSetTransitionData) {
+    const auto &AcquiredTypeSet = std::get<0>(Transition);
+    // FIXME: rename to Transition
+    const auto &Function = std::get<1>(Transition);
+    if (std::visit(
+            Overloaded{[](const clang::FunctionDecl *FDecl) {
+                         return llvm::isa<clang::CXXConversionDecl>(FDecl) ||
+                                llvm::isa<clang::CXXConstructorDecl>(FDecl) ||
+                                llvm::isa<clang::CXXDestructorDecl>(FDecl);
+                       },
+                       [](auto) { return false; }},
+            Function)) {
+      continue;
+    }
+    const auto &RequiredTypeSet = std::get<2>(Transition);
+    constexpr auto ToIndex = [](const auto &Pair) { return Pair.second; };
+
+    ranges::range auto Acquired = ranges::views::transform(
+        ranges::views::filter(
+            ranges::views::zip(Data.VertexData, ranges::views::iota(0U)),
+            [&AcquiredTypeSet](const auto &EnumeratedTSet) {
+              return ranges::includes(EnumeratedTSet.first, AcquiredTypeSet);
+            }),
+        ToIndex);
+    const auto RequiredTypeSetEmpty = RequiredTypeSet.empty();
+    const auto RequiredComparator =
+        [&RequiredTypeSet, RequiredTypeSetEmpty](const auto &EnumeratedTSet) {
+          if (RequiredTypeSetEmpty) {
+            return ranges::empty(EnumeratedTSet.first);
+          }
+          return ranges::includes(EnumeratedTSet.first, RequiredTypeSet);
+        };
+    ranges::range auto Required = ranges::views::transform(
+        ranges::views::filter(
+            ranges::views::zip(Data.VertexData, ranges::views::iota(0U)),
+            RequiredComparator),
+        ToIndex);
+    spdlog::info("Transition: {}", Transition);
+    spdlog::info("Acquired: {}", Acquired);
+    spdlog::info("Required: {}", Required);
+    for (const auto [AcquiredIndex, RequiredIndex] :
+         ranges::views::cartesian_product(Acquired, Required)) {
+      // FIXME: how do duplicate edges get inserted without this check?
+      if (ranges::contains(Data.Edges,
+                           GraphData::EdgeType{AcquiredIndex, RequiredIndex})) {
+        continue;
+      }
+      spdlog::info("adding: ({}, {}) i.e. {}", AcquiredIndex, RequiredIndex,
+                   Transition);
+      Data.Edges.emplace_back(AcquiredIndex, RequiredIndex);
+      Data.EdgeWeightMap.try_emplace({AcquiredIndex, RequiredIndex}, Function);
+    }
+  }
+}
+
+GraphData generateVertexAndEdgeWeigths(
+    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+    std::string TypeName) {
+  GraphData Data{};
+  addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data,
+                                      std::move(TypeName));
+
+  buildVertices(TypeSetTransitionData, Data);
+
+  spdlog::info("GraphData.VertexData: {}", Data.VertexData);
+
+  buildEdges(TypeSetTransitionData, Data);
+
+  spdlog::info("GraphData.Edges: {}", Data.Edges);
+  spdlog::info("GraphData.EdgeWeights: {}", Data.EdgeWeights);
+  spdlog::info("GraphData.EdgeWeightMap: {}", Data.EdgeWeightMap);
+
+  return Data;
+}
+
+[[nodiscard]] static std::pair<TypeSet, TypeSet>
+toTypeSet(const clang::FunctionDecl *FDecl) {
+  const auto AcquiredType = [FDecl]() -> TypeSetValueType {
+    if (const auto *const CDecl =
+            llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
+        CDecl) {
+      const auto *const Decl = CDecl->getParent();
+      return {Decl->getTypeForDecl(), Decl};
+    }
+    const auto RQType = FDecl->getReturnType();
+    return {RQType.getTypePtr(), RQType};
+  }();
+  const auto RequiredTypes = [FDecl]() {
+    const auto Parameters = FDecl->parameters();
+    auto ParameterTypeRange =
+        Parameters |
+        ranges::views::transform(
+            [](const clang::ParmVarDecl *PVDecl) -> TypeSetValueType {
+              const auto QType = PVDecl->getType();
+              return {QType.getTypePtr(), QType};
+            });
+    auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
+                       std::make_move_iterator(ParameterTypeRange.end())};
+    if (const auto *const Method =
+            llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
+      const auto *const RDecl = Method->getParent();
+      auto Val = TypeSetValueType{RDecl->getTypeForDecl(), RDecl};
+      spdlog::info("adding record: {}", Val);
+      Res.emplace(Val);
+    }
+    return Res;
+  }();
+  return {{AcquiredType}, RequiredTypes};
+}
+
+[[nodiscard]] static std::pair<TypeSet, TypeSet>
+toTypeSet(const clang::FieldDecl *FDecl) {
+  const auto FQType = FDecl->getType();
+  const auto *const RDecl = FDecl->getParent();
+  return {{{FQType.getTypePtr(), FQType}}, {{RDecl->getTypeForDecl(), RDecl}}};
+}
+
+// FIXME: skip this step and do directly TransitionCollector -> GraphData
+std::vector<TypeSetTransitionDataType>
+getTypeSetTransitionData(const TransitionCollector &Collector) {
+  return ranges::to_vector(ranges::views::transform(
+      Collector.Data, [](const TransitionDataType &Val) {
+        return std::visit(
+            Overloaded{
+                [&Val](const auto *Decl) -> TypeSetTransitionDataType {
+                  auto [Acquired, Required] = toTypeSet(Decl);
+                  return {{std::move(Acquired)}, Val, std::move(Required)};
+                },
+                [](const std::monostate) -> TypeSetTransitionDataType {
+                  return {};
+                }},
+            Val);
+      }));
 }
