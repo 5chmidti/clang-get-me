@@ -150,10 +150,9 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 
 static void addQueriedTypeSetsAndAddEdgeWeights(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    GraphData &Data, std::string TypeName) {
+    GraphData &Data, const std::string &TypeName) {
   for (const auto &[Acquired, Transition, Required] : TypeSetTransitionData) {
-    if (const auto Iter =
-            ranges::find_if(Acquired, matchesName(std::move(TypeName)));
+    if (const auto Iter = ranges::find_if(Acquired, matchesName(TypeName));
         Iter != Acquired.end() &&
         !ranges::contains(Data.VertexData, Acquired)) {
       Data.VertexData.push_back(Acquired);
@@ -278,8 +277,7 @@ GraphData generateVertexAndEdgeWeigths(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     std::string TypeName) {
   GraphData Data{};
-  addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data,
-                                      std::move(TypeName));
+  addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data, TypeName);
 
   buildVertices(TypeSetTransitionData, Data);
 
