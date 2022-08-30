@@ -4,15 +4,23 @@
 #include <map>
 #include <set>
 #include <span>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <type_traits>
+#include <utility>
 #include <variant>
 #include <vector>
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/properties.hpp>
+#include <boost/pending/property.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
+#include <llvm/ADT/StringRef.h>
 
 #include "get_me/utility.hpp"
 

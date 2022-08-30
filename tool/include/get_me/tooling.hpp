@@ -1,10 +1,13 @@
 #ifndef get_me_tooling_hpp
 #define get_me_tooling_hpp
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 #include <vector>
 
+#include <clang/AST/ASTConsumer.h>
+#include <clang/AST/ASTContext.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/Tooling.h>
@@ -12,8 +15,8 @@
 #include "get_me/graph.hpp"
 
 namespace clang {
-class CompilerInstance;
-class ASTConsumer;
+struct FunctionDecl;
+struct FieldDecl;
 } // namespace clang
 
 struct TransitionCollector {

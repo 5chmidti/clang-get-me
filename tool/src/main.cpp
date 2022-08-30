@@ -1,28 +1,16 @@
-#include <cstddef>
 #include <fstream>
-#include <iterator>
-#include <limits>
-#include <span>
-#include <type_traits>
 #include <variant>
 
-#include <boost/algorithm/string/predicate.hpp>
-#include <clang/AST/Decl.h>
-#include <clang/AST/DeclCXX.h>
-#include <clang/AST/Type.h>
 #include <clang/Tooling/CommonOptionsParser.h>
-#include <clang/Tooling/Tooling.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Casting.h>
-#include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Signals.h>
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
+#include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"

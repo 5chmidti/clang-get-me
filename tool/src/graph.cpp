@@ -1,8 +1,14 @@
 #include "get_me/graph.hpp"
 
+#include <functional>
 #include <stack>
 
-#include <fmt/ranges.h>
+#include <boost/graph/detail/adjacency_list.hpp>
+#include <boost/graph/detail/edge.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/property_map/property_map.hpp>
+#include <clang/AST/DeclCXX.h>
+#include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
