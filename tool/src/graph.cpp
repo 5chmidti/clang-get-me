@@ -225,9 +225,6 @@ static void buildVertices(
 static void
 buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
            GraphData &Data) {
-  // FIXME: only build graph for the queried type
-  // FIXME: check if this takes into account partially required type sets
-  // would not directly speed up the algorithm, but would save memory
   // FIXME: the types for C are different (currently 3 and 6), this might be
   // because one type is from getting the parent of a record member and the
   // other is a return type/parameter type of a function
