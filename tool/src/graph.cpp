@@ -27,6 +27,7 @@
 
 #include "get_me/formatting.hpp"
 #include "get_me/tooling.hpp"
+#include "get_me/utility.hpp"
 
 // FIXME: don't produce paths that end up with the queried type
 std::vector<PathType> pathTraversal(const GraphType &Graph,
@@ -146,6 +147,30 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
   }
 
   return Res;
+}
+
+[[nodiscard]] static auto matchesName(std::string Name) {
+  return [Name = std::move(Name)](const TypeSetValueType &Val) {
+    const auto NameWithoutNull = std::span{Name.begin(), Name.end() - 1};
+    return std::visit(
+        Overloaded{[NameWithoutNull, &Name](const clang::NamedDecl *NDecl) {
+                     const auto NameOfDecl = NDecl->getName();
+                     const auto Res =
+                         NameOfDecl.contains(llvm::StringRef{Name});
+                     spdlog::info("matchesName: {} vs {} = {}", NameOfDecl,
+                                  Name, Res);
+                     return Res;
+                   },
+                   [&Name](const clang::QualType &QType) {
+                     const auto TypeAsString = QType.getAsString();
+                     const auto Res = boost::contains(TypeAsString, Name);
+                     spdlog::info("matchesName: {} vs {} = {}", TypeAsString,
+                                  Name, Res);
+                     return Res;
+                   },
+                   [](std::monostate) { return false; }},
+        Val.MetaValue);
+  };
 }
 
 static void addQueriedTypeSetsAndAddEdgeWeights(

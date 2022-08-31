@@ -115,27 +115,6 @@ pathTraversal(const GraphType &Graph, VertexDescriptor SourceVertex);
 [[nodiscard]] std::vector<PathType>
 independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
 
-[[nodiscard]] inline auto matchesName(std::string Name) {
-  return [Name = std::move(Name)](const TypeSetValueType &Val) {
-    const auto NameWithoutNull = std::span{Name.begin(), Name.end() - 1};
-    return std::visit(
-        Overloaded{[NameWithoutNull](const clang::NamedDecl *NDecl) {
-                     const auto NameOfDecl = NDecl->getName();
-                     const auto Res = NameOfDecl.contains(llvm::StringRef{
-                         NameWithoutNull.data(), NameWithoutNull.size()});
-                     return Res;
-                   },
-                   [&Name](const clang::QualType &QType) {
-                     QType->isIntegerType();
-                     const auto TypeAsString = QType.getAsString();
-                     const auto Res = boost::contains(TypeAsString, Name);
-                     return Res;
-                   },
-                   [](std::monostate) { return false; }},
-        Val.MetaValue);
-  };
-}
-
 [[nodiscard]] GraphData generateVertexAndEdgeWeigths(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     std::string TypeName);
