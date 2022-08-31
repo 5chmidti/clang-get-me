@@ -52,9 +52,7 @@ int main(int argc, const char **argv) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
   }
 
-  spdlog::info("{}", Collector.Data);
   const auto TypeSetTransitionData = getTypeSetTransitionData(Collector);
-  spdlog::info("TypeSetTransitionData: {}", TypeSetTransitionData);
 
   const auto &QueriedType = TypeName.getValue();
 
