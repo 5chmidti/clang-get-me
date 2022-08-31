@@ -1,6 +1,7 @@
 #include "get_me/graph.hpp"
 
 #include <functional>
+#include <iterator>
 #include <stack>
 
 #include <boost/graph/detail/adjacency_list.hpp>
@@ -11,6 +12,7 @@
 #include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
+#include <range/v3/algorithm/binary_search.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/find_if.hpp>
@@ -180,7 +182,6 @@ static void addQueriedTypeSetsAndAddEdgeWeights(
         !ranges::contains(Data.VertexData, Acquired)) {
       Data.VertexData.push_back(Acquired);
     }
-    Data.EdgeWeights.push_back(Transition);
   }
 }
 
@@ -215,16 +216,26 @@ containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
   return Res;
 }
 
-static void buildVertices(
-    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    GraphData &Data) {
+static void
+buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+           GraphData &Data) {
   // FIXME: build graph only for the required nodes
   // start with building all edges from the source/queried type to others
   // then add these vertices to the working list
+
+  using indexed_vertex_type = std::pair<size_t, TypeSet>;
+  std::set<indexed_vertex_type> VertexData =
+      ranges::to<std::set>(ranges::views::zip(
+          ranges::views::iota(static_cast<size_t>(0U)), Data.VertexData));
+
+  std::set<GraphData::EdgeType> EdgesData{};
+
   size_t IterationCount = 0U;
+  auto TypeSetsOfInterest = VertexData;
   for (bool AddedTransitions = true; AddedTransitions; ++IterationCount) {
-    std::vector<TypeSet> TemporaryVertexData{};
-    std::vector<TypeSet> TypeSetsOfInterest = Data.VertexData;
+    std::set<GraphData::EdgeType> TemporaryEdgeData{};
+    std::set<indexed_vertex_type> TemporaryVertexData{};
+    // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
     spdlog::info("{:=^30}", "");
@@ -232,88 +243,109 @@ static void buildVertices(
         [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
           const auto &Acquired = std::get<0>(Val);
           return ranges::any_of(TypeSetsOfInterest,
-                                containsAcquiredTypeSet(Acquired));
+                                containsAcquiredTypeSet(Acquired),
+                                &indexed_vertex_type::second);
         };
-    for (const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
-         TypeSetTransitionData |
-             ranges::views::filter(TransitionWithInterestingAcquiredTypeSet)) {
+    spdlog::info("TypeSetsOfInterest: {}", TypeSetsOfInterest);
+    for (const auto FilteredTypeSetTransitionData = ranges::to_vector(
+             TypeSetTransitionData |
+             ranges::views::filter(TransitionWithInterestingAcquiredTypeSet));
+         const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
+         FilteredTypeSetTransitionData) {
       ++TransitionCounter;
-      for (const auto &VertexTypeSet :
-           ranges::to_vector(TypeSetsOfInterest |
-                             ranges::views::filter(
-                                 containsAcquiredTypeSet(AcquiredTypeSet)))) {
-        if (auto NewRequiredTypeSet =
-                mergeTypeSets(subtractTypeSets(VertexTypeSet, AcquiredTypeSet),
-                              RequiredTypeSet);
-            !ranges::contains(TemporaryVertexData, NewRequiredTypeSet) &&
-            !ranges::contains(Data.VertexData, NewRequiredTypeSet)) {
-          TemporaryVertexData.push_back(std::move(NewRequiredTypeSet));
-          AddedTransitions = true;
-        }
-      }
-      Data.VertexData.insert(Data.VertexData.end(), TemporaryVertexData.begin(),
-                             TemporaryVertexData.end());
-      TypeSetsOfInterest = std::move(TemporaryVertexData);
-      TemporaryVertexData.clear();
+      for (const auto FilteredTypeSetsOfInterest = ranges::to_vector(
+               TypeSetsOfInterest |
+               ranges::views::filter(containsAcquiredTypeSet(AcquiredTypeSet),
+                                     &indexed_vertex_type::second));
+           const auto &[SourceTypeSetIndex, VertexTypeSet] :
+           FilteredTypeSetsOfInterest) {
+        auto NewRequiredTypeSet = mergeTypeSets(
+            subtractTypeSets(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
 
-      spdlog::info("#{} added transition ({}/{}) (total vertices: {}): {}, "
-                   "VertexData: {}",
+        const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
+            [&NewRequiredTypeSet, &TemporaryVertexData,
+             &VertexData]() -> std::pair<bool, size_t> {
+          const auto DataDistance = std::distance(
+              VertexData.begin(), ranges::find(VertexData, NewRequiredTypeSet,
+                                               &indexed_vertex_type::second));
+          if (DataDistance < VertexData.size()) {
+            return {true, DataDistance};
+          }
+          const auto TempDistance = std::distance(
+              TemporaryVertexData.begin(),
+              ranges::find(TemporaryVertexData, NewRequiredTypeSet,
+                           &indexed_vertex_type::second));
+          if (TempDistance < TemporaryVertexData.size()) {
+            return {true, DataDistance + TempDistance};
+          }
+          return {false, VertexData.size() + TemporaryVertexData.size()};
+        }();
+
+        const auto EdgeToAdd =
+            std::pair{SourceTypeSetIndex, NewRequiredTypeSetIndex};
+
+        if (const auto EdgeToAddAlreadyExistsInContainer =
+                [EdgeToAdd]<typename T>(const T &Container) {
+                  return Container.contains(EdgeToAdd);
+                };
+            EdgeToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
+            EdgeToAddAlreadyExistsInContainer(EdgesData)) {
+          spdlog::trace("edge to add already exists: {}", EdgeToAdd);
+          continue;
+        }
+
+        if (!NewRequiredTypeSetIndexExists) {
+          spdlog::info("adding new type set: #{}({}), not included in {}",
+                       NewRequiredTypeSetIndex, NewRequiredTypeSet, VertexData);
+          TemporaryVertexData.emplace(NewRequiredTypeSetIndex,
+                                      std::move(NewRequiredTypeSet));
+        }
+
+        TemporaryEdgeData.insert(EdgeToAdd);
+        Data.EdgeWeightMap.try_emplace(EdgeToAdd, Transition);
+        Data.EdgeWeights.push_back(Transition);
+
+        AddedTransitions = true;
+      }
+      spdlog::info("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}{}",
                    IterationCount, TransitionCounter,
-                   TypeSetTransitionData.size(), Data.VertexData.size(),
-                   Transition, Data.VertexData);
+                   VertexData.size() + TemporaryVertexData.size(),
+                   TemporaryVertexData.size(),
+                   EdgesData.size() + TemporaryEdgeData.size(),
+                   TemporaryEdgeData.size(), Transition,
+                   false ? fmt::format(", vertices: {}, edges: {}, new "
+                                       "vertices: {}, new edges: {}",
+                                       VertexData, EdgesData,
+                                       TemporaryVertexData, TemporaryEdgeData)
+                         : "");
+      if (fmt::format("{}", Transition).find('A') != std::string::npos) {
+        spdlog::info("TemporaryVertexData: {}", TemporaryVertexData);
+        spdlog::info("TemporaryEdgeData: {}", TemporaryEdgeData);
+      }
     }
+
+    VertexData.merge(std::move(TemporaryVertexData));
+    TypeSetsOfInterest = ranges::to<std::set>(
+        VertexData | ranges::views::filter(
+                         [&TemporaryEdgeData](const auto &Val) {
+                           return ranges::binary_search(
+                               TemporaryEdgeData, Val, std::less<>{},
+                               &GraphData::EdgeType::second);
+                         },
+                         &indexed_vertex_type::first));
+    TemporaryVertexData.clear();
+
+    EdgesData.merge(std::move(TemporaryEdgeData));
+    TemporaryEdgeData.clear();
   }
   spdlog::info("{:=^30}", "");
-}
 
-static void
-buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-           GraphData &Data) {
-  // FIXME: the types for C are different (currently 3 and 6), this might be
-  // because one type is from getting the parent of a record member and the
-  // other is a return type/parameter type of a function
-  for (const auto &Transition : TypeSetTransitionData) {
-    const auto &AcquiredTypeSet = std::get<0>(Transition);
-    // FIXME: rename to Transition
-    const auto &Function = std::get<1>(Transition);
-    const auto &RequiredTypeSet = std::get<2>(Transition);
+  auto VertexDataToSort = ranges::to_vector(VertexData);
+  ranges::sort(VertexDataToSort, std::less<>{}, &indexed_vertex_type::first);
+  Data.VertexData = ranges::to_vector(
+      ranges::views::transform(VertexDataToSort, &indexed_vertex_type::second));
 
-    ranges::range auto Acquired = ranges::views::filter(
-        ranges::views::zip(Data.VertexData, ranges::views::iota(0U)),
-        [&AcquiredTypeSet](const auto &EnumeratedTSet) {
-          return ranges::includes(EnumeratedTSet.first, AcquiredTypeSet);
-        });
-
-    for (auto AcquiredValueIndexPair : Acquired) {
-      const auto TargetTypeSet = mergeTypeSets(
-          subtractTypeSets(AcquiredValueIndexPair.first, AcquiredTypeSet),
-          RequiredTypeSet);
-      const auto TargetVertexIndex =
-          std::distance(Data.VertexData.begin(),
-                        ranges::find(Data.VertexData, TargetTypeSet));
-      const auto SourceVertexIndex = AcquiredValueIndexPair.second;
-      // FIXME: how do duplicate edges get inserted without this check?
-      if (ranges::contains(
-              Data.Edges,
-              GraphData::EdgeType{SourceVertexIndex, TargetVertexIndex})) {
-        continue;
-      }
-      if (TargetVertexIndex < 0 ||
-          static_cast<size_t>(TargetVertexIndex) == Data.VertexData.size()) {
-        spdlog::error(
-            "trying to add edge from {} ({}) to {} which does not exist, "
-            "for transition {}",
-            SourceVertexIndex, Data.VertexData[SourceVertexIndex],
-            TargetVertexIndex, Transition);
-        continue;
-      }
-      spdlog::info("adding edge: ({}, {}) for {}", SourceVertexIndex,
-                   TargetVertexIndex, Function);
-      Data.Edges.emplace_back(SourceVertexIndex, TargetVertexIndex);
-      Data.EdgeWeightMap.try_emplace({SourceVertexIndex, TargetVertexIndex},
-                                     Function);
-    }
-  }
+  Data.Edges = ranges::to_vector(EdgesData);
 }
 
 GraphData generateVertexAndEdgeWeigths(
@@ -328,12 +360,9 @@ GraphData generateVertexAndEdgeWeigths(
 
   spdlog::info("initial GraphData.VertexData: {}", Data.VertexData);
 
-  buildVertices(TypeSetTransitionData, Data);
+  buildGraph(TypeSetTransitionData, Data);
 
   spdlog::info("GraphData.VertexData: {}", Data.VertexData);
-
-  buildEdges(TypeSetTransitionData, Data);
-
   spdlog::info("GraphData.Edges: {}", Data.Edges);
   spdlog::info("GraphData.EdgeWeights: {}", Data.EdgeWeights);
   spdlog::info("GraphData.EdgeWeightMap: {}", Data.EdgeWeightMap);
