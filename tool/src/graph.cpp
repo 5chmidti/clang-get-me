@@ -342,7 +342,8 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
                        std::make_move_iterator(ParameterTypeRange.end())};
     if (const auto *const Method =
             llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
-      if (!llvm::isa<clang::CXXConstructorDecl>(Method)) {
+      if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
+          !Method->isStatic()) {
         const auto *const RDecl = Method->getParent();
         auto Val = TypeSetValueType{RDecl->getTypeForDecl(), RDecl};
         spdlog::info("adding record: {}", Val);
