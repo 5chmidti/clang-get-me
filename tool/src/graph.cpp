@@ -159,18 +159,11 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
     return std::visit(
         Overloaded{[NameWithoutNull, &Name](const clang::NamedDecl *NDecl) {
                      const auto NameOfDecl = NDecl->getName();
-                     const auto Res =
-                         NameOfDecl.contains(llvm::StringRef{Name});
-                     spdlog::info("matchesName: {} vs {} = {}", NameOfDecl,
-                                  Name, Res);
-                     return Res;
+                     return NameOfDecl == llvm::StringRef{Name};
                    },
                    [&Name](const clang::QualType &QType) {
                      const auto TypeAsString = QType.getAsString();
-                     const auto Res = boost::contains(TypeAsString, Name);
-                     spdlog::info("matchesName: {} vs {} = {}", TypeAsString,
-                                  Name, Res);
-                     return Res;
+                     return TypeAsString == llvm::StringRef{Name};
                    },
                    [](std::monostate) { return false; }},
         Val.MetaValue);
