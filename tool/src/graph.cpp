@@ -276,7 +276,6 @@ buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     if (std::visit(
             Overloaded{[](const clang::FunctionDecl *FDecl) {
                          return llvm::isa<clang::CXXConversionDecl>(FDecl) ||
-                                llvm::isa<clang::CXXConstructorDecl>(FDecl) ||
                                 llvm::isa<clang::CXXDestructorDecl>(FDecl);
                        },
                        [](auto) { return false; }},
