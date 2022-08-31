@@ -223,12 +223,19 @@ containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
 static void buildVertices(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     GraphData &Data) {
-  for (bool AddedTransitions = true; AddedTransitions;) {
+  // FIXME: build graph only for the required nodes
+  // start with building all edges from the source/queried type to others
+  // then add these vertices to the working list
+  size_t IterationCount = 0U;
+  spdlog::info("TypeSetTransitionData: {}", TypeSetTransitionData);
+  for (bool AddedTransitions = true; AddedTransitions; ++IterationCount) {
     std::vector<TypeSet> TemporaryVertexData{};
     AddedTransitions = false;
-    spdlog::info("=======================");
+    size_t TransitionCounter = 0U;
+    spdlog::info("{:=^30}", "");
     for (const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
          TypeSetTransitionData) {
+      ++TransitionCounter;
       for (const auto &VertexTypeSet : ranges::to_vector(
                Data.VertexData | ranges::views::filter(containsAcquiredTypeSet(
                                      AcquiredTypeSet)))) {
@@ -238,7 +245,6 @@ static void buildVertices(
             !ranges::contains(TemporaryVertexData, NewRequiredTypeSet) &&
             !ranges::contains(Data.VertexData, NewRequiredTypeSet)) {
           TemporaryVertexData.push_back(std::move(NewRequiredTypeSet));
-          spdlog::info("added transition: {}", Transition);
           AddedTransitions = true;
         }
       }
@@ -247,8 +253,14 @@ static void buildVertices(
           std::make_move_iterator(TemporaryVertexData.begin()),
           std::make_move_iterator(TemporaryVertexData.end()));
       TemporaryVertexData.clear();
+
+      spdlog::info("#{} added transition ({}/{}) (total vertices: {}): {}",
+                   IterationCount, TransitionCounter,
+                   TypeSetTransitionData.size(), Data.VertexData.size(),
+                   Transition);
     }
   }
+  spdlog::info("{:=^30}", "");
 }
 
 static void
