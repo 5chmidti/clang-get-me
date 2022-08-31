@@ -62,6 +62,11 @@ int main(int argc, const char **argv) {
 
   // FIXME: apply greedy transition traversal strategy
 
+  spdlog::info("Data sizes:\n\tVertexData: {}\n\tEdges: {}\n\tEdgeWeights: "
+               "{}\n\tEdgeWeightMap: {}",
+               Data.VertexData.size(), Data.Edges.size(),
+               Data.EdgeWeights.size(), Data.EdgeWeightMap.size());
+
   GraphType Graph(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                   Data.EdgeWeights.data(), Data.EdgeWeights.size());
 
