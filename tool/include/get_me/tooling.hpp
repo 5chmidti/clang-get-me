@@ -82,6 +82,14 @@ public:
       return true;
     }
 
+    if (FDecl->getReturnType().getUnqualifiedType().getAsString().starts_with(
+            "_")) {
+      spdlog::info("filtered due to returning type starting with '_' (): {}",
+                   FDecl->getReturnType().getUnqualifiedType().getAsString(),
+                   FDecl->getNameAsString());
+      return true;
+    }
+
     if (ranges::contains(FDecl->parameters(),
                          FDecl->getReturnType().getUnqualifiedType(),
                          [](const clang::ParmVarDecl *const PVarDecl) {
