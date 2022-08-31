@@ -300,15 +300,27 @@ buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
       const auto TargetVertexIndex =
           std::distance(Data.VertexData.begin(),
                         ranges::find(Data.VertexData, TargetTypeSet));
+      const auto SourceVertexIndex = AcquiredValueIndexPair.second;
       // FIXME: how do duplicate edges get inserted without this check?
-      if (ranges::contains(Data.Edges,
-                           GraphData::EdgeType{AcquiredValueIndexPair.second,
-                                               TargetVertexIndex})) {
+      if (ranges::contains(
+              Data.Edges,
+              GraphData::EdgeType{SourceVertexIndex, TargetVertexIndex})) {
         continue;
       }
-      Data.Edges.emplace_back(AcquiredValueIndexPair.second, TargetVertexIndex);
-      Data.EdgeWeightMap.try_emplace(
-          {AcquiredValueIndexPair.second, TargetVertexIndex}, Function);
+      if (TargetVertexIndex < 0 ||
+          static_cast<size_t>(TargetVertexIndex) == Data.VertexData.size()) {
+        spdlog::error(
+            "trying to add edge from {} ({}) to {} which does not exist, "
+            "for transition {}",
+            SourceVertexIndex, Data.VertexData[SourceVertexIndex],
+            TargetVertexIndex, Transition);
+        continue;
+      }
+      spdlog::info("adding edge: ({}, {}) for {}", SourceVertexIndex,
+                   TargetVertexIndex, Function);
+      Data.Edges.emplace_back(SourceVertexIndex, TargetVertexIndex);
+      Data.EdgeWeightMap.try_emplace({SourceVertexIndex, TargetVertexIndex},
+                                     Function);
     }
   }
 }
