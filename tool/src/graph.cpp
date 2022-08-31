@@ -235,6 +235,7 @@ static void buildVertices(
         if (auto NewRequiredTypeSet =
                 mergeTypeSets(subtractTypeSets(VertexTypeSet, AcquiredTypeSet),
                               RequiredTypeSet);
+            !ranges::contains(TemporaryVertexData, NewRequiredTypeSet) &&
             !ranges::contains(Data.VertexData, NewRequiredTypeSet)) {
           TemporaryVertexData.push_back(std::move(NewRequiredTypeSet));
           spdlog::info("added transition: {}", Transition);
