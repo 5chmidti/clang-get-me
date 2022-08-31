@@ -228,15 +228,15 @@ static void buildVertices(
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
     spdlog::info("{:=^30}", "");
+    const auto TransitionWithInterestingAcquiredTypeSet =
+        [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
+          const auto &Acquired = std::get<0>(Val);
+          return ranges::any_of(TypeSetsOfInterest,
+                                containsAcquiredTypeSet(Acquired));
+        };
     for (const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
          TypeSetTransitionData |
-             ranges::views::filter(
-                 [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
-                   const auto &Acquired = std::get<0>(Val);
-                   const auto Res = ranges::any_of(
-                       TypeSetsOfInterest, containsAcquiredTypeSet(Acquired));
-                   return Res;
-                 })) {
+             ranges::views::filter(TransitionWithInterestingAcquiredTypeSet)) {
       ++TransitionCounter;
       for (const auto &VertexTypeSet :
            ranges::to_vector(TypeSetsOfInterest |
