@@ -64,6 +64,13 @@ public:
                     FDecl->getNameAsString());
       return true;
     }
+    if (llvm::isa<clang::CXXDestructorDecl>(FDecl)) {
+      return true;
+    }
+    // FIXME: allow conversions
+    if (llvm::isa<clang::CXXConversionDecl>(FDecl)) {
+      return true;
+    }
     if (const auto *const Method =
             llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
       // FIXME: support templates

@@ -276,15 +276,6 @@ buildEdges(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     const auto &AcquiredTypeSet = std::get<0>(Transition);
     // FIXME: rename to Transition
     const auto &Function = std::get<1>(Transition);
-    if (std::visit(
-            Overloaded{[](const clang::FunctionDecl *FDecl) {
-                         return llvm::isa<clang::CXXConversionDecl>(FDecl) ||
-                                llvm::isa<clang::CXXDestructorDecl>(FDecl);
-                       },
-                       [](auto) { return false; }},
-            Function)) {
-      continue;
-    }
     const auto &RequiredTypeSet = std::get<2>(Transition);
 
     ranges::range auto Acquired = ranges::views::filter(
