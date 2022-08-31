@@ -198,8 +198,6 @@ public:
           const auto LhsName = GetName(Lhs);
           const auto RhsName = GetName(Rhs);
           const auto Res = LhsName == RhsName;
-          spdlog::info("unique name comparison: {} vs {} = {}", LhsName,
-                       RhsName, Res);
           return Res;
         });
 
