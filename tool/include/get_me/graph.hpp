@@ -46,10 +46,7 @@ using VertexDescriptor =
 using PathType = std::vector<EdgeDescriptor>;
 
 struct TypeValue {
-  using meta_type =
-      std::variant<std::monostate, clang::QualType, const clang::NamedDecl *>;
   const clang::Type *Value{};
-  meta_type MetaValue{};
 
   [[nodiscard]] friend auto operator==(const TypeValue &Lhs,
                                        const TypeValue &Rhs) {

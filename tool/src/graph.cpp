@@ -155,18 +155,20 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 
 [[nodiscard]] static auto matchesName(std::string Name) {
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
-    const auto NameWithoutNull = std::span{Name.begin(), Name.end() - 1};
-    return std::visit(
-        Overloaded{[NameWithoutNull, &Name](const clang::NamedDecl *NDecl) {
-                     const auto NameOfDecl = NDecl->getName();
-                     return NameOfDecl == llvm::StringRef{Name};
-                   },
-                   [&Name](const clang::QualType &QType) {
-                     const auto TypeAsString = QType.getAsString();
-                     return TypeAsString == llvm::StringRef{Name};
-                   },
-                   [](std::monostate) { return false; }},
-        Val.MetaValue);
+    const auto QType = clang::QualType(Val.Value, 0);
+    const auto TypeAsString = QType.getAsString();
+    const auto TypeAsStringRef = [&]() {
+      if (auto *Rec = QType->getAsRecordDecl()) {
+        return Rec->getName();
+      }
+      return llvm::StringRef(TypeAsString);
+    }();
+    const auto Res = TypeAsStringRef == llvm::StringRef{Name};
+    if (!Res && TypeAsStringRef.contains(Name)) {
+      spdlog::info("matchesName(QualType): no match for close match: {} vs {}",
+                   TypeAsStringRef, Name);
+    }
+    return Res;
   };
 }
 
@@ -324,30 +326,26 @@ GraphData generateVertexAndEdgeWeigths(
 
 [[nodiscard]] static std::pair<TypeSet, TypeSet>
 toTypeSet(const clang::FunctionDecl *FDecl) {
-  const auto AcquiredType = [FDecl]() -> TypeSetValueType {
+  const auto AcquiredType = [FDecl]() {
     if (const auto *const Constructor =
             llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
         Constructor) {
       const auto *const Decl = Constructor->getParent();
-      const auto Res = TypeSetValueType{Decl->getTypeForDecl(), Decl};
-      return Res;
+      return TypeSetValueType{Decl->getTypeForDecl()};
     }
     const auto RQType = FDecl->getReturnType().getCanonicalType();
     const auto *const ReturnTypePtr = RQType.getTypePtr();
-    const auto Res = TypeSetValueType{ReturnTypePtr, RQType};
-    return Res;
+    return TypeSetValueType{ReturnTypePtr};
   }();
   const auto RequiredTypes = [FDecl]() {
     const auto Parameters = FDecl->parameters();
     auto ParameterTypeRange =
         Parameters |
-        ranges::views::transform(
-            [](const clang::ParmVarDecl *PVDecl) -> TypeSetValueType {
-              const auto QType =
-                  PVDecl->getType().getUnqualifiedType().getCanonicalType();
-              const auto Res = TypeSetValueType{QType.getTypePtr(), QType};
-              return Res;
-            });
+        ranges::views::transform([](const clang::ParmVarDecl *PVDecl) {
+          const auto QType =
+              PVDecl->getType().getUnqualifiedType().getCanonicalType();
+          return TypeSetValueType{QType.getTypePtr()};
+        });
     auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
                        std::make_move_iterator(ParameterTypeRange.end())};
     if (const auto *const Method =
@@ -355,8 +353,7 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
       if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
           !Method->isStatic()) {
         const auto *const RDecl = Method->getParent();
-        auto Val = TypeSetValueType{RDecl->getTypeForDecl(), RDecl};
-        Res.emplace(Val);
+        Res.emplace(RDecl->getTypeForDecl());
       }
     }
     return Res;
@@ -366,9 +363,8 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
 
 [[nodiscard]] static std::pair<TypeSet, TypeSet>
 toTypeSet(const clang::FieldDecl *FDecl) {
-  const auto FQType = FDecl->getType();
-  const auto *const RDecl = FDecl->getParent();
-  return {{{FQType.getTypePtr(), FQType}}, {{RDecl->getTypeForDecl(), RDecl}}};
+  return {{{FDecl->getType().getTypePtr()}},
+          {{FDecl->getParent()->getTypeForDecl()}}};
 }
 
 // FIXME: skip this step and do directly TransitionCollector -> GraphData
@@ -399,24 +395,7 @@ getSourceVertexMatchingQueriedType(GraphData &Data,
   // FIXME: only getting the 'A' type, not the & qualified
   const auto SourceVertex =
       ranges::find_if(Data.VertexData, [&QueriedType](const TypeSet &TSet) {
-        return TSet.end() !=
-               ranges::find_if(
-                   TSet,
-                   [&QueriedType](
-                       const typename TypeSetValueType::meta_type &MetaVal) {
-                     return std::visit(
-                         Overloaded{
-                             [&QueriedType](clang::QualType QType) {
-                               return ranges::includes(QType.getAsString(),
-                                                       QueriedType);
-                             },
-                             [&QueriedType](const clang::NamedDecl *NDecl) {
-                               return NDecl->getName().contains(QueriedType);
-                             },
-                             [](std::monostate) { return false; }},
-                         MetaVal);
-                   },
-                   &TypeSetValueType::MetaValue);
+        return TSet.end() != ranges::find_if(TSet, matchesName(QueriedType));
       });
 
   if (SourceVertex == Data.VertexData.end()) {

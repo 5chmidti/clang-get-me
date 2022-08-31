@@ -64,16 +64,8 @@ template <> struct fmt::formatter<TypeSetValueType> {
   template <typename FormatContext>
   [[nodiscard]] auto format(const TypeSetValueType &Val,
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
-    return fmt::format_to(
-        Ctx.out(), "{}",
-        std::visit(
-            Overloaded{
-                [](clang::QualType QType) { return QType.getAsString(); },
-                [](const clang::NamedDecl *NDecl) {
-                  return NDecl->getNameAsString();
-                },
-                [](std::monostate) -> std::string { return "monostate"; }},
-            Val.MetaValue));
+    return fmt::format_to(Ctx.out(), "{}",
+                          clang::QualType(Val.Value, 0).getAsString());
   }
 };
 
