@@ -63,11 +63,13 @@ std::string getTransitionSourceTypeName(const TransitionDataType &Data) {
                                 ", "));
             if (const auto *const Method =
                     llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
-              const auto *const RDecl = Method->getParent();
-              if (Params.empty()) {
-                return RDecl->getNameAsString();
+              if (!llvm::isa<clang::CXXConstructorDecl>(Method)) {
+                const auto *const RDecl = Method->getParent();
+                if (Params.empty()) {
+                  return RDecl->getNameAsString();
+                }
+                return fmt::format("{}, {}", RDecl->getNameAsString(), Params);
               }
-              return fmt::format("{}, {}", RDecl->getNameAsString(), Params);
             }
             return Params;
           },

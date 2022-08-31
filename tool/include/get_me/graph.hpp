@@ -22,8 +22,6 @@
 #include <clang/AST/Type.h>
 #include <llvm/ADT/StringRef.h>
 
-#include "get_me/utility.hpp"
-
 using namespace std::string_view_literals;
 
 namespace clang {
