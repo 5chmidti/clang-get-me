@@ -43,9 +43,13 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   std::vector<PathType> Paths{};
   std::stack<possible_path_type> EdgesStack{};
 
-  const auto AddOutEdgesOfVertexToStack = [&Graph, &EdgesStack,
-                                           &Paths](auto Vertex) {
-    auto OutEdgesRange = toRange(out_edges(Vertex, Graph));
+  const auto AddOutEdgesOfVertexToStack = [&Graph, &EdgesStack, &Paths,
+                                           &CurrentPath](auto Vertex) {
+    const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
+    auto OutEdgesRange =
+        ranges::views::filter(Vec, [&CurrentPath](const auto &Edge) {
+          return !ranges::contains(CurrentPath, Edge);
+        });
     if (OutEdgesRange.empty()) {
       return false;
     }
