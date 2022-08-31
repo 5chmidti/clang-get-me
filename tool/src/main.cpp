@@ -65,6 +65,28 @@ int main(int argc, const char **argv) {
   GraphType Graph(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                   Data.EdgeWeights.data(), Data.EdgeWeights.size());
 
+  std::ofstream DotFile("graph.dot");
+  std::string Res{};
+  Res += fmt::format("digraph D {{\n");
+
+  for (const auto &Edge : toRange(edges(Graph))) {
+    const auto SourceNode = source(Edge, Graph);
+    const auto TargetNode = target(Edge, Graph);
+
+    const auto EdgeWeight = Data.EdgeWeightMap.at({SourceNode, TargetNode});
+    const auto TargetVertex = Data.VertexData[TargetNode];
+    const auto SourceVertex = Data.VertexData[SourceNode];
+
+    auto FormattedEdge = fmt::format(
+        R"(  "{}" -> "{}"[label="{}"]
+)",
+        SourceVertex, TargetVertex, EdgeWeight);
+    Res += FormattedEdge;
+  }
+
+  Res += fmt::format("}}");
+  DotFile << Res;
+
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, QueriedType);
   const auto Paths = pathTraversal(Graph, SourceVertexDesc);
@@ -83,23 +105,4 @@ int main(int argc, const char **argv) {
             }),
             ", "));
   }
-
-  std::ofstream DotFile("graph.dot");
-  std::string Res{};
-  Res += fmt::format("digraph D {{\n");
-
-  for (const auto &Edge : toRange(edges(Graph))) {
-    const auto SourceNode = source(Edge, Graph);
-    const auto TargetNode = target(Edge, Graph);
-    const auto EdgeWeight = Data.EdgeWeightMap.at({SourceNode, TargetNode});
-    const auto TargetName = getTransitionTargetTypeName(EdgeWeight);
-    const auto SourceName = getTransitionSourceTypeName(EdgeWeight);
-    Res += fmt::format(
-        R"(  "{}" -> "{}"[label="{}"]
-)",
-        SourceName, TargetName, EdgeWeight);
-  }
-
-  Res += fmt::format("}}");
-  DotFile << Res;
 }
