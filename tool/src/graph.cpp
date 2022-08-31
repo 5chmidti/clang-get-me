@@ -53,7 +53,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     if (OutEdgesRange.empty()) {
       return false;
     }
-    spdlog::info(
+    spdlog::trace(
         "path #{}: adding edges {} to EdgesStack", Paths.size(),
         OutEdgesRange |
             ranges::views::transform(
@@ -84,7 +84,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       continue;
     }
 
-    spdlog::info(
+    spdlog::trace(
         "path #{}: src: {}, prev target: {}, edge: {}, current path: {}",
         PathIndex, Src, PrevTarget, Edge, CurrentPath);
 
@@ -101,7 +101,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       };
       CurrentPath.erase(find(CurrentPath, Src, GetEdgeSource),
                         CurrentPath.end());
-      spdlog::info("{}{}", Msg, CurrentPath);
+      spdlog::trace("{}{}", Msg, CurrentPath);
       PrevTarget = Src;
     } else {
       PrevTarget = target(Edge, Graph);
@@ -115,9 +115,9 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       Paths.push_back(CurrentPath);
     }
 
-    spdlog::info("path #{}: post algo src: {}, prev target: {}, edge: {}, "
-                 "current path: {}",
-                 PathIndex, Src, PrevTarget, Edge, CurrentPath);
+    spdlog::trace("path #{}: post algo src: {}, prev target: {}, edge: {}, "
+                  "current path: {}",
+                  PathIndex, Src, PrevTarget, Edge, CurrentPath);
   }
 
   return Paths;
@@ -165,8 +165,8 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
     }();
     const auto Res = TypeAsStringRef == llvm::StringRef{Name};
     if (!Res && TypeAsStringRef.contains(Name)) {
-      spdlog::info("matchesName(QualType): no match for close match: {} vs {}",
-                   TypeAsStringRef, Name);
+      spdlog::trace("matchesName(QualType): no match for close match: {} vs {}",
+                    TypeAsStringRef, Name);
     }
     return Res;
   };

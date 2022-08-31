@@ -54,14 +54,14 @@ public:
   [[nodiscard]] bool VisitFunctionDecl(clang::FunctionDecl *FDecl) {
     if (FDecl->getDeclName().isIdentifier() &&
         FDecl->getName().startswith("__")) {
-      spdlog::info("filtered due to being reserved: {}",
-                   FDecl->getNameAsString());
+      spdlog::trace("filtered due to being reserved: {}",
+                    FDecl->getNameAsString());
       return true;
     }
     if (!llvm::isa<clang::CXXConstructorDecl>(FDecl) &&
         FDecl->getReturnType()->isVoidType()) {
-      spdlog::info("filtered due to returning void: {}",
-                   FDecl->getNameAsString());
+      spdlog::trace("filtered due to returning void: {}",
+                    FDecl->getNameAsString());
       return true;
     }
     if (const auto *const Method =
@@ -84,9 +84,9 @@ public:
 
     if (FDecl->getReturnType().getUnqualifiedType().getAsString().starts_with(
             "_")) {
-      spdlog::info("filtered due to returning type starting with '_' (): {}",
-                   FDecl->getReturnType().getUnqualifiedType().getAsString(),
-                   FDecl->getNameAsString());
+      spdlog::trace("filtered due to returning type starting with '_' (): {}",
+                    FDecl->getReturnType().getUnqualifiedType().getAsString(),
+                    FDecl->getNameAsString());
       return true;
     }
 
@@ -95,8 +95,8 @@ public:
                          [](const clang::ParmVarDecl *const PVarDecl) {
                            return PVarDecl->getType().getUnqualifiedType();
                          })) {
-      spdlog::info("filtered due circular acq/req: {}",
-                   FDecl->getNameAsString());
+      spdlog::trace("filtered due circular acq/req: {}",
+                    FDecl->getNameAsString());
       return true;
     }
 
@@ -206,7 +206,7 @@ public:
          ++Iter) {
       Res = fmt::format("{}{}, ", Res, *Iter);
     }
-    spdlog::info("{}] from {}", Res, Visitor.CollectorRef.Data);
+    spdlog::trace("{}] from {}", Res, Visitor.CollectorRef.Data);
     Visitor.CollectorRef.Data.erase(UniqueEndIter,
                                     Visitor.CollectorRef.Data.end());
   }
