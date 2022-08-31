@@ -356,8 +356,7 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
     auto ParameterTypeRange =
         Parameters |
         ranges::views::transform([](const clang::ParmVarDecl *PVDecl) {
-          const auto QType =
-              PVDecl->getType().getUnqualifiedType().getCanonicalType();
+          const auto QType = PVDecl->getType().getCanonicalType();
           return TypeSetValueType{QType.getTypePtr()};
         });
     auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
@@ -366,8 +365,7 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
             llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
       if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
           !Method->isStatic()) {
-        const auto *const RDecl = Method->getParent();
-        Res.emplace(RDecl->getTypeForDecl());
+        Res.emplace(Method->getParent()->getTypeForDecl());
       }
     }
     return Res;
