@@ -377,7 +377,7 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
 
 [[nodiscard]] static std::pair<TypeSet, TypeSet>
 toTypeSet(const clang::FieldDecl *FDecl) {
-  return {{{FDecl->getType().getTypePtr()}},
+  return {{{FDecl->getType().getCanonicalType().getTypePtr()}},
           {{FDecl->getParent()->getTypeForDecl()}}};
 }
 
