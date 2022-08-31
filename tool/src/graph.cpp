@@ -332,14 +332,21 @@ GraphData generateVertexAndEdgeWeigths(
 [[nodiscard]] static std::pair<TypeSet, TypeSet>
 toTypeSet(const clang::FunctionDecl *FDecl) {
   const auto AcquiredType = [FDecl]() -> TypeSetValueType {
-    if (const auto *const CDecl =
+    if (const auto *const Constructor =
             llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
-        CDecl) {
-      const auto *const Decl = CDecl->getParent();
-      return {Decl->getTypeForDecl(), Decl};
+        Constructor) {
+      const auto *const Decl = Constructor->getParent();
+      const auto Res = TypeSetValueType{Decl->getTypeForDecl(), Decl};
+      spdlog::info("type ptr address for (constructor) {} is {}", Res,
+                   static_cast<const void *>(Res.Value));
+      return Res;
     }
-    const auto RQType = FDecl->getReturnType();
-    return {RQType.getTypePtr(), RQType};
+    const auto RQType = FDecl->getReturnType().getCanonicalType();
+    const auto *const ReturnTypePtr = RQType.getTypePtr();
+    const auto Res = TypeSetValueType{ReturnTypePtr, RQType};
+    spdlog::info("type ptr address for (function) {} is {}", Res,
+                 static_cast<const void *>(Res.Value));
+    return Res;
   }();
   const auto RequiredTypes = [FDecl]() {
     const auto Parameters = FDecl->parameters();
@@ -347,8 +354,12 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
         Parameters |
         ranges::views::transform(
             [](const clang::ParmVarDecl *PVDecl) -> TypeSetValueType {
-              const auto QType = PVDecl->getType();
-              return {QType.getTypePtr(), QType};
+              const auto QType =
+                  PVDecl->getType().getUnqualifiedType().getCanonicalType();
+              const auto Res = TypeSetValueType{QType.getTypePtr(), QType};
+              spdlog::info("type ptr address for (parameter) {} is {}", Res,
+                           static_cast<const void *>(Res.Value));
+              return Res;
             });
     auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
                        std::make_move_iterator(ParameterTypeRange.end())};
@@ -358,7 +369,8 @@ toTypeSet(const clang::FunctionDecl *FDecl) {
           !Method->isStatic()) {
         const auto *const RDecl = Method->getParent();
         auto Val = TypeSetValueType{RDecl->getTypeForDecl(), RDecl};
-        spdlog::info("adding record: {}", Val);
+        spdlog::info("type ptr address for (member-access) {} is {}", Val,
+                     static_cast<const void *>(Val.Value));
         Res.emplace(Val);
       }
     }
