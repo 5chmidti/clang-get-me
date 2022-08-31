@@ -319,6 +319,12 @@ GraphData generateVertexAndEdgeWeigths(
   GraphData Data{};
   addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data, TypeName);
 
+  if (!ranges::contains(Data.VertexData, TypeSet{})) {
+    Data.VertexData.emplace_back();
+  }
+
+  spdlog::info("initial GraphData.VertexData: {}", Data.VertexData);
+
   buildVertices(TypeSetTransitionData, Data);
 
   spdlog::info("GraphData.VertexData: {}", Data.VertexData);
