@@ -222,18 +222,26 @@ static void buildVertices(
   // start with building all edges from the source/queried type to others
   // then add these vertices to the working list
   size_t IterationCount = 0U;
-  spdlog::info("TypeSetTransitionData: {}", TypeSetTransitionData);
   for (bool AddedTransitions = true; AddedTransitions; ++IterationCount) {
     std::vector<TypeSet> TemporaryVertexData{};
+    std::vector<TypeSet> TypeSetsOfInterest = Data.VertexData;
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
     spdlog::info("{:=^30}", "");
     for (const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
-         TypeSetTransitionData) {
+         TypeSetTransitionData |
+             ranges::views::filter(
+                 [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
+                   const auto &Acquired = std::get<0>(Val);
+                   const auto Res = ranges::any_of(
+                       TypeSetsOfInterest, containsAcquiredTypeSet(Acquired));
+                   return Res;
+                 })) {
       ++TransitionCounter;
-      for (const auto &VertexTypeSet : ranges::to_vector(
-               Data.VertexData | ranges::views::filter(containsAcquiredTypeSet(
-                                     AcquiredTypeSet)))) {
+      for (const auto &VertexTypeSet :
+           ranges::to_vector(TypeSetsOfInterest |
+                             ranges::views::filter(
+                                 containsAcquiredTypeSet(AcquiredTypeSet)))) {
         if (auto NewRequiredTypeSet =
                 mergeTypeSets(subtractTypeSets(VertexTypeSet, AcquiredTypeSet),
                               RequiredTypeSet);
@@ -243,16 +251,16 @@ static void buildVertices(
           AddedTransitions = true;
         }
       }
-      Data.VertexData.insert(
-          Data.VertexData.end(),
-          std::make_move_iterator(TemporaryVertexData.begin()),
-          std::make_move_iterator(TemporaryVertexData.end()));
+      Data.VertexData.insert(Data.VertexData.end(), TemporaryVertexData.begin(),
+                             TemporaryVertexData.end());
+      TypeSetsOfInterest = std::move(TemporaryVertexData);
       TemporaryVertexData.clear();
 
-      spdlog::info("#{} added transition ({}/{}) (total vertices: {}): {}",
+      spdlog::info("#{} added transition ({}/{}) (total vertices: {}): {}, "
+                   "VertexData: {}",
                    IterationCount, TransitionCounter,
                    TypeSetTransitionData.size(), Data.VertexData.size(),
-                   Transition);
+                   Transition, Data.VertexData);
     }
   }
   spdlog::info("{:=^30}", "");
