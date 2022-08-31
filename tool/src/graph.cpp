@@ -181,8 +181,7 @@ static void addQueriedTypeSetsAndAddEdgeWeights(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     GraphData &Data, const std::string &TypeName) {
   for (const auto &[Acquired, Transition, Required] : TypeSetTransitionData) {
-    if (const auto Iter = ranges::find_if(Acquired, matchesName(TypeName));
-        Iter != Acquired.end() &&
+    if (ranges::any_of(Acquired, matchesName(TypeName)) &&
         !ranges::contains(Data.VertexData, Acquired)) {
       Data.VertexData.push_back(Acquired);
     }
