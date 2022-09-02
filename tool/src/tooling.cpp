@@ -25,11 +25,11 @@ bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
       std::string::npos) {
     return true;
   }
-  if (ranges::any_of(FDecl->parameters(),
-                     [](const clang::ParmVarDecl *const PVDecl) {
-                       return PVDecl->getType().getAsString().find("FILE") !=
-                              std::string::npos;
-                     })) {
+  if (ranges::any_of(
+          FDecl->parameters(), [](const clang::ParmVarDecl *const PVDecl) {
+            return PVDecl->getType().getUnqualifiedType().getAsString().find(
+                       "FILE") != std::string::npos;
+          })) {
     return true;
   }
   if (llvm::isa<clang::CXXDestructorDecl>(FDecl)) {
