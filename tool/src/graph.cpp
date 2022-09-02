@@ -261,18 +261,21 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
             [&NewRequiredTypeSet, &TemporaryVertexData,
              &VertexData]() -> std::pair<bool, size_t> {
+          const auto CalcIndexOfNewRequiredTypeSetOrContainerSize =
+              [&NewRequiredTypeSet](const auto &Container) {
+                return std::distance(Container.begin(),
+                                     ranges::find(Container, NewRequiredTypeSet,
                                                   &indexed_vertex_type::first));
+              };
+          const auto DataDistance =
+              CalcIndexOfNewRequiredTypeSetOrContainerSize(VertexData);
           if (DataDistance < VertexData.size()) {
             return {true, DataDistance};
           }
-          const auto TempDistance = std::distance(
-              TemporaryVertexData.begin(),
-              ranges::find(TemporaryVertexData, NewRequiredTypeSet,
-                           &indexed_vertex_type::second));
-          if (TempDistance < TemporaryVertexData.size()) {
-            return {true, DataDistance + TempDistance};
-          }
-          return {false, VertexData.size() + TemporaryVertexData.size()};
+          const auto TempDistance =
+              CalcIndexOfNewRequiredTypeSetOrContainerSize(TemporaryVertexData);
+          return {TempDistance < TemporaryVertexData.size(),
+                  DataDistance + TempDistance};
         }();
 
         const auto EdgeToAdd =
