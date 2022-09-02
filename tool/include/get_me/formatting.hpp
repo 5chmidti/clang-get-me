@@ -13,15 +13,14 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
-#include "get_me/utility.hpp"
 
 [[nodiscard]] std::string getTransitionName(const TransitionDataType &Data);
 
 [[nodiscard]] std::string
-getTransitionTargetTypeName(const TransitionDataType &Data);
+getTransitionAcquiredTypeNames(const TransitionDataType &Data);
 
 [[nodiscard]] std::string
-getTransitionSourceTypeName(const TransitionDataType &Data);
+getTransitionRequiredTypeNames(const TransitionDataType &Data);
 
 template <> struct fmt::formatter<EdgeDescriptor> {
   template <typename FormatContext>
@@ -49,8 +48,8 @@ template <> struct fmt::formatter<TransitionDataType> {
   [[nodiscard]] auto format(const TransitionDataType &Val,
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(
-        Ctx.out(), "{} {}({})", getTransitionTargetTypeName(Val),
-        getTransitionName(Val), getTransitionSourceTypeName(Val));
+        Ctx.out(), "{} {}({})", getTransitionAcquiredTypeNames(Val),
+        getTransitionName(Val), getTransitionRequiredTypeNames(Val));
   }
 };
 

@@ -2,6 +2,8 @@
 
 #include <llvm/ADT/StringRef.h>
 
+#include "get_me/utility.hpp"
+
 bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
   if (FDecl->getDeclName().isIdentifier() &&
       FDecl->getName().startswith("__")) {

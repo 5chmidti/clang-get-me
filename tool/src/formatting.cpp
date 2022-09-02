@@ -14,68 +14,64 @@
 using namespace clang;
 
 std::string getTransitionName(const TransitionDataType &Data) {
-  return std::visit(Overloaded{[](const DeclaratorDecl *DDecl) -> std::string {
-                                 return DDecl->getNameAsString();
-                               },
-                               [](const std::monostate) -> std::string {
-                                 return "monostate";
-                               }},
-                    Data);
+  return std::visit(
+      Overloaded{
+          [](const DeclaratorDecl *DDecl) { return DDecl->getNameAsString(); },
+          [](const std::monostate) -> std::string { return "monostate"; }},
+      Data);
 }
 
 [[nodiscard]] static std::string
-functionDeclToStringForTarget(const FunctionDecl *FDecl) {
+functionDeclToStringForAcquired(const FunctionDecl *const FDecl) {
   if (const auto *const Constructor = dyn_cast<CXXConstructorDecl>(FDecl)) {
     const auto *const Parent = Constructor->getParent();
     return Parent->getNameAsString();
   }
-  if (llvm::isa<CXXDestructorDecl>(FDecl)) {
-    constexpr const auto *const Msg = "destructor";
-    spdlog::error("functionDeclToStringForTarget {}", Msg);
-    return Msg;
-  }
   return FDecl->getReturnType().getAsString();
 }
 
-std::string getTransitionTargetTypeName(const TransitionDataType &Data) {
+std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
-      Overloaded{[](const FunctionDecl *FDecl) -> std::string {
-                   return functionDeclToStringForTarget(FDecl);
+      Overloaded{[](const FunctionDecl *const FDecl) {
+                   return functionDeclToStringForAcquired(FDecl);
                  },
-                 [](const FieldDecl *FDecl) -> std::string {
+                 [](const FieldDecl *const FDecl) {
                    return FDecl->getType().getAsString();
                  },
                  [](std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
 
-std::string getTransitionSourceTypeName(const TransitionDataType &Data) {
-  return std::visit(
-      Overloaded{
-          [](const FunctionDecl *FDecl) -> std::string {
-            const auto Parameters = FDecl->parameters();
-            auto Params = fmt::format(
-                "{}", fmt::join(Parameters |
-                                    ranges::views::transform(
-                                        [](const ParmVarDecl *PDecl) {
-                                          return PDecl->getType().getAsString();
-                                        }),
-                                ", "));
-            if (const auto *const Method =
-                    llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
-              if (!llvm::isa<clang::CXXConstructorDecl>(Method)) {
-                const auto *const RDecl = Method->getParent();
-                if (Params.empty()) {
-                  return RDecl->getNameAsString();
-                }
-                return fmt::format("{}, {}", RDecl->getNameAsString(), Params);
-              }
-            }
-            return Params;
-          },
-          [](const FieldDecl *FDecl) -> std::string {
-            return FDecl->getParent()->getNameAsString();
-          },
-          [](const std::monostate) -> std::string { return "monostate"; }},
-      Data);
+[[nodiscard]] static std::string
+functionDeclToStringForRequired(const FunctionDecl *const FDecl) {
+  const auto Parameters = FDecl->parameters();
+  auto Params = fmt::format(
+      "{}", fmt::join(Parameters | ranges::views::transform(
+                                       [](const ParmVarDecl *PDecl) {
+                                         return PDecl->getType().getAsString();
+                                       }),
+                      ", "));
+  if (const auto *const Method = llvm::dyn_cast<CXXMethodDecl>(FDecl)) {
+    if (!llvm::isa<CXXConstructorDecl>(Method)) {
+      const auto *const RDecl = Method->getParent();
+      if (Params.empty()) {
+        return RDecl->getNameAsString();
+      }
+      return fmt::format("{}, {}", RDecl->getNameAsString(), Params);
+    }
+  }
+  return Params;
+};
+
+std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
+  return std::visit(Overloaded{[](const FunctionDecl *const FDecl) {
+                                 return functionDeclToStringForRequired(FDecl);
+                               },
+                               [](const FieldDecl *const FDecl) {
+                                 return FDecl->getParent()->getNameAsString();
+                               },
+                               [](const std::monostate) -> std::string {
+                                 return "monostate";
+                               }},
+                    Data);
 }
