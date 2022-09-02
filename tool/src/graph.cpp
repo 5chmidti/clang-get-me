@@ -304,17 +304,12 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 
         AddedTransitions = true;
       }
-      spdlog::info("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}{}",
+      spdlog::info("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
                    IterationCount, TransitionCounter,
                    VertexData.size() + TemporaryVertexData.size(),
                    TemporaryVertexData.size(),
                    EdgesData.size() + TemporaryEdgeData.size(),
-                   TemporaryEdgeData.size(), Transition,
-                   false ? fmt::format(", vertices: {}, edges: {}, new "
-                                       "vertices: {}, new edges: {}",
-                                       VertexData, EdgesData,
-                                       TemporaryVertexData, TemporaryEdgeData)
-                         : "");
+                   TemporaryEdgeData.size(), Transition);
       if (fmt::format("{}", Transition).find('A') != std::string::npos) {
         spdlog::info("TemporaryVertexData: {}", TemporaryVertexData);
         spdlog::info("TemporaryEdgeData: {}", TemporaryEdgeData);
