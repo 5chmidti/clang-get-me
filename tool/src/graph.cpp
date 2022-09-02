@@ -259,24 +259,26 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
             subtractTypeSets(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
 
         const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
-            [&NewRequiredTypeSet, &TemporaryVertexData,
-             &VertexData]() -> std::pair<bool, size_t> {
-          const auto CalcIndexOfNewRequiredTypeSetOrContainerSize =
-              [&NewRequiredTypeSet](const auto &Container) {
-                return std::distance(Container.begin(),
-                                     ranges::find(Container, NewRequiredTypeSet,
-                                                  &indexed_vertex_type::first));
+            [&NewRequiredTypeSet, &TemporaryVertexData, &VertexData]() {
+              const auto GetExistingOpt =
+                  [&NewRequiredTypeSet](const auto &Container)
+                  -> std::optional<std::pair<bool, size_t>> {
+                if (const auto Iter =
+                        ranges::find(Container, NewRequiredTypeSet,
+                                     &indexed_vertex_type::first);
+                    Iter != Container.end()) {
+                  return std::pair{true, Iter->second};
+                }
+                return std::nullopt;
               };
-          const auto DataDistance =
-              CalcIndexOfNewRequiredTypeSetOrContainerSize(VertexData);
-          if (DataDistance < VertexData.size()) {
-            return {true, DataDistance};
-          }
-          const auto TempDistance =
-              CalcIndexOfNewRequiredTypeSetOrContainerSize(TemporaryVertexData);
-          return {TempDistance < TemporaryVertexData.size(),
-                  DataDistance + TempDistance};
-        }();
+              if (const auto Existing = GetExistingOpt(TemporaryVertexData);
+                  Existing) {
+                return Existing.value();
+              }
+              return GetExistingOpt(VertexData)
+                  .value_or(std::pair{false, VertexData.size() +
+                                                 TemporaryVertexData.size()});
+            }();
 
         const auto EdgeToAdd =
             std::pair{SourceTypeSetIndex, NewRequiredTypeSetIndex};
@@ -285,8 +287,9 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
                 [EdgeToAdd]<typename T>(const T &Container) {
                   return Container.contains(EdgeToAdd);
                 };
-            EdgeToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
-            EdgeToAddAlreadyExistsInContainer(EdgesData)) {
+            NewRequiredTypeSetIndexExists &&
+            (EdgeToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
+             EdgeToAddAlreadyExistsInContainer(EdgesData))) {
           spdlog::trace("edge to add already exists: {}", EdgeToAdd);
           continue;
         }
