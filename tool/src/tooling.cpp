@@ -123,13 +123,13 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   };
   const auto Comparator = [&GetName](const TransitionDataType &Lhs,
                                      const TransitionDataType &Rhs) {
-    if (Lhs.index() != Rhs.index()) {
-      return Lhs.index() < Rhs.index();
+    if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
+        std::is_neq(IndexComparison)) {
+      return std::is_lt(IndexComparison);
     }
-    const auto LhsName = GetName(Lhs);
-    const auto RhsName = GetName(Rhs);
-    if (LhsName != RhsName) {
-      return LhsName < RhsName;
+    if (const auto NameComparison = GetName(Lhs) <=> GetName(Rhs);
+        std::is_neq(NameComparison)) {
+      return std::is_lt(NameComparison);
     }
     const auto GetParameters = [](const TransitionDataType &Val) {
       return std::visit(
