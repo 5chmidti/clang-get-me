@@ -211,8 +211,7 @@ containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
 [[nodiscard]] static TypeSet subtractTypeSets(const TypeSet &Lhs,
                                               const TypeSet &Rhs) {
   TypeSet Res{};
-  ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()),
-                         std::less<>{});
+  ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()), std::less{});
   return Res;
 }
 
@@ -321,10 +320,10 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 
     VertexData.merge(std::move(TemporaryVertexData));
     TypeSetsOfInterest = ranges::to<std::set>(
-        VertexData | ranges::views::filter(
+        VertexData |
+        ranges::views::filter(
                          [&TemporaryEdgeData](const auto &Val) {
-                           return ranges::binary_search(
-                               TemporaryEdgeData, Val, std::less<>{},
+              return ranges::binary_search(TemporaryEdgeData, Val, std::less{},
                                &GraphData::EdgeType::second);
                          },
                          &indexed_vertex_type::second));
@@ -336,7 +335,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
   spdlog::info("{:=^30}", "");
 
   auto VertexDataToSort = ranges::to_vector(VertexData);
-  ranges::sort(VertexDataToSort, std::less<>{}, &indexed_vertex_type::second);
+  ranges::sort(VertexDataToSort, std::less{}, &indexed_vertex_type::second);
   Data.VertexData = ranges::to_vector(
       ranges::views::transform(VertexDataToSort, &indexed_vertex_type::first));
 
