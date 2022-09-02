@@ -102,8 +102,8 @@ int main(int argc, const char **argv) {
               const auto Edge = std::pair{source(Transition, Graph),
                                           target(Transition, Graph)};
               const auto Weight = Data.EdgeWeightMap.at(Edge);
-              const auto TargetName = getTransitionTargetTypeName(Weight);
-              const auto SourceName = getTransitionSourceTypeName(Weight);
+              const auto TargetName = getTransitionAcquiredTypeNames(Weight);
+              const auto SourceName = getTransitionRequiredTypeNames(Weight);
               return Weight;
             }),
             ", "));
