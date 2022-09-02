@@ -294,8 +294,9 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         }
 
         if (!NewRequiredTypeSetIndexExists) {
-          spdlog::info("adding new type set: #{}({}), not included in {}",
-                       NewRequiredTypeSetIndex, NewRequiredTypeSet, VertexData);
+          spdlog::trace("adding new type set: #{}({}), not included in {}",
+                        NewRequiredTypeSetIndex, NewRequiredTypeSet,
+                        VertexData);
           TemporaryVertexData.emplace(std::move(NewRequiredTypeSet),
                                       NewRequiredTypeSetIndex);
         }
