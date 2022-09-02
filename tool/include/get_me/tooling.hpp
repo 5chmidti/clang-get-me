@@ -49,6 +49,9 @@ struct TransitionCollector {
 // FIXME: add support for current context (i.e. current function)
 // this would mean only traversing into a function definition if it is the
 // current context
+
+// FIXME: skip TransitionCollector and generate
+// std::vector<TypeSetTransitionDataType -> GraphData in the visitor directly
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
   explicit GetMeVisitor(TransitionCollector &Collector)

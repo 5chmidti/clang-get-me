@@ -411,7 +411,6 @@ toTypeSet(const clang::FieldDecl *FDecl) {
           {{FDecl->getParent()->getTypeForDecl()}}};
 }
 
-// FIXME: skip this step and do directly TransitionCollector -> GraphData
 std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector) {
   return ranges::to_vector(ranges::views::transform(
