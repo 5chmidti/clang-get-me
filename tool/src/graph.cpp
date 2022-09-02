@@ -219,14 +219,10 @@ containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
 static void
 buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
            GraphData &Data) {
-  // FIXME: build graph only for the required nodes
-  // start with building all edges from the source/queried type to others
-  // then add these vertices to the working list
-
-  using indexed_vertex_type = std::pair<size_t, TypeSet>;
+  using indexed_vertex_type = std::pair<TypeSet, size_t>;
   std::set<indexed_vertex_type> VertexData =
       ranges::to<std::set>(ranges::views::zip(
-          ranges::views::iota(static_cast<size_t>(0U)), Data.VertexData));
+          Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
 
   std::set<GraphData::EdgeType> EdgesData{};
 
@@ -244,7 +240,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
           const auto &Acquired = std::get<0>(Val);
           return ranges::any_of(TypeSetsOfInterest,
                                 containsAcquiredTypeSet(Acquired),
-                                &indexed_vertex_type::second);
+                                &indexed_vertex_type::first);
         };
     spdlog::info("TypeSetsOfInterest: {}", TypeSetsOfInterest);
     for (const auto FilteredTypeSetTransitionData = ranges::to_vector(
@@ -256,8 +252,8 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
       for (const auto FilteredTypeSetsOfInterest = ranges::to_vector(
                TypeSetsOfInterest |
                ranges::views::filter(containsAcquiredTypeSet(AcquiredTypeSet),
-                                     &indexed_vertex_type::second));
-           const auto &[SourceTypeSetIndex, VertexTypeSet] :
+                                     &indexed_vertex_type::first));
+           const auto &[VertexTypeSet, SourceTypeSetIndex] :
            FilteredTypeSetsOfInterest) {
         auto NewRequiredTypeSet = mergeTypeSets(
             subtractTypeSets(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
@@ -265,9 +261,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
             [&NewRequiredTypeSet, &TemporaryVertexData,
              &VertexData]() -> std::pair<bool, size_t> {
-          const auto DataDistance = std::distance(
-              VertexData.begin(), ranges::find(VertexData, NewRequiredTypeSet,
-                                               &indexed_vertex_type::second));
+                                                  &indexed_vertex_type::first));
           if (DataDistance < VertexData.size()) {
             return {true, DataDistance};
           }
@@ -297,8 +291,8 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         if (!NewRequiredTypeSetIndexExists) {
           spdlog::info("adding new type set: #{}({}), not included in {}",
                        NewRequiredTypeSetIndex, NewRequiredTypeSet, VertexData);
-          TemporaryVertexData.emplace(NewRequiredTypeSetIndex,
-                                      std::move(NewRequiredTypeSet));
+          TemporaryVertexData.emplace(std::move(NewRequiredTypeSet),
+                                      NewRequiredTypeSetIndex);
         }
 
         TemporaryEdgeData.insert(EdgeToAdd);
@@ -332,7 +326,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
                                TemporaryEdgeData, Val, std::less<>{},
                                &GraphData::EdgeType::second);
                          },
-                         &indexed_vertex_type::first));
+                         &indexed_vertex_type::second));
     TemporaryVertexData.clear();
 
     EdgesData.merge(std::move(TemporaryEdgeData));
@@ -341,9 +335,9 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
   spdlog::info("{:=^30}", "");
 
   auto VertexDataToSort = ranges::to_vector(VertexData);
-  ranges::sort(VertexDataToSort, std::less<>{}, &indexed_vertex_type::first);
+  ranges::sort(VertexDataToSort, std::less<>{}, &indexed_vertex_type::second);
   Data.VertexData = ranges::to_vector(
-      ranges::views::transform(VertexDataToSort, &indexed_vertex_type::second));
+      ranges::views::transform(VertexDataToSort, &indexed_vertex_type::first));
 
   Data.Edges = ranges::to_vector(EdgesData);
 }
