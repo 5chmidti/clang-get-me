@@ -103,6 +103,8 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   // will visit all nodes in the AST.
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
 
+static void filterOverloads(std::vector<TransitionDataType> &Data,
+                            size_t OverloadFilterParameterCountThreshold = 0) {
   const auto GetName = [](const TransitionDataType &Val) {
     const auto GetNameOfDeclaratorDecl =
         [](const clang::DeclaratorDecl *const DDecl) -> std::string {
@@ -121,16 +123,6 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
                    [](std::monostate) -> std::string { return "monostate"; }},
         Val);
   };
-  const auto Comparator = [&GetName](const TransitionDataType &Lhs,
-                                     const TransitionDataType &Rhs) {
-    if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
-        std::is_neq(IndexComparison)) {
-      return std::is_lt(IndexComparison);
-    }
-    if (const auto NameComparison = GetName(Lhs) <=> GetName(Rhs);
-        std::is_neq(NameComparison)) {
-      return std::is_lt(NameComparison);
-    }
     const auto GetParameters = [](const TransitionDataType &Val) {
       return std::visit(
           Overloaded{
@@ -143,6 +135,17 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
               }},
           Val);
     };
+  const auto Comparator =
+      [&GetName, &GetParameters, OverloadFilterParameterCountThreshold](
+          const TransitionDataType &Lhs, const TransitionDataType &Rhs) {
+        if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
+            std::is_neq(IndexComparison)) {
+          return std::is_lt(IndexComparison);
+        }
+        if (const auto NameComparison = GetName(Lhs) <=> GetName(Rhs);
+            std::is_neq(NameComparison)) {
+          return std::is_lt(NameComparison);
+        }
     const auto LhsParams = GetParameters(Lhs);
     if (!LhsParams) {
       return true;
@@ -152,30 +155,77 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
       return false;
     }
 
+        if (LhsParams->empty()) {
+          return true;
+        }
+        if (RhsParams->empty()) {
+          return false;
+        }
+
+        const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
+          return PVarDecl->getType();
+        };
     const auto MismatchResult =
-        ranges::mismatch(LhsParams.value(), RhsParams.value());
-    return MismatchResult.in1 == LhsParams.value().end();
+            ranges::mismatch(LhsParams.value(), RhsParams.value(),
+                             std::equal_to{}, Projection, Projection);
+        const auto Res = MismatchResult.in1 == LhsParams.value().end();
+        if (Res) {
+          return std::distance(LhsParams->begin(), MismatchResult.in1) <
+                 OverloadFilterParameterCountThreshold;
+        }
+        return Res;
   };
   // sort data, this sorts overloads by their number of parameters
-  ranges::sort(Visitor.CollectorRef.Data, Comparator);
-  const auto UniqueEndIter = ranges::unique(
-      Visitor.CollectorRef.Data,
-      [&GetName](const TransitionDataType &Lhs, const TransitionDataType &Rhs) {
+  // FIXME: sorting just to make sure the overloads with longer parameter lists
+  // are removed, figure out a better way. The algo also depends on this order
+  // to determine if it is an overload
+  ranges::sort(Data, Comparator);
+  const auto IsOverload = [&GetName,
+                           &GetParameters](const TransitionDataType &Lhs,
+                                           const TransitionDataType &Rhs) {
         if (Lhs.index() != Rhs.index()) {
           return false;
         }
-        const auto LhsName = GetName(Lhs);
-        const auto RhsName = GetName(Rhs);
-        const auto Res = LhsName == RhsName;
-        return Res;
-      });
+    if (GetName(Lhs) != GetName(Rhs)) {
+      return false;
+    }
+    const auto LhsParams = GetParameters(Lhs);
+    if (!LhsParams) {
+      return false;
+    }
+    const auto RhsParams = GetParameters(Rhs);
+    if (!RhsParams) {
+      return false;
+    }
+
+    if (LhsParams->empty()) {
+      return false;
+    }
+    if (RhsParams->empty()) {
+      return false;
+    }
+
+    const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
+      return PVarDecl->getType()->getUnqualifiedDesugaredType();
+    };
+    const auto MismatchResult =
+        ranges::mismatch(LhsParams.value(), RhsParams.value(), std::equal_to{},
+                         Projection, Projection);
+    return MismatchResult.in1 == LhsParams.value().end();
+  };
+  const auto UniqueEndIter = ranges::unique(Data, IsOverload);
 
   auto Res = fmt::format("erasing: [");
-  for (auto Iter = UniqueEndIter; Iter != Visitor.CollectorRef.Data.end();
-       ++Iter) {
+  for (auto Iter = UniqueEndIter; Iter != Data.end(); ++Iter) {
     Res = fmt::format("{}{}, ", Res, *Iter);
   }
-  spdlog::trace("{}] from {}", Res, Visitor.CollectorRef.Data);
-  Visitor.CollectorRef.Data.erase(UniqueEndIter,
-                                  Visitor.CollectorRef.Data.end());
+  Res = fmt::format("{}] from {}", Res, Data);
+  Data.erase(UniqueEndIter, Data.end());
+  spdlog::trace("{}, post erasure: {}", Res, Data);
+}
+
+void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
+  // Traversing the translation unit decl via a RecursiveASTVisitor
+  // will visit all nodes in the AST.
+  Visitor.TraverseDecl(Context.getTranslationUnitDecl());
 }
