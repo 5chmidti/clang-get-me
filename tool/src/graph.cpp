@@ -318,6 +318,8 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     }
 
     VertexData.merge(std::move(TemporaryVertexData));
+    // FIXME: move this filling of TypeSetsOfInterest into loop to remove
+    // redundant traversal of VertexData
     TypeSetsOfInterest = ranges::to<std::set>(
         VertexData |
         ranges::views::filter(
