@@ -133,17 +133,17 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 
   std::vector<PathType> Res{};
 
-  const auto Weightmap = get(boost::edge_weight, Graph);
-  const auto ToWeights = [&Weightmap](const EdgeDescriptor &Edge) {
-    return get(Weightmap, Edge);
+  const auto IndexMap = get(boost::edge_index, Graph);
+  const auto ToIndex = [&IndexMap](const EdgeDescriptor &Edge) {
+    return get(IndexMap, Edge);
   };
 
   for (const auto &Path : Paths) {
     if (const auto EquivalentPathContainedInResult =
             any_of(Res,
-                   [&Path, &ToWeights](const auto &PathInRes) {
-                     return is_permutation(Path | transform(ToWeights),
-                                           PathInRes | transform(ToWeights));
+                   [&Path, &ToIndex](const auto &PathInRes) {
+                     return is_permutation(Path | transform(ToIndex),
+                                           PathInRes | transform(ToIndex));
                    });
         EquivalentPathContainedInResult) {
       continue;
@@ -223,13 +223,13 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
       ranges::to<std::set>(ranges::views::zip(
           Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
 
-  std::set<GraphData::EdgeType> EdgesData{};
+  std::vector<GraphData::EdgeType> EdgesData{};
 
   size_t IterationCount = 0U;
   auto TypeSetsOfInterest = VertexData;
   for (bool AddedTransitions = true; AddedTransitions; ++IterationCount) {
-    std::set<GraphData::EdgeType> TemporaryEdgeData{};
     std::set<indexed_vertex_type> TemporaryVertexData{};
+    std::vector<GraphData::EdgeType> TemporaryEdgeData{};
     // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
@@ -282,13 +282,18 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         const auto EdgeToAdd =
             std::pair{SourceTypeSetIndex, NewRequiredTypeSetIndex};
 
-        if (const auto EdgeToAddAlreadyExistsInContainer =
-                [EdgeToAdd]<typename T>(const T &Container) {
-                  return Container.contains(EdgeToAdd);
+        if (const auto TransitionToAddAlreadyExistsInContainer =
+                [EdgeToAdd, &Transition,
+                 &EdgeWeights =
+                     Data.EdgeWeights]<typename T>(const T &Container) {
+                  if (!ranges::contains(Container, EdgeToAdd)) {
+                    return false;
+                  }
+                  return ranges::contains(EdgeWeights, Transition);
                 };
             NewRequiredTypeSetIndexExists &&
-            (EdgeToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
-             EdgeToAddAlreadyExistsInContainer(EdgesData))) {
+            (TransitionToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
+             TransitionToAddAlreadyExistsInContainer(EdgesData))) {
           spdlog::trace("edge to add already exists: {}", EdgeToAdd);
           continue;
         }
@@ -301,8 +306,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
                                       NewRequiredTypeSetIndex);
         }
 
-        TemporaryEdgeData.insert(EdgeToAdd);
-        Data.EdgeWeightMap.try_emplace(EdgeToAdd, Transition);
+        TemporaryEdgeData.push_back(EdgeToAdd);
         Data.EdgeWeights.push_back(Transition);
 
         AddedTransitions = true;
@@ -324,13 +328,15 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         VertexData |
         ranges::views::filter(
                          [&TemporaryEdgeData](const auto &Val) {
-              return ranges::binary_search(TemporaryEdgeData, Val, std::less{},
+              return ranges::contains(TemporaryEdgeData, Val,
                                &GraphData::EdgeType::second);
                          },
                          &indexed_vertex_type::second));
     TemporaryVertexData.clear();
 
-    EdgesData.merge(std::move(TemporaryEdgeData));
+    EdgesData.insert(EdgesData.end(),
+                     std::make_move_iterator(TemporaryEdgeData.begin()),
+                     std::make_move_iterator(TemporaryEdgeData.end()));
     TemporaryEdgeData.clear();
   }
   spdlog::trace("{:=^50}", "");
@@ -341,6 +347,8 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
       ranges::views::transform(VertexDataToSort, &indexed_vertex_type::first));
 
   Data.Edges = ranges::to_vector(EdgesData);
+  Data.EdgeIndices = ranges::to_vector(
+      ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()));
 }
 
 std::pair<GraphType, GraphData>
@@ -360,10 +368,9 @@ createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
   spdlog::trace("GraphData.VertexData: {}", Data.VertexData);
   spdlog::trace("GraphData.Edges: {}", Data.Edges);
   spdlog::trace("GraphData.EdgeWeights: {}", Data.EdgeWeights);
-  spdlog::trace("GraphData.EdgeWeightMap: {}", Data.EdgeWeightMap);
 
   return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
-                    Data.EdgeWeights.data(), Data.EdgeWeights.size()),
+                    Data.EdgeIndices.data(), Data.EdgeIndices.size()),
           Data};
 }
 

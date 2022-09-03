@@ -58,13 +58,13 @@ int main(int argc, const char **argv) {
   const auto &QueriedType = TypeName.getValue();
 
   const auto [Graph, Data] = createGraph(TypeSetTransitionData, QueriedType);
+  const auto IndexMap = boost::get(boost::edge_index, Graph);
 
   // FIXME: apply greedy transition traversal strategy
 
-  spdlog::trace("Data sizes:\n\tVertexData: {}\n\tEdges: {}\n\tEdgeWeights: "
-                "{}\n\tEdgeWeightMap: {}",
+  spdlog::trace("Data sizes:\n\tVertexData: {}\n\tEdges: {}\n\tEdgeWeights: {}",
                 Data.VertexData.size(), Data.Edges.size(),
-                Data.EdgeWeights.size(), Data.EdgeWeightMap.size());
+                Data.EdgeWeights.size());
 
   std::ofstream DotFile("graph.dot");
   std::string Res{};
@@ -74,7 +74,7 @@ int main(int argc, const char **argv) {
     const auto SourceNode = source(Edge, Graph);
     const auto TargetNode = target(Edge, Graph);
 
-    const auto EdgeWeight = Data.EdgeWeightMap.at({SourceNode, TargetNode});
+    const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
     const auto TargetVertex = Data.VertexData[TargetNode];
     const auto SourceVertex = Data.VertexData[SourceNode];
 
@@ -96,14 +96,9 @@ int main(int argc, const char **argv) {
   for (const auto [Path, Number] : views::zip(Paths, views::iota(0U))) {
     spdlog::info(
         "path #{}: {}", Number,
-        fmt::join(
-            Path | views::transform([&Graph, &Data](const auto &Transition) {
-              const auto Edge = std::pair{source(Transition, Graph),
-                                          target(Transition, Graph)};
-              const auto Weight = Data.EdgeWeightMap.at(Edge);
-              const auto TargetName = getTransitionAcquiredTypeNames(Weight);
-              const auto SourceName = getTransitionRequiredTypeNames(Weight);
-              return Weight;
+        fmt::join(Path | views::transform([&Data, &IndexMap](
+                                              const EdgeDescriptor &Edge) {
+                    return Data.EdgeWeights[boost::get(IndexMap, Edge)];
             }),
             ", "));
   }

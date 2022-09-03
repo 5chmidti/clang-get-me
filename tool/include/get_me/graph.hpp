@@ -36,9 +36,10 @@ using TransitionDataType =
     std::variant<std::monostate, const clang::FunctionDecl *,
                  const clang::FieldDecl *>;
 
-using GraphType = boost::adjacency_list<
-    boost::listS, boost::vecS, boost::directedS, boost::no_property,
-    boost::property<boost::edge_weight_t, TransitionDataType>>;
+using GraphType =
+    boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,
+                          boost::no_property,
+                          boost::property<boost::edge_index_t, size_t>>;
 
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
 using VertexDescriptor =
@@ -59,11 +60,10 @@ struct GraphData {
   // edges
   std::vector<EdgeType> Edges{};
 
+  // index property of an edge, allows mapping other properties (e.g. weight)
+  std::vector<size_t> EdgeIndices{};
   // all possible edge weights
   std::vector<EdgeWeightType> EdgeWeights{};
-
-  // mapping from edge to weight
-  std::map<EdgeType, EdgeWeightType> EdgeWeightMap{};
 
   // vertices
   std::vector<VertexDataType> VertexData{};

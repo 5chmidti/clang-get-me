@@ -83,12 +83,14 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
   return ranges::to_vector(
       Paths | ranges::views::transform([&Graph, &Data](const auto &Path) {
         return fmt::format(
-            "{}", fmt::join(Path | ranges::views::transform(
-                                       [&Graph, &Data](const auto &Transition) {
-                                         const auto Edge = std::pair{
-                                             source(Transition, Graph),
-                                             target(Transition, Graph)};
-                                         return Data.EdgeWeightMap.at(Edge);
+            "{}",
+            fmt::join(
+                Path |
+                    ranges::views::transform(
+                        [&Data,
+                         IndexMap = boost::get(boost::edge_index, Graph)](
+                            const EdgeDescriptor &Edge) {
+                          return Data.EdgeWeights[boost::get(IndexMap, Edge)];
                                        }),
                             ", "));
       }));
