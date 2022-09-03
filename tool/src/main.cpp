@@ -10,6 +10,7 @@
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
+#include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
@@ -28,6 +29,8 @@ static opt<std::string> TypeName("t", desc("Name of the type to get"), Required,
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
+
+  spdlog::cfg::load_env_levels();
 
   auto OptionsParser =
       clang::tooling::CommonOptionsParser::create(argc, argv, ToolCategory);
