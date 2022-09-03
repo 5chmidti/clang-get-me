@@ -107,6 +107,9 @@ bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
 // FIXME: implement inheritance
 // FIXME: also do this for FieldDecls
 bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
+  if (RDecl != RDecl->getDefinition()) {
+    return true;
+  }
   if (RDecl->getName().startswith("_")) {
     return true;
   }
