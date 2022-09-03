@@ -275,6 +275,9 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
 }
 
 bool GetMeVisitor::VisitVarDecl(clang::VarDecl *VDecl) {
+  if (VDecl->getNameAsString().starts_with("__")) {
+    return true;
+  }
   if (VDecl->isCXXInstanceMember()) {
     return true;
   }
