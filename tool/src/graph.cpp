@@ -343,9 +343,9 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
   Data.Edges = ranges::to_vector(EdgesData);
 }
 
-GraphData generateVertexAndEdgeWeigths(
+GraphData createGraphData(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    std::string TypeName) {
+    const std::string &TypeName) {
   GraphData Data{};
   addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data, TypeName);
 
@@ -424,7 +424,7 @@ getTypeSetTransitionData(const TransitionCollector &Collector) {
 }
 
 VertexDescriptor
-getSourceVertexMatchingQueriedType(GraphData &Data,
+getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const std::string &QueriedType) {
   // FIXME: improve queried type matching:
   // - better matching of names

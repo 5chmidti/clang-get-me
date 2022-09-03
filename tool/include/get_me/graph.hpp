@@ -110,15 +110,15 @@ pathTraversal(const GraphType &Graph, VertexDescriptor SourceVertex);
 [[nodiscard]] std::vector<PathType>
 independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
 
-[[nodiscard]] GraphData generateVertexAndEdgeWeigths(
+[[nodiscard]] GraphData createGraphData(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    std::string TypeName);
+    const std::string &TypeName);
 
 [[nodiscard]] std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
 [[nodiscard]] VertexDescriptor
-getSourceVertexMatchingQueriedType(GraphData &Data,
+getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const std::string &QueriedType);
 
 #endif
