@@ -6,6 +6,7 @@
 #include <clang/AST/DeclCXX.h>
 #include <fmt/format.h>
 #include <llvm/Support/Casting.h>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
@@ -75,3 +76,20 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
                                }},
                     Data);
 }
+
+std::vector<std::string> toString(const std::vector<PathType> &Paths,
+                                  const GraphType &Graph,
+                                  const GraphData &Data) {
+  return ranges::to_vector(
+      Paths | ranges::views::transform([&Graph, &Data](const auto &Path) {
+        return fmt::format(
+            "{}", fmt::join(Path | ranges::views::transform(
+                                       [&Graph, &Data](const auto &Transition) {
+                                         const auto Edge = std::pair{
+                                             source(Transition, Graph),
+                                             target(Transition, Graph)};
+                                         return Data.EdgeWeightMap.at(Edge);
+                                       }),
+                            ", "));
+      }));
+};

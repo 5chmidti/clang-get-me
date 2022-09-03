@@ -68,4 +68,8 @@ template <> struct fmt::formatter<TypeSetValueType> {
   }
 };
 
+[[nodiscard]] std::vector<std::string>
+toString(const std::vector<PathType> &Paths, const GraphType &Graph,
+         const GraphData &Data);
+
 #endif
