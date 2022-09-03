@@ -46,6 +46,11 @@ using GraphType =
                           boost::no_property,
                           boost::property<boost::edge_index_t, size_t>>;
 
+static_assert(
+    std::is_same_v<boost::allow_parallel_edge_tag,
+                   boost::graph_traits<GraphType>::edge_parallel_category>,
+    "GraphType is required to allow parallel edges");
+
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
 using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
