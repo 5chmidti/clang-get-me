@@ -27,7 +27,6 @@
 #include <range/v3/view/counted.hpp>
 #include <spdlog/spdlog.h>
 
-#include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
 
 namespace clang {

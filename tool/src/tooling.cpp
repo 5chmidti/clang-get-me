@@ -1,7 +1,12 @@
 #include "get_me/tooling.hpp"
 
+#include <functional>
+
+#include <clang/AST/Decl.h>
+#include <clang/AST/DeclCXX.h>
 #include <llvm/ADT/StringRef.h>
 
+#include "get_me/formatting.hpp"
 #include "get_me/utility.hpp"
 
 bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
