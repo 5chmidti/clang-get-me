@@ -62,9 +62,9 @@ int main(int argc, const char **argv) {
   // FIXME: apply greedy transition traversal strategy
 
   spdlog::trace("Data sizes:\n\tVertexData: {}\n\tEdges: {}\n\tEdgeWeights: "
-               "{}\n\tEdgeWeightMap: {}",
-               Data.VertexData.size(), Data.Edges.size(),
-               Data.EdgeWeights.size(), Data.EdgeWeightMap.size());
+                "{}\n\tEdgeWeightMap: {}",
+                Data.VertexData.size(), Data.Edges.size(),
+                Data.EdgeWeights.size(), Data.EdgeWeightMap.size());
 
   std::ofstream DotFile("graph.dot");
   std::string Res{};
@@ -90,7 +90,8 @@ int main(int argc, const char **argv) {
 
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, QueriedType);
-  const auto Paths = pathTraversal(Graph, SourceVertexDesc);
+  auto Paths = pathTraversal(Graph, SourceVertexDesc);
+  ranges::sort(Paths);
 
   for (const auto [Path, Number] : views::zip(Paths, views::iota(0U))) {
     spdlog::info(
