@@ -60,6 +60,8 @@ public:
 
   [[nodiscard]] bool VisitFieldDecl(clang::FieldDecl *Field);
 
+  [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl);
+
   TransitionCollector &CollectorRef;
 };
 
