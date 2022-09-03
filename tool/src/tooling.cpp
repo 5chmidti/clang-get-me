@@ -5,11 +5,13 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <llvm/ADT/StringRef.h>
+#include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
 #include "get_me/utility.hpp"
 
-[[nodiscard]] static bool ignoreFILEPredicate(clang::FunctionDecl *FDecl) {
+[[nodiscard]] static bool
+ignoreFILEPredicate(const clang::FunctionDecl *FDecl) {
   if (FDecl->getReturnType().getUnqualifiedType().getAsString().find("FILE") !=
       std::string::npos) {
     return true;
@@ -22,7 +24,7 @@
 }
 
 [[nodiscard]] static bool
-reservedIntentifiersPredicate(clang::FunctionDecl *FDecl) {
+reservedIntentifiersPredicate(const clang::FunctionDecl *FDecl) {
   if (FDecl->getDeclName().isIdentifier() &&
       FDecl->getName().startswith("__")) {
     return true;
@@ -32,7 +34,7 @@ reservedIntentifiersPredicate(clang::FunctionDecl *FDecl) {
 }
 
 [[nodiscard]] static bool
-requiredContainsAcquiredPredicate(clang::FunctionDecl *FDecl) {
+requiredContainsAcquiredPredicate(const clang::FunctionDecl *FDecl) {
   return ranges::contains(FDecl->parameters(),
                           FDecl->getReturnType().getUnqualifiedType(),
                           [](const clang::ParmVarDecl *const PVarDecl) {
@@ -40,23 +42,25 @@ requiredContainsAcquiredPredicate(clang::FunctionDecl *FDecl) {
                           });
 }
 
-static void VisitFunctionDeclImpl(clang::FunctionDecl *FDecl,
-                                  TransitionCollector &Collector) {
-  if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
-    return;
+[[nodiscard]] static bool
+functionFilterPredicate(const clang::FunctionDecl *FDecl,
+                        TransitionCollector &Collector) {
+  if (reservedIntentifiersPredicate(FDecl)) {
+    return true;
+  }
+  if (ignoreFILEPredicate(FDecl)) {
+    return true;
   }
   // FIXME: maybe need heuristic to reduce unwanted edges
   if (FDecl->getReturnType()->isArithmeticType()) {
-    return;
-  }
-  if (reservedIntentifiersPredicate(FDecl)) {
-    return;
-  }
-  if (ignoreFILEPredicate(FDecl)) {
-    return;
+    spdlog::trace("filtered due to returning arithmetic type: {}",
+                  FDecl->getNameAsString());
+    return true;
   }
   if (requiredContainsAcquiredPredicate(FDecl)) {
-    return;
+    spdlog::trace("filtered due to require-acquire cycle: {}",
+                  FDecl->getNameAsString());
+    return true;
   }
   // FIXME: support templates
   // if (FDecl->isTemplateDecl()) {
@@ -65,19 +69,23 @@ static void VisitFunctionDeclImpl(clang::FunctionDecl *FDecl,
 
   if (ranges::contains(Collector, TransitionDataType{FDecl->getCanonicalDecl()},
                        [](const auto &Val) { return std::get<1>(Val); })) {
-    return;
+    return true;
   }
 
-  auto [Acquired, Required] = toTypeSet(FDecl);
-  Collector.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
-                         std::move(Required));
+  return false;
 }
 
 bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
   if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
     return true;
   }
-  VisitFunctionDeclImpl(FDecl, CollectorRef);
+  if (functionFilterPredicate(FDecl, CollectorRef)) {
+    return true;
+  }
+
+  auto [Acquired, Required] = toTypeSet(FDecl);
+  CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
+                            std::move(Required));
   return true;
 }
 
@@ -96,11 +104,13 @@ bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
   return true;
 }
 
+// FIXME: implement inheritance
+// FIXME: also do this for FieldDecls
 bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
   if (RDecl->getName().startswith("_")) {
     return true;
   }
-  for (clang::CXXMethodDecl *Method : RDecl->methods()) {
+  for (const clang::CXXMethodDecl *Method : RDecl->methods()) {
     // FIXME: allow conversions
     if (llvm::isa<clang::CXXConversionDecl>(Method)) {
       return true;
@@ -111,7 +121,13 @@ bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
     if (Method->isDeleted()) {
       continue;
     }
-    VisitFunctionDeclImpl(Method, CollectorRef);
+    if (functionFilterPredicate(Method, CollectorRef)) {
+      continue;
+    }
+
+    auto [Acquired, Required] = toTypeSet(Method);
+    CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{Method},
+                              std::move(Required));
   }
   return true;
 }
