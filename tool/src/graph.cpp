@@ -443,3 +443,8 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));
 }
+
+GraphType createGraph(GraphData &Data) {
+  return GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
+                   Data.EdgeWeights.data(), Data.EdgeWeights.size());
+}

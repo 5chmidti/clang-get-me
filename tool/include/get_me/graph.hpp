@@ -114,6 +114,8 @@ independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     const std::string &TypeName);
 
+[[nodiscard]] GraphType createGraph(GraphData &Data);
+
 [[nodiscard]] std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
