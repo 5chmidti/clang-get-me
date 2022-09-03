@@ -56,7 +56,7 @@ int main(int argc, const char **argv) {
 
   const auto &QueriedType = TypeName.getValue();
 
-  auto Data = generateVertexAndEdgeWeigths(TypeSetTransitionData, QueriedType);
+  const auto Data = createGraphData(TypeSetTransitionData, QueriedType);
 
   // FIXME: apply greedy transition traversal strategy
 
