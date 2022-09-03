@@ -159,7 +159,7 @@ static void filterOverloads(std::vector<TransitionDataType> &Data,
         Overloaded{
             GetNameOfDeclaratorDecl,
             [](const CustomTransitionType &CustomVal) { return CustomVal; },
-                   [](std::monostate) -> std::string { return "monostate"; }},
+            [](std::monostate) -> std::string { return "monostate"; }},
         Val);
   };
   const auto GetParameters = [](const TransitionDataType &Val) {

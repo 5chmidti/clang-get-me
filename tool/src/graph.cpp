@@ -12,7 +12,6 @@
 #include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
-#include <range/v3/algorithm/binary_search.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/find_if.hpp>
@@ -312,11 +311,11 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         AddedTransitions = true;
       }
       spdlog::trace("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
-                   IterationCount, TransitionCounter,
-                   VertexData.size() + TemporaryVertexData.size(),
-                   TemporaryVertexData.size(),
-                   EdgesData.size() + TemporaryEdgeData.size(),
-                   TemporaryEdgeData.size(), Transition);
+                    IterationCount, TransitionCounter,
+                    VertexData.size() + TemporaryVertexData.size(),
+                    TemporaryVertexData.size(),
+                    EdgesData.size() + TemporaryEdgeData.size(),
+                    TemporaryEdgeData.size(), Transition);
       spdlog::trace("TemporaryVertexData: {}", TemporaryVertexData);
       spdlog::trace("TemporaryEdgeData: {}", TemporaryEdgeData);
     }
@@ -327,11 +326,11 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     TypeSetsOfInterest = ranges::to<std::set>(
         VertexData |
         ranges::views::filter(
-                         [&TemporaryEdgeData](const auto &Val) {
+            [&TemporaryEdgeData](const auto &Val) {
               return ranges::contains(TemporaryEdgeData, Val,
-                               &GraphData::EdgeType::second);
-                         },
-                         &indexed_vertex_type::second));
+                                      &GraphData::EdgeType::second);
+            },
+            &indexed_vertex_type::second));
     TemporaryVertexData.clear();
 
     EdgesData.insert(EdgesData.end(),
@@ -353,7 +352,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 
 std::pair<GraphType, GraphData>
 createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    const std::string &TypeName) {
+            const std::string &TypeName) {
   GraphData Data{};
   addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data, TypeName);
 

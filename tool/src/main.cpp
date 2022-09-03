@@ -99,7 +99,7 @@ int main(int argc, const char **argv) {
         fmt::join(Path | views::transform([&Data, &IndexMap](
                                               const EdgeDescriptor &Edge) {
                     return Data.EdgeWeights[boost::get(IndexMap, Edge)];
-            }),
-            ", "));
+                  }),
+                  ", "));
   }
 }
