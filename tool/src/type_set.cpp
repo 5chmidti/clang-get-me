@@ -1,6 +1,8 @@
 #include "get_me/type_set.hpp"
 
+#include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <llvm/Support/Casting.h>
 #include <range/v3/view/transform.hpp>
 
 std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
@@ -40,4 +42,8 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
 std::pair<TypeSet, TypeSet> toTypeSet(const clang::FieldDecl *FDecl) {
   return {{{FDecl->getType().getCanonicalType().getTypePtr()}},
           {{FDecl->getParent()->getTypeForDecl()}}};
+}
+
+std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl) {
+  return {{{VDecl->getType().getCanonicalType().getTypePtr()}}, {}};
 }

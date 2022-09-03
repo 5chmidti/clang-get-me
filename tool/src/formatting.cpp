@@ -10,6 +10,7 @@
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
+#include "get_me/graph.hpp"
 #include "get_me/utility.hpp"
 
 using namespace clang;
@@ -18,6 +19,7 @@ std::string getTransitionName(const TransitionDataType &Data) {
   return std::visit(
       Overloaded{
           [](const DeclaratorDecl *DDecl) { return DDecl->getNameAsString(); },
+          [](const CustomTransitionType &Val) { return Val; },
           [](const std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
@@ -39,6 +41,10 @@ std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
                  [](const FieldDecl *const FDecl) {
                    return FDecl->getType().getAsString();
                  },
+                 [](const VarDecl *const VDecl) {
+                   return VDecl->getType().getAsString();
+                 },
+                 [](const CustomTransitionType &Val) { return Val; },
                  [](std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
@@ -65,16 +71,21 @@ functionDeclToStringForRequired(const FunctionDecl *const FDecl) {
 };
 
 std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
-  return std::visit(Overloaded{[](const FunctionDecl *const FDecl) {
-                                 return functionDeclToStringForRequired(FDecl);
-                               },
-                               [](const FieldDecl *const FDecl) {
-                                 return FDecl->getParent()->getNameAsString();
-                               },
-                               [](const std::monostate) -> std::string {
-                                 return "monostate";
-                               }},
-                    Data);
+  return std::visit(
+      Overloaded{
+          [](const FunctionDecl *const FDecl) {
+            return functionDeclToStringForRequired(FDecl);
+          },
+          [](const FieldDecl *const FDecl) {
+            return FDecl->getParent()->getNameAsString();
+          },
+          [](const VarDecl *const /*VDecl*/) -> std::string { return ""; },
+          // FIXME: placeholder, written to work with defaulted constructors
+          [](const CustomTransitionType & /*Val*/) -> std::string {
+            return "";
+          },
+          [](const std::monostate) -> std::string { return "monostate"; }},
+      Data);
 }
 
 std::vector<std::string> toString(const std::vector<PathType> &Paths,
@@ -91,7 +102,7 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
                          IndexMap = boost::get(boost::edge_index, Graph)](
                             const EdgeDescriptor &Edge) {
                           return Data.EdgeWeights[boost::get(IndexMap, Edge)];
-                                       }),
-                            ", "));
+                        }),
+                ", "));
       }));
 };

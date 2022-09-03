@@ -51,6 +51,8 @@ public:
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl);
 
+  [[nodiscard]] bool VisitVarDecl(clang::VarDecl *VDecl);
+
   TransitionCollector &CollectorRef;
 };
 

@@ -77,3 +77,39 @@ A getA(float, float);
 )",
        "A", {"A getA(float, float)", "A getA(float)", "A A()"});
 }
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
+TEST_F(GetMeTest, specialMemberFunctions) {
+  test(R"(
+struct A {};
+)",
+       "A", {"A A()"});
+
+  test(R"(
+struct A { A(); };
+)",
+       "A", {"A A()"});
+
+  test(R"(
+struct A { explicit A(int); };
+)",
+       "A", {"A A(int)"});
+
+  test(R"(
+struct A { A(int, float); };
+)",
+       "A", {"A A(int, float)"});
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
+TEST_F(GetMeTest, inheritance) {
+  test(R"(
+struct A { A(int, float); };
+struct B : public A {};
+struct C : public B {};
+A getA();
+B getB();
+
+)",
+       "B", {"B getB()", "B B()", "B A(int, float)"});
+}

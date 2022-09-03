@@ -129,6 +129,14 @@ bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
     CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{Method},
                               std::move(Required));
   }
+
+  // add non user provided default constructor
+  if (RDecl->hasDefaultConstructor() &&
+      !RDecl->hasUserProvidedDefaultConstructor()) {
+    CollectorRef.emplace_back(
+        TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
+        TransitionDataType{RDecl->getNameAsString()}, TypeSet{});
+  }
   return true;
 }
 
@@ -148,7 +156,9 @@ static void filterOverloads(std::vector<TransitionDataType> &Data,
       return DDecl->getName().str();
     };
     return std::visit(
-        Overloaded{GetNameOfDeclaratorDecl,
+        Overloaded{
+            GetNameOfDeclaratorDecl,
+            [](const CustomTransitionType &CustomVal) { return CustomVal; },
                    [](std::monostate) -> std::string { return "monostate"; }},
         Val);
   };
@@ -259,4 +269,21 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   // will visit all nodes in the AST.
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
   spdlog::trace("collected: {}", Visitor.CollectorRef);
+}
+
+bool GetMeVisitor::VisitVarDecl(clang::VarDecl *VDecl) {
+  if (VDecl->isCXXInstanceMember()) {
+    return true;
+  }
+  if (!VDecl->isStaticDataMember()) {
+    return true;
+  }
+  if (const auto *const RDecl =
+          llvm::dyn_cast<clang::RecordDecl>(VDecl->getDeclContext())) {
+    CollectorRef.emplace_back(
+        TypeSet{
+            TypeSetValueType{VDecl->getType().getCanonicalType().getTypePtr()}},
+        TransitionDataType{VDecl}, TypeSet{});
+  }
+  return true;
 }
