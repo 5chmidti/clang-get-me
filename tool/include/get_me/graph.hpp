@@ -43,6 +43,7 @@ using GraphType = boost::adjacency_list<
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
 using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
+// FIXME: optimize this from pair of edges to list of vertices
 using PathType = std::vector<EdgeDescriptor>;
 
 struct TypeValue {
