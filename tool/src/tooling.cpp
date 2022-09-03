@@ -113,7 +113,7 @@ bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
   for (const clang::CXXMethodDecl *Method : RDecl->methods()) {
     // FIXME: allow conversions
     if (llvm::isa<clang::CXXConversionDecl>(Method)) {
-      return true;
+      continue;
     }
     if (llvm::isa<clang::CXXDestructorDecl>(Method)) {
       continue;
