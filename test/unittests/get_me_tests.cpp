@@ -12,8 +12,11 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
-std::tuple<GraphData, GraphType, std::vector<PathType>>
-prepare(std::string_view Code, std::string_view QueriedType) {
+void test(std::string_view Code, std::string_view QueriedType,
+          const std::vector<std::string_view> &ExpectedPaths,
+          std::source_location Loc) {
+  testing::ScopedTrace trace(Loc.file_name(), static_cast<int>(Loc.line()),
+                             "Test source");
   const auto AST =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
@@ -25,19 +28,13 @@ prepare(std::string_view Code, std::string_view QueriedType) {
       createGraph(TypeSetTransitionData, QueriedTypeAsString);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
+  const auto VertexDataSize = Data.VertexData.size();
+  // adjusted for empty set
+  ASSERT_LT(SourceVertex, VertexDataSize - 1);
   const auto FoundPaths = pathTraversal(Graph, SourceVertex);
-  return {Data, Graph, FoundPaths};
-}
-
-void test(std::string_view Code, std::string_view QueriedType,
-          const std::vector<std::string_view> &ExpectedPaths,
-          std::source_location Loc) {
-  const auto [Data, Graph, FoundPaths] = prepare(Code, QueriedType);
 
   const auto FoundPathsAsString = toString(FoundPaths, Graph, Data);
 
-  testing::ScopedTrace trace(Loc.file_name(), static_cast<int>(Loc.line()),
-                             "Test source");
   EXPECT_TRUE(ranges::is_permutation(FoundPathsAsString, ExpectedPaths))
       << fmt::format("Expected: {}\nFound: {}", ExpectedPaths,
                      FoundPathsAsString);
