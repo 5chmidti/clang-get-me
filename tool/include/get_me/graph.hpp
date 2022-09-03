@@ -111,11 +111,9 @@ pathTraversal(const GraphType &Graph, VertexDescriptor SourceVertex);
 [[nodiscard]] std::vector<PathType>
 independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
 
-[[nodiscard]] GraphData createGraphData(
-    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+[[nodiscard]] std::pair<GraphType, GraphData>
+createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     const std::string &TypeName);
-
-[[nodiscard]] GraphType createGraph(GraphData &Data);
 
 [[nodiscard]] std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector);

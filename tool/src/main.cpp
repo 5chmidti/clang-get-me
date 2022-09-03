@@ -55,11 +55,9 @@ int main(int argc, const char **argv) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
   }
 
-  const auto TypeSetTransitionData = getTypeSetTransitionData(Collector);
-
   const auto &QueriedType = TypeName.getValue();
 
-  const auto Data = createGraphData(TypeSetTransitionData, QueriedType);
+  const auto [Graph, Data] = createGraph(TypeSetTransitionData, QueriedType);
 
   // FIXME: apply greedy transition traversal strategy
 
@@ -67,9 +65,6 @@ int main(int argc, const char **argv) {
                "{}\n\tEdgeWeightMap: {}",
                Data.VertexData.size(), Data.Edges.size(),
                Data.EdgeWeights.size(), Data.EdgeWeightMap.size());
-
-  GraphType Graph(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
-                  Data.EdgeWeights.data(), Data.EdgeWeights.size());
 
   std::ofstream DotFile("graph.dot");
   std::string Res{};

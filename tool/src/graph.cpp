@@ -343,8 +343,8 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
   Data.Edges = ranges::to_vector(EdgesData);
 }
 
-GraphData createGraphData(
-    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+std::pair<GraphType, GraphData>
+createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     const std::string &TypeName) {
   GraphData Data{};
   addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data, TypeName);
@@ -362,7 +362,9 @@ GraphData createGraphData(
   spdlog::trace("GraphData.EdgeWeights: {}", Data.EdgeWeights);
   spdlog::trace("GraphData.EdgeWeightMap: {}", Data.EdgeWeightMap);
 
-  return Data;
+  return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
+                    Data.EdgeWeights.data(), Data.EdgeWeights.size()),
+          Data};
 }
 
 [[nodiscard]] static std::pair<TypeSet, TypeSet>
@@ -442,9 +444,4 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   }
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));
-}
-
-GraphType createGraph(GraphData &Data) {
-  return GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
-                   Data.EdgeWeights.data(), Data.EdgeWeights.size());
 }

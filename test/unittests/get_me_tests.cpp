@@ -22,8 +22,8 @@ prepare(std::string_view Code, std::string_view QueriedType) {
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto TypeSetTransitionData = getTypeSetTransitionData(Collector);
   const auto QueriedTypeAsString = std::string{QueriedType};
-  auto Data = createGraphData(TypeSetTransitionData, QueriedTypeAsString);
-  auto Graph = createGraph(Data);
+  const auto [Graph, Data] =
+      createGraph(TypeSetTransitionData, QueriedTypeAsString);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
   const auto FoundPaths = pathTraversal(Graph, SourceVertex);
