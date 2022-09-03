@@ -233,7 +233,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
-    spdlog::info("{:=^30}", "");
+    spdlog::trace("{:=^50}", "");
     const auto TransitionWithInterestingAcquiredTypeSet =
         [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
           const auto &Acquired = std::get<0>(Val);
@@ -241,7 +241,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
                                 containsAcquiredTypeSet(Acquired),
                                 &indexed_vertex_type::first);
         };
-    spdlog::info("TypeSetsOfInterest: {}", TypeSetsOfInterest);
+    spdlog::trace("TypeSetsOfInterest: {}", TypeSetsOfInterest);
     for (const auto FilteredTypeSetTransitionData = ranges::to_vector(
              TypeSetTransitionData |
              ranges::views::filter(TransitionWithInterestingAcquiredTypeSet));
@@ -307,16 +307,14 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 
         AddedTransitions = true;
       }
-      spdlog::info("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
+      spdlog::trace("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
                    IterationCount, TransitionCounter,
                    VertexData.size() + TemporaryVertexData.size(),
                    TemporaryVertexData.size(),
                    EdgesData.size() + TemporaryEdgeData.size(),
                    TemporaryEdgeData.size(), Transition);
-      if (fmt::format("{}", Transition).find('A') != std::string::npos) {
-        spdlog::info("TemporaryVertexData: {}", TemporaryVertexData);
-        spdlog::info("TemporaryEdgeData: {}", TemporaryEdgeData);
-      }
+      spdlog::trace("TemporaryVertexData: {}", TemporaryVertexData);
+      spdlog::trace("TemporaryEdgeData: {}", TemporaryEdgeData);
     }
 
     VertexData.merge(std::move(TemporaryVertexData));
@@ -333,7 +331,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     EdgesData.merge(std::move(TemporaryEdgeData));
     TemporaryEdgeData.clear();
   }
-  spdlog::info("{:=^30}", "");
+  spdlog::trace("{:=^50}", "");
 
   auto VertexDataToSort = ranges::to_vector(VertexData);
   ranges::sort(VertexDataToSort, std::less{}, &indexed_vertex_type::second);
@@ -353,14 +351,14 @@ GraphData createGraphData(
     Data.VertexData.emplace_back();
   }
 
-  spdlog::info("initial GraphData.VertexData: {}", Data.VertexData);
+  spdlog::trace("initial GraphData.VertexData: {}", Data.VertexData);
 
   buildGraph(TypeSetTransitionData, Data);
 
-  spdlog::info("GraphData.VertexData: {}", Data.VertexData);
-  spdlog::info("GraphData.Edges: {}", Data.Edges);
-  spdlog::info("GraphData.EdgeWeights: {}", Data.EdgeWeights);
-  spdlog::info("GraphData.EdgeWeightMap: {}", Data.EdgeWeightMap);
+  spdlog::trace("GraphData.VertexData: {}", Data.VertexData);
+  spdlog::trace("GraphData.Edges: {}", Data.Edges);
+  spdlog::trace("GraphData.EdgeWeights: {}", Data.EdgeWeights);
+  spdlog::trace("GraphData.EdgeWeightMap: {}", Data.EdgeWeightMap);
 
   return Data;
 }
