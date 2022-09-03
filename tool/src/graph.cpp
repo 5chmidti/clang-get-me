@@ -44,12 +44,23 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   std::vector<PathType> Paths{};
   std::stack<possible_path_type> EdgesStack{};
 
+  const auto AddToStack = [&EdgesStack, SourceVertex](auto Val) {
+    EdgesStack.emplace(SourceVertex, std::move(Val));
+  };
+  for_each(toRange(out_edges(SourceVertex, Graph)), AddToStack);
+
   const auto AddOutEdgesOfVertexToStack = [&Graph, &EdgesStack, &Paths,
                                            &CurrentPath](auto Vertex) {
     const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
     auto OutEdgesRange =
-        ranges::views::filter(Vec, [&CurrentPath](const auto &Edge) {
-          return !ranges::contains(CurrentPath, Edge);
+        ranges::views::filter(Vec, [&CurrentPath, &Graph](const auto &Edge) {
+          const auto TargetVertex = target(Edge, Graph);
+          return !ranges::any_of(
+              CurrentPath,
+              [&Graph, TargetVertex](const EdgeDescriptor &EdgeInPath) {
+                return source(EdgeInPath, Graph) == TargetVertex ||
+                       target(EdgeInPath, Graph) == TargetVertex;
+              });
         });
     if (OutEdgesRange.empty()) {
       return false;
@@ -71,8 +82,6 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     return true;
   };
 
-  AddOutEdgesOfVertexToStack(SourceVertex);
-
   VertexDescriptor CurrentVertex{};
   VertexDescriptor PrevTarget{SourceVertex};
   while (!EdgesStack.empty()) {
@@ -81,7 +90,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     EdgesStack.pop();
 
     if (contains(CurrentPath, Edge)) {
-      spdlog::error("skipping visiting edge already in path");
+      spdlog::error("skipping visiting edge already in path: {}", Edge);
       continue;
     }
 
@@ -89,7 +98,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
         "path #{}: src: {}, prev target: {}, edge: {}, current path: {}",
         PathIndex, Src, PrevTarget, Edge, CurrentPath);
 
-    if (!CurrentPath.empty() && target(CurrentPath.back(), Graph) != Src) {
+    if (!CurrentPath.empty() && PrevTarget != Src) {
       // visiting an edge whose source is not the target of the previous edge.
       // the current path has to be reversed until the new edge can be added to
       // the path
@@ -103,10 +112,8 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       CurrentPath.erase(find(CurrentPath, Src, GetEdgeSource),
                         CurrentPath.end());
       spdlog::trace("{}{}", Msg, CurrentPath);
-      PrevTarget = Src;
-    } else {
-      PrevTarget = target(Edge, Graph);
     }
+    PrevTarget = target(Edge, Graph);
 
     CurrentPath.emplace_back(Edge);
     CurrentVertex = target(Edge, Graph);
