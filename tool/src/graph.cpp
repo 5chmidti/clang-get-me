@@ -367,79 +367,21 @@ createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
           Data};
 }
 
-[[nodiscard]] static std::pair<TypeSet, TypeSet>
-toTypeSet(const clang::FunctionDecl *FDecl) {
-  const auto AcquiredType = [FDecl]() {
-    if (const auto *const Constructor =
-            llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
-        Constructor) {
-      const auto *const Decl = Constructor->getParent();
-      return TypeSetValueType{Decl->getTypeForDecl()};
-    }
-    const auto RQType = FDecl->getReturnType().getCanonicalType();
-    const auto *const ReturnTypePtr = RQType.getTypePtr();
-    return TypeSetValueType{ReturnTypePtr};
-  }();
-  const auto RequiredTypes = [FDecl]() {
-    const auto Parameters = FDecl->parameters();
-    auto ParameterTypeRange =
-        Parameters |
-        ranges::views::transform([](const clang::ParmVarDecl *PVDecl) {
-          const auto QType = PVDecl->getType().getCanonicalType();
-          return TypeSetValueType{QType.getTypePtr()};
-        });
-    auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
-                       std::make_move_iterator(ParameterTypeRange.end())};
-    if (const auto *const Method =
-            llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
-      if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
-          !Method->isStatic()) {
-        Res.emplace(Method->getParent()->getTypeForDecl());
-      }
-    }
-    return Res;
-  }();
-  return {{AcquiredType}, RequiredTypes};
-}
-
-[[nodiscard]] static std::pair<TypeSet, TypeSet>
-toTypeSet(const clang::FieldDecl *FDecl) {
-  return {{{FDecl->getType().getCanonicalType().getTypePtr()}},
-          {{FDecl->getParent()->getTypeForDecl()}}};
-}
-
-std::vector<TypeSetTransitionDataType>
-getTypeSetTransitionData(const TransitionCollector &Collector) {
-  return ranges::to_vector(ranges::views::transform(
-      Collector.Data, [](const TransitionDataType &Val) {
-        return std::visit(
-            Overloaded{
-                [&Val](const auto *Decl) -> TypeSetTransitionDataType {
-                  auto [Acquired, Required] = toTypeSet(Decl);
-                  return {{std::move(Acquired)}, Val, std::move(Required)};
-                },
-                [](const std::monostate) -> TypeSetTransitionDataType {
-                  return {};
-                }},
-            Val);
-      }));
-}
-
 VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const std::string &QueriedType) {
+                                   const std::string &TypeName) {
   // FIXME: improve queried type matching:
   // - better matching of names
   // - allow matching mutiple to get around QualType vs NamedDecl problem
   // - better: fix QualType vs NamedDecl problem
   // FIXME: only getting the 'A' type, not the & qualified
   const auto SourceVertex =
-      ranges::find_if(Data.VertexData, [&QueriedType](const TypeSet &TSet) {
-        return TSet.end() != ranges::find_if(TSet, matchesName(QueriedType));
+      ranges::find_if(Data.VertexData, [&TypeName](const TypeSet &TSet) {
+        return TSet.end() != ranges::find_if(TSet, matchesName(TypeName));
       });
 
   if (SourceVertex == Data.VertexData.end()) {
-    spdlog::error("found no type matching {}", QueriedType);
+    spdlog::error("found no type matching {}", TypeName);
     return 0;
   }
   return static_cast<VertexDescriptor>(

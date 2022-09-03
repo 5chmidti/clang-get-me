@@ -34,17 +34,6 @@ struct FunctionDecl;
 struct FieldDecl;
 } // namespace clang
 
-struct TransitionCollector {
-  std::vector<TransitionDataType> Data{};
-
-  template <typename T>
-  void emplace(T &&Value)
-    requires std::convertible_to<T, TransitionDataType>
-  {
-    Data.emplace_back(std::forward<T>(Value));
-  }
-};
-
 // FIXME: add support for current context (i.e. current function)
 // this would mean only traversing into a function definition if it is the
 // current context

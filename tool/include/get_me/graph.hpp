@@ -22,6 +22,8 @@
 #include <clang/AST/Type.h>
 #include <llvm/ADT/StringRef.h>
 
+#include "get_me/type_set.hpp"
+
 using namespace std::string_view_literals;
 
 namespace clang {
@@ -29,8 +31,6 @@ struct FunctionDecl;
 struct FieldDecl;
 struct NamedDecl;
 } // namespace clang
-
-class TransitionCollector;
 
 using TransitionDataType =
     std::variant<std::monostate, const clang::FunctionDecl *,
@@ -46,25 +46,10 @@ using VertexDescriptor =
 // FIXME: optimize this from pair of edges to list of vertices
 using PathType = std::vector<EdgeDescriptor>;
 
-struct TypeValue {
-  const clang::Type *Value{};
-
-  [[nodiscard]] friend auto operator==(const TypeValue &Lhs,
-                                       const TypeValue &Rhs) {
-    return Lhs.Value == Rhs.Value;
-  }
-
-  [[nodiscard]] friend auto operator<=>(const TypeValue &Lhs,
-                                        const TypeValue &Rhs) {
-    return Lhs.Value <=> Rhs.Value;
-  }
-};
-
-using TypeSetValueType = TypeValue;
-using TypeSet = std::set<TypeSetValueType>;
-
 using TypeSetTransitionDataType =
     std::tuple<TypeSet, TransitionDataType, TypeSet>;
+
+using TransitionCollector = std::vector<TypeSetTransitionDataType>;
 
 struct GraphData {
   using EdgeWeightType = TransitionDataType;
@@ -113,13 +98,13 @@ independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
 
 [[nodiscard]] std::pair<GraphType, GraphData>
 createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    const std::string &TypeName);
+            const std::string &TypeName);
 
 [[nodiscard]] std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
 [[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const std::string &QueriedType);
+                                   const std::string &TypeName);
 
 #endif

@@ -44,13 +44,13 @@ int main(int argc, const char **argv) {
       Sources.empty() ? OptionsParser->getCompilations().getAllFiles()
                       : Sources);
 
-  TransitionCollector Collector{};
+  TransitionCollector TypeSetTransitionData{};
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
   if (const auto BuildASTsResult = Tool.buildASTs(ASTs); BuildASTsResult != 0) {
     spdlog::error("error building ASTs");
     return 1;
   }
-  auto Consumer = GetMe{Collector};
+  auto Consumer = GetMe{TypeSetTransitionData};
   for (const auto &AST : ASTs) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
   }

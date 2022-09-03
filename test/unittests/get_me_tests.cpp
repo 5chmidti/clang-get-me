@@ -17,10 +17,9 @@ prepare(std::string_view Code, std::string_view QueriedType) {
   const auto AST =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
-  TransitionCollector Collector{};
-  auto Consumer = GetMe{Collector};
+  TransitionCollector TypeSetTransitionData{};
+  auto Consumer = GetMe{TypeSetTransitionData};
   Consumer.HandleTranslationUnit(AST->getASTContext());
-  const auto TypeSetTransitionData = getTypeSetTransitionData(Collector);
   const auto QueriedTypeAsString = std::string{QueriedType};
   const auto [Graph, Data] =
       createGraph(TypeSetTransitionData, QueriedTypeAsString);

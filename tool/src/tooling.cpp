@@ -63,12 +63,14 @@ static void VisitFunctionDeclImpl(clang::FunctionDecl *FDecl,
   //   return true;
   // }
 
-  if (ranges::contains(Collector.Data,
-                       TransitionDataType{FDecl->getCanonicalDecl()})) {
+  if (ranges::contains(Collector, TransitionDataType{FDecl->getCanonicalDecl()},
+                       [](const auto &Val) { return std::get<1>(Val); })) {
     return;
   }
 
-  Collector.emplace(FDecl);
+  auto [Acquired, Required] = toTypeSet(FDecl);
+  Collector.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
+                         std::move(Required));
 }
 
 bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
@@ -87,7 +89,10 @@ bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
   if (Field->getAccess() != clang::AccessSpecifier::AS_public) {
     return true;
   }
-  CollectorRef.emplace(Field);
+
+  auto [Acquired, Required] = toTypeSet(Field);
+  CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{Field},
+                            std::move(Required));
   return true;
 }
 
@@ -237,5 +242,5 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   // Traversing the translation unit decl via a RecursiveASTVisitor
   // will visit all nodes in the AST.
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-  spdlog::trace("collected: {}", Visitor.CollectorRef.Data);
+  spdlog::trace("collected: {}", Visitor.CollectorRef);
 }
