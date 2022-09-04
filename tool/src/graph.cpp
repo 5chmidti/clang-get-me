@@ -251,8 +251,8 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     for (const auto FilteredTypeSetTransitionData = ranges::to_vector(
              TypeSetTransitionData |
              ranges::views::filter(TransitionWithInterestingAcquiredTypeSet));
-         const auto &[AcquiredTypeSet, Transition, RequiredTypeSet] :
-         FilteredTypeSetTransitionData) {
+         const auto &Transition : FilteredTypeSetTransitionData) {
+      const auto &[AcquiredTypeSet, Function, RequiredTypeSet] = Transition;
       ++TransitionCounter;
       for (const auto FilteredTypeSetsOfInterest = ranges::to_vector(
                TypeSetsOfInterest |

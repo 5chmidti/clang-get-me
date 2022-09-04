@@ -22,7 +22,9 @@ struct A {};
 A getA();
 A getA(int);
 )",
-       "A", {"A getA()", "A getA(int)", "A A()"});
+       "A",
+       {"({struct A}, A getA(), {})", "({struct A}, A getA(int), {int})",
+        "({struct A}, A A(), {})"});
 
   test(R"(
 struct A {};
@@ -30,13 +32,13 @@ struct B {};
 A getA();
 B getB();
 )",
-       "A", {"A getA()", "A A()"});
+       "A", {"({struct A}, A getA(), {})", "({struct A}, A A(), {})"});
 
   test(R"(
 struct A {};
 struct B { static A StaticMemberA; };
 )",
-       "A", {"A StaticMemberA()", "A A()"});
+       "A", {"({struct A}, A StaticMemberA(), {})", "({struct A}, A A(), {})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -50,8 +52,10 @@ A getA(int);
 B getB();
 )",
        "A",
-       {"A getA()", "A A()", "A getA(int)", "A MemberA(B), B getB()",
-        "A MemberA(B), B B()"});
+       {"({struct A}, A getA(), {})", "({struct A}, A A(), {})",
+        "({struct A}, A getA(int), {int})",
+        "({struct A}, A MemberA(B), {struct B}), ({struct B}, B getB(), {})",
+        "({struct A}, A MemberA(B), {struct B}), ({struct B}, B B(), {})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -66,8 +70,11 @@ A getA(float);
 A getA(float, float);
 )",
        "A",
-       {"A getA()", "A A()", "A getA(int)", "A getA(float)",
-        "A getA(float, float)", "A getA(float, int)"});
+       {"({struct A}, A getA(), {})", "({struct A}, A A(), {})",
+        "({struct A}, A getA(int), {int})",
+        "({struct A}, A getA(float), {float})",
+        "({struct A}, A getA(float, float), {float})",
+        "({struct A}, A getA(float, int), {int, float})"});
 
   test(R"(
 struct A {};
@@ -75,7 +82,9 @@ struct A {};
 A getA(float);
 A getA(float, float);
 )",
-       "A", {"A getA(float, float)", "A getA(float)", "A A()"});
+       "A",
+       {"({struct A}, A getA(float, float), {float})",
+        "({struct A}, A getA(float), {float})", "({struct A}, A A(), {})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -83,22 +92,22 @@ TEST_F(GetMeTest, specialMemberFunctions) {
   test(R"(
 struct A {};
 )",
-       "A", {"A A()"});
+       "A", {"({struct A}, A A(), {})"});
 
   test(R"(
 struct A { A(); };
 )",
-       "A", {"A A()"});
+       "A", {"({struct A}, A A(), {})"});
 
   test(R"(
 struct A { explicit A(int); };
 )",
-       "A", {"A A(int)"});
+       "A", {"({struct A}, A A(int), {int})"});
 
   test(R"(
 struct A { A(int, float); };
 )",
-       "A", {"A A(int, float)"});
+       "A", {"({struct A}, A A(int, float), {int, float})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -111,5 +120,8 @@ A getA();
 B getB();
 
 )",
-       "B", {"B getB()", "B B()", "B A(int, float)"});
+       "B",
+       {"({struct B}, B getB(), {})", "({struct B}, A getA(), {})",
+        "({struct B}, A A(int, float), {int, float})",
+        "({struct B}, B B(), {})"});
 }

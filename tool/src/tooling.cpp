@@ -4,10 +4,17 @@
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/Basic/Specifiers.h>
 #include <llvm/ADT/StringRef.h>
+#include <range/v3/algorithm/any_of.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
+#include "get_me/graph.hpp"
+#include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
 [[nodiscard]] static bool
@@ -104,8 +111,6 @@ bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
   return true;
 }
 
-// FIXME: implement inheritance
-// FIXME: also do this for FieldDecls
 bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
   if (RDecl != RDecl->getDefinition()) {
     return true;
@@ -256,21 +261,78 @@ static void filterOverloads(std::vector<TransitionDataType> &Data,
                          Projection, Projection);
     return MismatchResult.in1 == LhsParams.value().end();
   };
-  const auto UniqueEndIter = ranges::unique(Data, IsOverload);
-
-  auto Res = fmt::format("erasing: [");
-  for (auto Iter = UniqueEndIter; Iter != Data.end(); ++Iter) {
-    Res = fmt::format("{}{}, ", Res, *Iter);
-  }
-  Res = fmt::format("{}] from {}", Res, Data);
-  Data.erase(UniqueEndIter, Data.end());
-  spdlog::trace("{}, post erasure: {}", Res, Data);
+  Data.erase(ranges::unique(Data, IsOverload), Data.end());
 }
+
+class GetMePostVisitor : public clang::RecursiveASTVisitor<GetMePostVisitor> {
+public:
+  explicit GetMePostVisitor(TransitionCollector &Collector)
+      : CollectorRef{Collector} {}
+
+  [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
+    const auto DerivedTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
+    const auto DerivedTS = TypeSet{DerivedTSValue};
+    for (const clang::CXXBaseSpecifier BaseSpec : RDecl->bases()) {
+      if (BaseSpec.getAccessSpecifier() != clang::AccessSpecifier::AS_public) {
+        continue;
+      }
+      const auto *const Base =
+          BaseSpec.getType()->getAsCXXRecordDecl()->getCanonicalDecl();
+      const auto BaseTSValue = TypeSetValueType{Base->getTypeForDecl()};
+      const auto HasTransitionWithBaseClass = [](const auto &Val) {
+        const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
+                     RequiredIter] = Val;
+        return HasBaseInAcquired || HasBaseInRequired;
+      };
+
+      const auto TransformToFilterData =
+          [&BaseTSValue](const TypeSetTransitionDataType &Val)
+          -> std::tuple<TypeSetTransitionDataType, bool, bool,
+                        TypeSet::iterator> {
+        const auto &[Acquired, Transition, Required] = Val;
+        const auto AcquiredHasBase = Acquired == TypeSet{BaseTSValue};
+        const auto RequiredHasBaseIter = Required.find(BaseTSValue);
+        return {Val, AcquiredHasBase, RequiredHasBaseIter != Required.end(),
+                RequiredHasBaseIter};
+      };
+      const auto FilterDataToTransition =
+          [&DerivedTS,
+           &DerivedTSValue](const auto &Val) -> TypeSetTransitionDataType {
+        auto [Transition, HasBaseInAcquired, HasBaseInRequired, RequiredIter] =
+            Val;
+        auto &[Acquired, Function, Required] = Transition;
+        if (HasBaseInAcquired) {
+          Acquired = DerivedTS;
+        }
+        if (HasBaseInRequired) {
+          Required.erase(RequiredIter);
+          Required.emplace(DerivedTSValue);
+        }
+        return Transition;
+      };
+
+      auto NewTransitions = ranges::to_vector(
+          CollectorRef | ranges::views::transform(TransformToFilterData) |
+          ranges::views::filter(HasTransitionWithBaseClass) |
+          ranges::views::transform(FilterDataToTransition));
+      CollectorRef.insert(CollectorRef.end(),
+                          std::make_move_iterator(NewTransitions.begin()),
+                          std::make_move_iterator(NewTransitions.end()));
+    }
+    return true;
+  }
+
+  TransitionCollector &CollectorRef;
+};
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   // Traversing the translation unit decl via a RecursiveASTVisitor
   // will visit all nodes in the AST.
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+
+  auto PostVisitor = GetMePostVisitor{Visitor.CollectorRef};
+  PostVisitor.TraverseDecl(Context.getTranslationUnitDecl());
+
   spdlog::trace("collected: {}", Visitor.CollectorRef);
 }
 

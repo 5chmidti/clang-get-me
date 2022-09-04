@@ -63,7 +63,7 @@ using TypeSetTransitionDataType =
 using TransitionCollector = std::vector<TypeSetTransitionDataType>;
 
 struct GraphData {
-  using EdgeWeightType = TransitionDataType;
+  using EdgeWeightType = TypeSetTransitionDataType;
   using VertexDataType = TypeSet;
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
