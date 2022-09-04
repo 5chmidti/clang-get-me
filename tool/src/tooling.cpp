@@ -74,8 +74,16 @@ functionFilterPredicate(const clang::FunctionDecl *FDecl,
   //   return true;
   // }
 
-  if (ranges::contains(Collector, TransitionDataType{FDecl->getCanonicalDecl()},
-                       [](const auto &Val) { return std::get<1>(Val); })) {
+  if (FDecl->getReturnType().getAsString().find("exception") !=
+      std::string::npos) {
+    return true;
+  }
+
+  if (ranges::any_of(
+          FDecl->parameters(), [](const clang::ParmVarDecl *const PVDecl) {
+            return PVDecl->getType().getAsString().find("exception") !=
+                   std::string::npos;
+          })) {
     return true;
   }
 
@@ -102,6 +110,13 @@ bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
   }
 
   if (Field->getAccess() != clang::AccessSpecifier::AS_public) {
+    return true;
+  }
+
+  if (Field->getType()->isArithmeticType()) {
+    return true;
+  }
+  if (Field->getType().getAsString().find("exception") != std::string::npos) {
     return true;
   }
 
@@ -346,6 +361,13 @@ bool GetMeVisitor::VisitVarDecl(clang::VarDecl *VDecl) {
   if (!VDecl->isStaticDataMember()) {
     return true;
   }
+  if (VDecl->getType()->isArithmeticType()) {
+    return true;
+  }
+  if (VDecl->getType().getAsString().find("exception") != std::string::npos) {
+    return true;
+  }
+
   if (const auto *const RDecl =
           llvm::dyn_cast<clang::RecordDecl>(VDecl->getDeclContext())) {
     CollectorRef.emplace_back(
