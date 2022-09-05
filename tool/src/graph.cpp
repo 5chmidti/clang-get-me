@@ -183,12 +183,18 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 static void addQueriedTypeSetsAndAddEdgeWeights(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     GraphData &Data, const std::string &TypeName) {
-  for (const auto &[Acquired, Transition, Required] : TypeSetTransitionData) {
-    if (ranges::any_of(Acquired, matchesName(TypeName)) &&
-        !ranges::contains(Data.VertexData, Acquired)) {
-      Data.VertexData.push_back(Acquired);
-    }
-  }
+  const auto ToAcquired = [](const TypeSetTransitionDataType &Val) {
+    return std::get<0>(Val);
+  };
+  ranges::transform(ranges::views::filter(
+                        TypeSetTransitionData,
+                        [&TypeName, &Data](const TypeSet &Acquired) {
+                          return ranges::any_of(Acquired,
+                                                matchesName(TypeName)) &&
+                                 !ranges::contains(Data.VertexData, Acquired);
+                        },
+                        ToAcquired),
+                    std::back_inserter(Data.VertexData), ToAcquired);
 }
 
 template <typename RangeType1, typename RangeType2>
