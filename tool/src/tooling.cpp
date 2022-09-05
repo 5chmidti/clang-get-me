@@ -7,6 +7,7 @@
 #include <clang/Basic/Specifiers.h>
 #include <llvm/ADT/StringRef.h>
 #include <range/v3/algorithm/any_of.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/transform.hpp>
@@ -286,53 +287,58 @@ public:
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
     const auto DerivedTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
     const auto DerivedTS = TypeSet{DerivedTSValue};
-    for (const clang::CXXBaseSpecifier BaseSpec : RDecl->bases()) {
-      if (BaseSpec.getAccessSpecifier() != clang::AccessSpecifier::AS_public) {
-        continue;
-      }
-      const auto *const Base =
-          BaseSpec.getType()->getAsCXXRecordDecl()->getCanonicalDecl();
-      const auto BaseTSValue = TypeSetValueType{Base->getTypeForDecl()};
-      const auto HasTransitionWithBaseClass = [](const auto &Val) {
-        const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
-                     RequiredIter] = Val;
-        return HasBaseInAcquired || HasBaseInRequired;
-      };
+    const auto Bases = RDecl->bases();
+    ranges::for_each(
+        Bases |
+            ranges::views::filter([](const clang::CXXBaseSpecifier &BaseSpec) {
+              return BaseSpec.getAccessSpecifier() ==
+                     clang::AccessSpecifier::AS_public;
+            }),
+        [&DerivedTS, &DerivedTSValue, this](const clang::CXXRecordDecl *Base) {
+          const auto BaseTSValue = TypeSetValueType{Base->getTypeForDecl()};
+          const auto HasTransitionWithBaseClass = [](const auto &Val) {
+            const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
+                         RequiredIter] = Val;
+            return HasBaseInAcquired || HasBaseInRequired;
+          };
 
-      const auto TransformToFilterData =
-          [&BaseTSValue](const TypeSetTransitionDataType &Val)
-          -> std::tuple<TypeSetTransitionDataType, bool, bool,
-                        TypeSet::iterator> {
-        const auto &[Acquired, Transition, Required] = Val;
-        const auto AcquiredHasBase = Acquired == TypeSet{BaseTSValue};
-        const auto RequiredHasBaseIter = Required.find(BaseTSValue);
-        return {Val, AcquiredHasBase, RequiredHasBaseIter != Required.end(),
-                RequiredHasBaseIter};
-      };
-      const auto FilterDataToTransition =
-          [&DerivedTS,
-           &DerivedTSValue](const auto &Val) -> TypeSetTransitionDataType {
-        auto [Transition, HasBaseInAcquired, HasBaseInRequired, RequiredIter] =
-            Val;
-        auto &[Acquired, Function, Required] = Transition;
-        if (HasBaseInAcquired) {
-          Acquired = DerivedTS;
-        }
-        if (HasBaseInRequired) {
-          Required.erase(RequiredIter);
-          Required.emplace(DerivedTSValue);
-        }
-        return Transition;
-      };
+          const auto TransformToFilterData =
+              [&BaseTSValue](const TypeSetTransitionDataType &Val)
+              -> std::tuple<TypeSetTransitionDataType, bool, bool,
+                            TypeSet::iterator> {
+            const auto &[Acquired, Transition, Required] = Val;
+            const auto AcquiredHasBase = Acquired == TypeSet{BaseTSValue};
+            const auto RequiredHasBaseIter = Required.find(BaseTSValue);
+            return {Val, AcquiredHasBase, RequiredHasBaseIter != Required.end(),
+                    RequiredHasBaseIter};
+          };
+          const auto FilterDataToNewTransition =
+              [&DerivedTS,
+               &DerivedTSValue](const auto &Val) -> TypeSetTransitionDataType {
+            auto [Transition, HasBaseInAcquired, HasBaseInRequired,
+                  RequiredIter] = Val;
+            auto &[Acquired, Function, Required] = Transition;
+            if (HasBaseInAcquired) {
+              Acquired = DerivedTS;
+            }
+            if (HasBaseInRequired) {
+              Required.erase(RequiredIter);
+              Required.emplace(DerivedTSValue);
+            }
+            return Transition;
+          };
 
-      auto NewTransitions = ranges::to_vector(
-          CollectorRef | ranges::views::transform(TransformToFilterData) |
-          ranges::views::filter(HasTransitionWithBaseClass) |
-          ranges::views::transform(FilterDataToTransition));
-      CollectorRef.insert(CollectorRef.end(),
-                          std::make_move_iterator(NewTransitions.begin()),
-                          std::make_move_iterator(NewTransitions.end()));
-    }
+          auto NewTransitions = ranges::to_vector(
+              CollectorRef | ranges::views::transform(TransformToFilterData) |
+              ranges::views::filter(HasTransitionWithBaseClass) |
+              ranges::views::transform(FilterDataToNewTransition));
+          CollectorRef.insert(CollectorRef.end(),
+                              std::make_move_iterator(NewTransitions.begin()),
+                              std::make_move_iterator(NewTransitions.end()));
+        },
+        [](const clang::CXXBaseSpecifier &BaseSpec) {
+          return BaseSpec.getType()->getAsCXXRecordDecl();
+        });
     return true;
   }
 
