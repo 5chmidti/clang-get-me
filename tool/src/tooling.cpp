@@ -32,8 +32,7 @@ ignoreFILEPredicate(const clang::FunctionDecl *FDecl) {
 
 [[nodiscard]] static bool
 reservedIntentifiersPredicate(const clang::FunctionDecl *FDecl) {
-  if (FDecl->getDeclName().isIdentifier() &&
-      FDecl->getName().startswith("__")) {
+  if (FDecl->getDeclName().isIdentifier() && FDecl->getName().startswith("_")) {
     return true;
   }
   return FDecl->getReturnType().getUnqualifiedType().getAsString().starts_with(
@@ -105,7 +104,7 @@ bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
 }
 
 bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
-  if (Field->getName().startswith("__")) {
+  if (Field->getName().startswith("_")) {
     return true;
   }
 
@@ -352,7 +351,7 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
 }
 
 bool GetMeVisitor::VisitVarDecl(clang::VarDecl *VDecl) {
-  if (VDecl->getNameAsString().starts_with("__")) {
+  if (VDecl->getNameAsString().starts_with("_")) {
     return true;
   }
   if (VDecl->isCXXInstanceMember()) {
