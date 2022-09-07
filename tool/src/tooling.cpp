@@ -294,7 +294,8 @@ public:
               return BaseSpec.getAccessSpecifier() ==
                      clang::AccessSpecifier::AS_public;
             }),
-        [&DerivedTS, &DerivedTSValue, this](const clang::CXXRecordDecl *Base) {
+        [&DerivedTS, &DerivedTSValue, this,
+         RDecl](const clang::CXXRecordDecl *Base) {
           const auto BaseTSValue = TypeSetValueType{Base->getTypeForDecl()};
           const auto HasTransitionWithBaseClass = [](const auto &Val) {
             const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
@@ -303,25 +304,42 @@ public:
           };
 
           const auto TransformToFilterData =
-              [&BaseTSValue](const TypeSetTransitionDataType &Val)
+              [&BaseTSValue, RDecl](TypeSetTransitionDataType Val)
               -> std::tuple<TypeSetTransitionDataType, bool, bool,
                             TypeSet::iterator> {
             const auto &[Acquired, Transition, Required] = Val;
-            const auto AcquiredHasBase = Acquired == TypeSet{BaseTSValue};
-            const auto RequiredHasBaseIter = Required.find(BaseTSValue);
-            return {Val, AcquiredHasBase, RequiredHasBaseIter != Required.end(),
-                    RequiredHasBaseIter};
+            const auto AllowAcquiredConversion = [&Transition, RDecl]() {
+              return std::visit(
+                  Overloaded{
+                      [RDecl](const clang::FunctionDecl *const FDecl) {
+                        if (const auto *const Ctor =
+                                llvm::dyn_cast<clang::CXXConstructorDecl>(
+                                    FDecl)) {
+                          return RDecl->isDerivedFrom(Ctor->getParent());
+                        }
+                        return false;
+                      },
+                      [](auto &&) { return false; }},
+                  Transition);
+            }();
+            const auto AllowRequiredConversion = Required.find(BaseTSValue);
+            return {std::move(Val), AllowAcquiredConversion,
+                    AllowRequiredConversion != Required.end(),
+                    AllowRequiredConversion};
           };
+
           const auto FilterDataToNewTransition =
               [&DerivedTS,
-               &DerivedTSValue](const auto &Val) -> TypeSetTransitionDataType {
-            auto [Transition, HasBaseInAcquired, HasBaseInRequired,
-                  RequiredIter] = Val;
+               &DerivedTSValue](std::tuple<TypeSetTransitionDataType, bool,
+                                           bool, TypeSet::iterator>
+                                    Val) -> TypeSetTransitionDataType {
+            auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
+                   RequiredIter] = Val;
             auto &[Acquired, Function, Required] = Transition;
-            if (HasBaseInAcquired) {
+            if (AllowAcquiredConversion) {
               Acquired = DerivedTS;
             }
-            if (HasBaseInRequired) {
+            if (AllowRequiredConversion) {
               Required.erase(RequiredIter);
               Required.emplace(DerivedTSValue);
             }

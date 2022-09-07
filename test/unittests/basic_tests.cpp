@@ -121,7 +121,7 @@ B getB();
 
 )",
        "B",
-       {"({struct B}, B getB(), {})", "({struct B}, A getA(), {})",
+       {"({struct B}, B getB(), {})",
         "({struct B}, A A(int, float), {int, float})",
         "({struct B}, B B(), {})"});
 }
