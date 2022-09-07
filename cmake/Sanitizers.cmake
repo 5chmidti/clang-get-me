@@ -14,7 +14,7 @@ function(enable_sanitizers project_name)
     option(ENABLE_SANITIZER_ADDRESS "Enable address sanitizer" OFF)
     if(ENABLE_SANITIZER_ADDRESS)
       list(APPEND SANITIZERS "address")
-      option(SANITIZER_ADDRESS_RECOVER
+      option(ENABLE_SANITIZER_ADDRESS_RECOVER
              "Enable address sanitizer address revocery" OFF)
     endif()
 
@@ -76,7 +76,7 @@ function(enable_sanitizers project_name)
                              INTERFACE -fsanitize=${LIST_OF_SANITIZERS})
       target_link_options(${project_name} INTERFACE
                           -fsanitize=${LIST_OF_SANITIZERS})
-      if(${SANITIZER_ADDRESS_RECOVER} AND "address" IN_LIT SANITIZERS)
+      if(ENABLE_SANITIZER_ADDRESS_RECOVER AND "address" IN_LIST SANITIZERS)
         target_compile_options(${project_name}
                                INTERFACE -fsanitize-recover=address)
         target_link_options(${project_name} INTERFACE
