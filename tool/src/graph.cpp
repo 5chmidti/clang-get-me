@@ -18,6 +18,7 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/permutation.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
+#include <range/v3/algorithm/transform.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/cartesian_product.hpp>
 #include <range/v3/view/filter.hpp>
@@ -28,6 +29,7 @@
 
 #include "get_me/formatting.hpp"
 #include "get_me/tooling.hpp"
+#include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
 // FIXME: don't produce paths that end up with the queried type

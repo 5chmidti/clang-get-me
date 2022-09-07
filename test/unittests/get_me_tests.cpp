@@ -40,7 +40,7 @@ void test(std::string_view Code, std::string_view QueriedType,
                      FoundPathsAsString);
 }
 
-GetMeTest::GetMeTest() : testing::Test{} {
+GetMeTest::GetMeTest() {
   spdlog::set_level(spdlog::level::debug);
   static constexpr auto BacktraceCount = 1024U;
   spdlog::enable_backtrace(BacktraceCount);
