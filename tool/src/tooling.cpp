@@ -285,6 +285,32 @@ public:
       : CollectorRef{Collector} {}
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
+    if (RDecl->isInvalidDecl()) {
+      spdlog::trace("filtered due to being invalid decl: {}",
+                    RDecl->getNameAsString());
+      return true;
+    }
+    if (RDecl->isDependentType()) {
+      spdlog::trace("filtered due to being dependent type: {}",
+                    RDecl->getNameAsString());
+      return true;
+    }
+    if (RDecl->isTemplateDecl()) {
+      spdlog::trace("filtered due to being template decl: {}",
+                    RDecl->getNameAsString());
+      return true;
+    }
+    if (RDecl != RDecl->getDefinition()) {
+      return true;
+    }
+    if (RDecl->getName().startswith("_")) {
+      return true;
+    }
+    if (RDecl->getNameAsString().empty()) {
+      spdlog::trace("filtered due to having empty name");
+      return true;
+    }
+
     const auto DerivedTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
     const auto DerivedTS = TypeSet{DerivedTSValue};
     const auto Bases = RDecl->bases();
