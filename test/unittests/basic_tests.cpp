@@ -113,15 +113,24 @@ struct A { A(int, float); };
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, inheritance) {
   test(R"(
+  struct A { A(int, float); };
+  struct B : public A {};
+  struct C : public B {};
+  A getA();
+  B getB();
+  )",
+       "B",
+       {"({struct B}, B getB(), {})",
+        "({struct B}, A A(int, float), {int, float})",
+        "({struct B}, B B(), {})"});
+  test(R"(
 struct A { A(int, float); };
 struct B : public A {};
 struct C : public B {};
 A getA();
 B getB();
-
 )",
-       "B",
-       {"({struct B}, B getB(), {})",
-        "({struct B}, A A(int, float), {int, float})",
-        "({struct B}, B B(), {})"});
+       "A",
+       {"({struct A}, A getA(), {})", "({struct A}, B getB(), {})",
+        "({struct A}, A A(int, float), {int, float})"});
 }

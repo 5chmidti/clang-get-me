@@ -313,76 +313,68 @@ public:
 
     const auto DerivedTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
     const auto DerivedTS = TypeSet{DerivedTSValue};
-    const auto Bases = RDecl->bases();
-    ranges::for_each(
-        Bases |
-            ranges::views::filter([](const clang::CXXBaseSpecifier &BaseSpec) {
-              return BaseSpec.getAccessSpecifier() ==
-                     clang::AccessSpecifier::AS_public;
-            }),
-        [&DerivedTS, &DerivedTSValue, this,
-         RDecl](const clang::CXXRecordDecl *Base) {
-          const auto BaseTSValue = TypeSetValueType{Base->getTypeForDecl()};
-          const auto HasTransitionWithBaseClass = [](const auto &Val) {
-            const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
-                         RequiredIter] = Val;
-            return HasBaseInAcquired || HasBaseInRequired;
-          };
-
-          const auto TransformToFilterData =
-              [&BaseTSValue, RDecl](TypeSetTransitionDataType Val)
-              -> std::tuple<TypeSetTransitionDataType, bool, bool,
-                            TypeSet::iterator> {
-            const auto &[Acquired, Transition, Required] = Val;
-            const auto AllowAcquiredConversion = [&Transition, RDecl]() {
-              return std::visit(
-                  Overloaded{
-                      [RDecl](const clang::FunctionDecl *const FDecl) {
-                        if (const auto *const Ctor =
-                                llvm::dyn_cast<clang::CXXConstructorDecl>(
-                                    FDecl)) {
-                          return RDecl->isDerivedFrom(Ctor->getParent());
-                        }
-                        return false;
-                      },
-                      [](auto &&) { return false; }},
-                  Transition);
-            }();
-            const auto AllowRequiredConversion = Required.find(BaseTSValue);
-            return {std::move(Val), AllowAcquiredConversion,
-                    AllowRequiredConversion != Required.end(),
-                    AllowRequiredConversion};
-          };
-
-          const auto FilterDataToNewTransition =
-              [&DerivedTS,
-               &DerivedTSValue](std::tuple<TypeSetTransitionDataType, bool,
-                                           bool, TypeSet::iterator>
-                                    Val) -> TypeSetTransitionDataType {
-            auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
+    const auto BaseTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
+    const auto HasTransitionWithBaseClass = [](const auto &Val) {
+      const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
                    RequiredIter] = Val;
-            auto &[Acquired, Function, Required] = Transition;
-            if (AllowAcquiredConversion) {
-              Acquired = DerivedTS;
-            }
-            if (AllowRequiredConversion) {
-              Required.erase(RequiredIter);
-              Required.emplace(DerivedTSValue);
-            }
-            return Transition;
-          };
+      return HasBaseInAcquired || HasBaseInRequired;
+    };
 
-          auto NewTransitions = ranges::to_vector(
-              CollectorRef | ranges::views::transform(TransformToFilterData) |
-              ranges::views::filter(HasTransitionWithBaseClass) |
-              ranges::views::transform(FilterDataToNewTransition));
-          CollectorRef.insert(CollectorRef.end(),
-                              std::make_move_iterator(NewTransitions.begin()),
-                              std::make_move_iterator(NewTransitions.end()));
-        },
-        [](const clang::CXXBaseSpecifier &BaseSpec) {
-          return BaseSpec.getType()->getAsCXXRecordDecl();
-        });
+    const auto TransformToFilterData = [&BaseTSValue,
+                                        RDecl](TypeSetTransitionDataType Val)
+        -> std::tuple<TypeSetTransitionDataType, bool, bool,
+                      TypeSet::iterator> {
+      const auto &[Acquired, Transition, Required] = Val;
+      const auto AllowAcquiredConversion = [&Transition, RDecl]() {
+        return std::visit(
+            Overloaded{[RDecl](const clang::FunctionDecl *const FDecl) {
+                         if (const auto *const Ctor =
+                                 llvm::dyn_cast<clang::CXXConstructorDecl>(
+                                     FDecl)) {
+                           return RDecl->isDerivedFrom(Ctor->getParent());
+                         }
+                         if (const auto *const ReturnType =
+                                 FDecl->getReturnType().getTypePtr();
+                             const auto *const ReturnedRecord =
+                                 ReturnType->getAsCXXRecordDecl()) {
+                           return ReturnedRecord->isDerivedFrom(RDecl);
+                         }
+                         return false;
+                       },
+                       [](auto &&) { return false; }},
+            Transition);
+      }();
+      const auto AllowRequiredConversion = Required.find(BaseTSValue);
+      return {std::move(Val), AllowAcquiredConversion,
+              AllowRequiredConversion != Required.end(),
+              AllowRequiredConversion};
+    };
+
+    const auto FilterDataToNewTransition =
+        [&DerivedTS, &DerivedTSValue](
+            std::tuple<TypeSetTransitionDataType, bool, bool, TypeSet::iterator>
+                Val) {
+          auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
+                 RequiredIter] = Val;
+          auto &[Acquired, Function, Required] = Transition;
+          if (AllowAcquiredConversion) {
+            Acquired = DerivedTS;
+          }
+          if (AllowRequiredConversion) {
+            Required.erase(RequiredIter);
+            Required.emplace(DerivedTSValue);
+          }
+          return Transition;
+        };
+
+    auto NewTransitions = ranges::to_vector(
+        CollectorRef | ranges::views::transform(TransformToFilterData) |
+        ranges::views::filter(HasTransitionWithBaseClass) |
+        ranges::views::transform(FilterDataToNewTransition));
+    spdlog::trace("adding new transitions for derived: {}", NewTransitions);
+    CollectorRef.insert(CollectorRef.end(),
+                        std::make_move_iterator(NewTransitions.begin()),
+                        std::make_move_iterator(NewTransitions.end()));
     return true;
   }
 
