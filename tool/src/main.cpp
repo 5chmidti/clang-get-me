@@ -8,6 +8,7 @@
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/view/iota.hpp>
+#include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 #include <spdlog/cfg/env.h>
@@ -91,9 +92,12 @@ int main(int argc, const char **argv) {
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, QueriedType);
   auto Paths = pathTraversal(Graph, SourceVertexDesc);
-  ranges::sort(Paths);
+  ranges::sort(Paths, [](const auto &Lhs, const auto &Rhs) {
+    return Lhs.size() < Rhs.size();
+  });
 
-  for (const auto [Path, Number] : views::zip(Paths, views::iota(0U))) {
+  for (const auto [Path, Number] :
+       views::zip(Paths | ranges::views::take(10), views::iota(0U))) {
     spdlog::info(
         "path #{}: {}", Number,
         fmt::join(Path | views::transform([&Data, &IndexMap](
