@@ -36,51 +36,43 @@
 // FIXME: don't produce paths that end up with the queried type
 std::vector<PathType> pathTraversal(const GraphType &Graph,
                                     const VertexDescriptor SourceVertex) {
-  using ranges::contains;
-  using ranges::find;
-  using ranges::for_each;
-  using possible_path_type = std::pair<
-      VertexDescriptor,
-      typename boost::graph_traits<GraphType>::out_edge_iterator::value_type>;
+  using possible_path_type = std::pair<VertexDescriptor, EdgeDescriptor>;
 
   PathType CurrentPath{};
   std::vector<PathType> Paths{};
   std::stack<possible_path_type> EdgesStack{};
 
-  const auto AddToStack = [&EdgesStack, SourceVertex](auto Val) {
-    EdgesStack.emplace(SourceVertex, std::move(Val));
+  const auto AddToStackFactory = [&EdgesStack](auto Vertex) {
+    return [&EdgesStack, Vertex](auto Val) {
+      EdgesStack.emplace(Vertex, std::move(Val));
+    };
   };
-  for_each(toRange(out_edges(SourceVertex, Graph)), AddToStack);
 
-  const auto AddOutEdgesOfVertexToStack = [&Graph, &EdgesStack, &Paths,
-                                           &CurrentPath](auto Vertex) {
+  ranges::for_each(toRange(out_edges(SourceVertex, Graph)),
+                   AddToStackFactory(SourceVertex));
+
+  const auto AddOutEdgesOfVertexToStack = [&Graph,
+                                           CurrentPathIndex = Paths.size(),
+                                           &CurrentPath,
+                                           &AddToStackFactory](auto Vertex) {
     const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
-    auto OutEdgesRange =
-        ranges::views::filter(Vec, [&CurrentPath, &Graph](const auto &Edge) {
-          const auto TargetVertex = target(Edge, Graph);
-          return !ranges::any_of(
-              CurrentPath,
-              [&Graph, TargetVertex](const EdgeDescriptor &EdgeInPath) {
-                return source(EdgeInPath, Graph) == TargetVertex ||
-                       target(EdgeInPath, Graph) == TargetVertex;
-              });
-        });
+    const auto CurrentPathHasTargetOfEdge = [&CurrentPath,
+                                             &Graph](const auto &Edge) {
+      const auto HasTargetEdge = [&Graph, TargetVertex = target(Edge, Graph)](
+                                     const EdgeDescriptor &EdgeInPath) {
+        return source(EdgeInPath, Graph) == TargetVertex ||
+               target(EdgeInPath, Graph) == TargetVertex;
+      };
+      return !ranges::any_of(CurrentPath, HasTargetEdge);
+    };
+    auto OutEdgesRange = ranges::views::filter(Vec, CurrentPathHasTargetOfEdge);
     if (OutEdgesRange.empty()) {
       return false;
     }
-    spdlog::trace(
-        "path #{}: adding edges {} to EdgesStack", Paths.size(),
-        OutEdgesRange |
-            ranges::views::transform(
-                [&Graph](const typename boost::graph_traits<
-                         GraphType>::out_edge_iterator::value_type &Val) {
-                  return std::pair{source(Val, Graph), target(Val, Graph)};
-                }));
+    spdlog::trace("path #{}: adding edges {} to EdgesStack", CurrentPathIndex,
+                  OutEdgesRange);
 
-    const auto AddToStack = [&EdgesStack, Vertex](auto Val) {
-      EdgesStack.emplace(Vertex, std::move(Val));
-    };
-    for_each(std::move(OutEdgesRange), AddToStack);
+    ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
 
     return true;
   };
@@ -88,18 +80,18 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   VertexDescriptor CurrentVertex{};
   VertexDescriptor PrevTarget{SourceVertex};
   while (!EdgesStack.empty()) {
-    auto PathIndex = Paths.size();
+    auto CurrentPathIndex = Paths.size();
     const auto [Src, Edge] = EdgesStack.top();
     EdgesStack.pop();
 
-    if (contains(CurrentPath, Edge)) {
+    if (ranges::contains(CurrentPath, Edge)) {
       spdlog::error("skipping visiting edge already in path: {}", Edge);
       continue;
     }
 
     spdlog::trace(
         "path #{}: src: {}, prev target: {}, edge: {}, current path: {}",
-        PathIndex, Src, PrevTarget, Edge, CurrentPath);
+        CurrentPathIndex, Src, PrevTarget, Edge, CurrentPath);
 
     if (!CurrentPath.empty() && PrevTarget != Src) {
       // visiting an edge whose source is not the target of the previous edge.
@@ -107,12 +99,12 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       // the path
       // remove edges that were added after the path got to src
       const auto Msg =
-          fmt::format("path #{}: reverting current path {} back to ", PathIndex,
-                      CurrentPath);
+          fmt::format("path #{}: reverting current path {} back to ",
+                      CurrentPathIndex, CurrentPath);
       const auto GetEdgeSource = [&Graph](const EdgeDescriptor &Val) {
         return source(Val, Graph);
       };
-      CurrentPath.erase(find(CurrentPath, Src, GetEdgeSource),
+      CurrentPath.erase(ranges::find(CurrentPath, Src, GetEdgeSource),
                         CurrentPath.end());
       spdlog::trace("{}{}", Msg, CurrentPath);
     }
@@ -128,7 +120,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
 
     spdlog::trace("path #{}: post algo src: {}, prev target: {}, edge: {}, "
                   "current path: {}",
-                  PathIndex, Src, PrevTarget, Edge, CurrentPath);
+                  CurrentPathIndex, Src, PrevTarget, Edge, CurrentPath);
   }
 
   return Paths;
