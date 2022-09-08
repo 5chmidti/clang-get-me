@@ -2,12 +2,21 @@
 
 #include <functional>
 
+#include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/Specifiers.h>
+#include <clang/Frontend/FrontendAction.h>
+#include <clang/Tooling/Tooling.h>
+#include <fmt/ranges.h>
 #include <llvm/ADT/StringRef.h>
+#include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/any_of.hpp>
-#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/algorithm/contains.hpp>
+#include <range/v3/algorithm/mismatch.hpp>
+#include <range/v3/algorithm/sort.hpp>
+#include <range/v3/algorithm/unique.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/transform.hpp>
@@ -90,17 +99,35 @@ functionFilterPredicate(const clang::FunctionDecl *FDecl,
   return false;
 }
 
+// FIXME: skip TransitionCollector and generate
+// std::vector<TypeSetTransitionDataType -> GraphData in the visitor directly
+class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
+public:
+  explicit GetMeVisitor(TransitionCollector &Collector)
+      : Collector{Collector} {}
+
+  [[nodiscard]] bool VisitFunctionDecl(clang::FunctionDecl *FDecl);
+
+  [[nodiscard]] bool VisitFieldDecl(clang::FieldDecl *Field);
+
+  [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl);
+
+  [[nodiscard]] bool VisitVarDecl(clang::VarDecl *VDecl);
+
+  TransitionCollector &Collector;
+};
+
 bool GetMeVisitor::VisitFunctionDecl(clang::FunctionDecl *FDecl) {
   if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
     return true;
   }
-  if (functionFilterPredicate(FDecl, CollectorRef)) {
+  if (functionFilterPredicate(FDecl, Collector)) {
     return true;
   }
 
   auto [Acquired, Required] = toTypeSet(FDecl);
-  CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
-                            std::move(Required));
+  Collector.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
+                         std::move(Required));
   return true;
 }
 
@@ -121,8 +148,8 @@ bool GetMeVisitor::VisitFieldDecl(clang::FieldDecl *Field) {
   }
 
   auto [Acquired, Required] = toTypeSet(Field);
-  CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{Field},
-                            std::move(Required));
+  Collector.emplace_back(std::move(Acquired), TransitionDataType{Field},
+                         std::move(Required));
   return true;
 }
 
@@ -144,21 +171,21 @@ bool GetMeVisitor::VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
     if (Method->isDeleted()) {
       continue;
     }
-    if (functionFilterPredicate(Method, CollectorRef)) {
+    if (functionFilterPredicate(Method, Collector)) {
       continue;
     }
 
     auto [Acquired, Required] = toTypeSet(Method);
-    CollectorRef.emplace_back(std::move(Acquired), TransitionDataType{Method},
-                              std::move(Required));
+    Collector.emplace_back(std::move(Acquired), TransitionDataType{Method},
+                           std::move(Required));
   }
 
   // add non user provided default constructor
   if (RDecl->hasDefaultConstructor() &&
       !RDecl->hasUserProvidedDefaultConstructor()) {
-    CollectorRef.emplace_back(
-        TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
-        TransitionDataType{RDecl->getNameAsString()}, TypeSet{});
+    Collector.emplace_back(TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
+                           TransitionDataType{RDecl->getNameAsString()},
+                           TypeSet{});
   }
   return true;
 }
@@ -282,7 +309,7 @@ static void filterOverloads(std::vector<TransitionDataType> &Data,
 class GetMePostVisitor : public clang::RecursiveASTVisitor<GetMePostVisitor> {
 public:
   explicit GetMePostVisitor(TransitionCollector &Collector)
-      : CollectorRef{Collector} {}
+      : Collector{Collector} {}
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
     if (RDecl->isInvalidDecl()) {
@@ -368,28 +395,29 @@ public:
         };
 
     auto NewTransitions = ranges::to_vector(
-        CollectorRef | ranges::views::transform(TransformToFilterData) |
+        Collector | ranges::views::transform(TransformToFilterData) |
         ranges::views::filter(HasTransitionWithBaseClass) |
         ranges::views::transform(FilterDataToNewTransition));
     spdlog::trace("adding new transitions for derived: {}", NewTransitions);
-    CollectorRef.insert(CollectorRef.end(),
-                        std::make_move_iterator(NewTransitions.begin()),
-                        std::make_move_iterator(NewTransitions.end()));
+    Collector.insert(Collector.end(),
+                     std::make_move_iterator(NewTransitions.begin()),
+                     std::make_move_iterator(NewTransitions.end()));
     return true;
   }
 
-  TransitionCollector &CollectorRef;
+  TransitionCollector &Collector;
 };
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   // Traversing the translation unit decl via a RecursiveASTVisitor
   // will visit all nodes in the AST.
+  GetMeVisitor Visitor{Collector};
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
 
-  auto PostVisitor = GetMePostVisitor{Visitor.CollectorRef};
+  auto PostVisitor = GetMePostVisitor{Collector};
   PostVisitor.TraverseDecl(Context.getTranslationUnitDecl());
 
-  spdlog::trace("collected: {}", Visitor.CollectorRef);
+  spdlog::trace("collected: {}", Visitor.Collector);
 }
 
 bool GetMeVisitor::VisitVarDecl(clang::VarDecl *VDecl) {
@@ -411,7 +439,7 @@ bool GetMeVisitor::VisitVarDecl(clang::VarDecl *VDecl) {
 
   if (const auto *const RDecl =
           llvm::dyn_cast<clang::RecordDecl>(VDecl->getDeclContext())) {
-    CollectorRef.emplace_back(
+    Collector.emplace_back(
         TypeSet{
             TypeSetValueType{VDecl->getType().getCanonicalType().getTypePtr()}},
         TransitionDataType{VDecl}, TypeSet{});

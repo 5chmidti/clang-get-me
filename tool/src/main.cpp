@@ -2,11 +2,13 @@
 #include <variant>
 
 #include <clang/Tooling/CommonOptionsParser.h>
+#include <clang/Tooling/Tooling.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <llvm/Support/Signals.h>
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
+#include <range/v3/algorithm/sort.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
