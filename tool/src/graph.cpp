@@ -29,9 +29,7 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
-#include "get_me/tooling.hpp"
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
 
 // FIXME: don't produce paths that end up with the queried type
 std::vector<PathType> pathTraversal(const GraphType &Graph,
@@ -51,34 +49,38 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   ranges::for_each(toRange(out_edges(SourceVertex, Graph)),
                    AddToStackFactory(SourceVertex));
 
-  const auto AddOutEdgesOfVertexToStack = [&Graph,
-                                           CurrentPathIndex = Paths.size(),
-                                           &CurrentPath,
-                                           &AddToStackFactory](auto Vertex) {
-    const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
-    const auto CurrentPathHasTargetOfEdge = [&CurrentPath,
-                                             &Graph](const auto &Edge) {
-      const auto HasTargetEdge = [&Graph, TargetVertex = target(Edge, Graph)](
-                                     const EdgeDescriptor &EdgeInPath) {
-        return source(EdgeInPath, Graph) == TargetVertex ||
-               target(EdgeInPath, Graph) == TargetVertex;
-      };
-      return !ranges::any_of(CurrentPath, HasTargetEdge);
+  const auto CurrentPathContainsTargetOfEdge = [&CurrentPath,
+                                                &Graph](const auto &Edge) {
+    const auto HasTargetEdge = [&Graph, TargetVertex = target(Edge, Graph)](
+                                   const EdgeDescriptor &EdgeInPath) {
+      return source(EdgeInPath, Graph) == TargetVertex ||
+             target(EdgeInPath, Graph) == TargetVertex;
     };
-    auto OutEdgesRange = ranges::views::filter(Vec, CurrentPathHasTargetOfEdge);
-    if (OutEdgesRange.empty()) {
-      return false;
-    }
-    spdlog::trace("path #{}: adding edges {} to EdgesStack", CurrentPathIndex,
-                  OutEdgesRange);
-
-    ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
-
-    return true;
+    return !ranges::any_of(CurrentPath, HasTargetEdge);
   };
+  const auto AddOutEdgesOfVertexToStack =
+      [&Graph, &Paths, &AddToStackFactory,
+       &CurrentPathContainsTargetOfEdge](auto Vertex) {
+        const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
+        auto OutEdgesRange =
+            ranges::views::filter(Vec, CurrentPathContainsTargetOfEdge);
+        if (OutEdgesRange.empty()) {
+          return false;
+        }
+        spdlog::trace("path #{}: adding edges {} to EdgesStack", Paths.size(),
+                      OutEdgesRange);
+
+        ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
+
+        return true;
+      };
 
   VertexDescriptor CurrentVertex{};
   VertexDescriptor PrevTarget{SourceVertex};
+  const auto RequiresRollback = [&CurrentPath,
+                                 &PrevTarget](const VertexDescriptor Src) {
+    return !CurrentPath.empty() && PrevTarget != Src;
+  };
   while (!EdgesStack.empty()) {
     auto CurrentPathIndex = Paths.size();
     const auto [Src, Edge] = EdgesStack.top();
@@ -93,9 +95,9 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
         "path #{}: src: {}, prev target: {}, edge: {}, current path: {}",
         CurrentPathIndex, Src, PrevTarget, Edge, CurrentPath);
 
-    if (!CurrentPath.empty() && PrevTarget != Src) {
+    if (RequiresRollback(Src)) {
       // visiting an edge whose source is not the target of the previous edge.
-      // the current path has to be reversed until the new edge can be added to
+      // the current path has to be reverted until the new edge can be added to
       // the path
       // remove edges that were added after the path got to src
       const auto Msg =
@@ -156,42 +158,43 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
   return Res;
 }
 
-[[nodiscard]] static auto matchesName(std::string Name) {
+[[nodiscard]] static auto matchesNamePredicateFactory(std::string Name) {
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
     const auto QType = clang::QualType(Val.Value, 0);
     const auto TypeAsString = QType.getAsString();
-    const auto TypeAsStringRef = [&]() {
-      if (auto *Rec = QType->getAsRecordDecl()) {
+    const auto TypeAsStringRef = [&QType, &TypeAsString]() {
+      if (const auto *const Rec = QType->getAsRecordDecl()) {
         return Rec->getName();
       }
       return llvm::StringRef(TypeAsString);
     }();
-    const auto Res = TypeAsStringRef == llvm::StringRef{Name};
-    if (!Res && TypeAsStringRef.contains(Name)) {
+    const auto EquivalentName = TypeAsStringRef == llvm::StringRef{Name};
+    if (!EquivalentName && TypeAsStringRef.contains(Name)) {
       spdlog::trace("matchesName(QualType): no match for close match: {} vs {}",
                     TypeAsStringRef, Name);
     }
-    return Res;
+    return EquivalentName;
   };
 }
 
-static void addQueriedTypeSetsAndAddEdgeWeights(
+static void initializeVertexDataWithQueried(
     const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     GraphData &Data, const std::string &TypeName) {
   const auto ToAcquired = [](const TypeSetTransitionDataType &Val) {
     return std::get<0>(Val);
   };
+  const auto matchesQueriedName = matchesNamePredicateFactory(TypeName);
   ranges::transform(ranges::views::filter(
                         TypeSetTransitionData,
-                        [&TypeName, &Data](const TypeSet &Acquired) {
-                          return ranges::any_of(Acquired,
-                                                matchesName(TypeName)) &&
+                        [&Data, &matchesQueriedName](const TypeSet &Acquired) {
+                          return ranges::any_of(Acquired, matchesQueriedName) &&
                                  !ranges::contains(Data.VertexData, Acquired);
                         },
                         ToAcquired),
                     std::back_inserter(Data.VertexData), ToAcquired);
 }
 
+// is range2 a subset of range1
 template <typename RangeType1, typename RangeType2>
 [[nodiscard]] static bool isSubset(RangeType1 &&Range1, RangeType2 &&Range2) {
   return ranges::all_of(
@@ -201,8 +204,9 @@ template <typename RangeType1, typename RangeType2>
       });
 }
 
+// create predicate if AcquiredTypeSet is a subset of Val
 [[nodiscard]] static auto
-containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
+isSubsetPredicateFactory(const TypeSet &AcquiredTypeSet) {
   return [&AcquiredTypeSet](const TypeSet &Val) {
     return isSubset(Val | ranges::views::transform(&TypeSetValueType::Value),
                     AcquiredTypeSet |
@@ -210,13 +214,12 @@ containsAcquiredTypeSet(const TypeSet &AcquiredTypeSet) {
   };
 }
 
-[[nodiscard]] static TypeSet mergeTypeSets(TypeSet Lhs, TypeSet Rhs) {
+[[nodiscard]] static TypeSet merge(TypeSet Lhs, TypeSet Rhs) {
   Lhs.merge(Rhs);
   return Lhs;
 }
 
-[[nodiscard]] static TypeSet subtractTypeSets(const TypeSet &Lhs,
-                                              const TypeSet &Rhs) {
+[[nodiscard]] static TypeSet subtract(const TypeSet &Lhs, const TypeSet &Rhs) {
   TypeSet Res{};
   ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()), std::less{});
   return Res;
@@ -245,7 +248,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
         [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
           const auto &Acquired = std::get<0>(Val);
           return ranges::any_of(TypeSetsOfInterest,
-                                containsAcquiredTypeSet(Acquired),
+                                isSubsetPredicateFactory(Acquired),
                                 &indexed_vertex_type::first);
         };
     spdlog::trace("TypeSetsOfInterest: {}", TypeSetsOfInterest);
@@ -257,12 +260,12 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
       ++TransitionCounter;
       for (const auto FilteredTypeSetsOfInterest = ranges::to_vector(
                TypeSetsOfInterest |
-               ranges::views::filter(containsAcquiredTypeSet(AcquiredTypeSet),
+               ranges::views::filter(isSubsetPredicateFactory(AcquiredTypeSet),
                                      &indexed_vertex_type::first));
            const auto &[VertexTypeSet, SourceTypeSetIndex] :
            FilteredTypeSetsOfInterest) {
-        auto NewRequiredTypeSet = mergeTypeSets(
-            subtractTypeSets(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
+        auto NewRequiredTypeSet =
+            merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
 
         const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
             [&NewRequiredTypeSet, &TemporaryVertexData, &VertexData]() {
@@ -329,6 +332,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     }
 
     VertexData.merge(std::move(TemporaryVertexData));
+    TemporaryVertexData.clear();
     // FIXME: move this filling of TypeSetsOfInterest into loop to remove
     // redundant traversal of VertexData
     TypeSetsOfInterest = ranges::to<std::set>(
@@ -339,7 +343,6 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
                                       &GraphData::EdgeType::second);
             },
             &indexed_vertex_type::second));
-    TemporaryVertexData.clear();
 
     EdgesData.insert(EdgesData.end(),
                      std::make_move_iterator(TemporaryEdgeData.begin()),
@@ -362,7 +365,7 @@ std::pair<GraphType, GraphData>
 createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
             const std::string &TypeName) {
   GraphData Data{};
-  addQueriedTypeSetsAndAddEdgeWeights(TypeSetTransitionData, Data, TypeName);
+  initializeVertexDataWithQueried(TypeSetTransitionData, Data, TypeName);
 
   if (!ranges::contains(Data.VertexData, TypeSet{})) {
     Data.VertexData.emplace_back();
@@ -391,7 +394,8 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   // FIXME: only getting the 'A' type, not the & qualified
   const auto SourceVertex =
       ranges::find_if(Data.VertexData, [&TypeName](const TypeSet &TSet) {
-        return TSet.end() != ranges::find_if(TSet, matchesName(TypeName));
+        return TSet.end() !=
+               ranges::find_if(TSet, matchesNamePredicateFactory(TypeName));
       });
 
   if (SourceVertex == Data.VertexData.end()) {
