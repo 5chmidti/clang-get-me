@@ -3,7 +3,9 @@
 #include <functional>
 #include <iterator>
 #include <stack>
+#include <string>
 
+#include <boost/algorithm/string.hpp>
 #include <boost/graph/detail/adjacency_list.hpp>
 #include <boost/graph/detail/edge.hpp>
 #include <boost/iterator/iterator_facade.hpp>
@@ -161,17 +163,17 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 [[nodiscard]] static auto matchesNamePredicateFactory(std::string Name) {
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
     const auto QType = clang::QualType(Val.Value, 0);
-    const auto TypeAsString = QType.getAsString();
-    const auto TypeAsStringRef = [&QType, &TypeAsString]() {
-      if (const auto *const Rec = QType->getAsRecordDecl()) {
-        return Rec->getName();
-      }
-      return llvm::StringRef(TypeAsString);
+    const auto TypeAsString = [&QType]() {
+      auto QTypeAsString = QType.getAsString();
+      boost::erase_all(QTypeAsString, "struct");
+      boost::erase_all(QTypeAsString, "class");
+      boost::trim(QTypeAsString);
+      return QTypeAsString;
     }();
-    const auto EquivalentName = TypeAsStringRef == llvm::StringRef{Name};
-    if (!EquivalentName && TypeAsStringRef.contains(Name)) {
+    const auto EquivalentName = TypeAsString == Name;
+    if (!EquivalentName && (TypeAsString.find(Name) != std::string::npos)) {
       spdlog::trace("matchesName(QualType): no match for close match: {} vs {}",
-                    TypeAsStringRef, Name);
+                    TypeAsString, Name);
     }
     return EquivalentName;
   };

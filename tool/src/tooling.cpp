@@ -237,10 +237,8 @@ public:
 
     if (const auto *const RDecl =
             llvm::dyn_cast<clang::RecordDecl>(VDecl->getDeclContext())) {
-      Collector.emplace_back(
-          TypeSet{TypeSetValueType{
-              VDecl->getType().getCanonicalType().getTypePtr()}},
-          TransitionDataType{VDecl}, TypeSet{});
+      Collector.emplace_back(std::get<0>(toTypeSet(VDecl)),
+                             TransitionDataType{VDecl}, TypeSet{});
     }
     return true;
   }
