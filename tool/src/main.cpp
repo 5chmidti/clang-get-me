@@ -65,9 +65,8 @@ int main(int argc, const char **argv) {
 
   // FIXME: apply greedy transition traversal strategy
 
-  spdlog::trace("Data sizes:\n\tVertexData: {}\n\tEdges: {}\n\tEdgeWeights: {}",
-                Data.VertexData.size(), Data.Edges.size(),
-                Data.EdgeWeights.size());
+  spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
+               Data.Edges.size());
 
   std::ofstream DotFile("graph.dot");
   std::string Res{};
