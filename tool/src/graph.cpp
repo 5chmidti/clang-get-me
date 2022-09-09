@@ -239,6 +239,9 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 
   size_t IterationCount = 0U;
   auto TypeSetsOfInterest = VertexData;
+
+  Data.VertexData.emplace_back();
+
   for (bool AddedTransitions = true; AddedTransitions; ++IterationCount) {
     std::set<indexed_vertex_type> TemporaryVertexData{};
     std::vector<GraphData::EdgeType> TemporaryEdgeData{};
@@ -368,10 +371,6 @@ createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
             const std::string &TypeName) {
   GraphData Data{};
   initializeVertexDataWithQueried(TypeSetTransitionData, Data, TypeName);
-
-  if (!ranges::contains(Data.VertexData, TypeSet{})) {
-    Data.VertexData.emplace_back();
-  }
 
   spdlog::trace("initial GraphData.VertexData: {}", Data.VertexData);
 
