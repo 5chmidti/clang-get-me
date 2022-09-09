@@ -13,7 +13,7 @@
 prepare(std::string_view Code, std::string_view QueriedType);
 
 void test(std::string_view Code, std::string_view QueriedType,
-          const std::vector<std::string_view> &ExpectedPaths,
+          std::vector<std::string_view> ExpectedPaths,
           std::source_location Loc = std::source_location::current());
 
 class GetMeTest : public testing::Test {

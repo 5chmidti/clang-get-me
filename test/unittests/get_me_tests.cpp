@@ -13,10 +13,13 @@
 #include <spdlog/spdlog.h>
 
 void test(std::string_view Code, std::string_view QueriedType,
-          const std::vector<std::string_view> &ExpectedPaths,
+          std::vector<std::string_view> ExpectedPaths,
           std::source_location Loc) {
   testing::ScopedTrace trace(Loc.file_name(), static_cast<int>(Loc.line()),
                              "Test source");
+
+  ranges::sort(ExpectedPaths);
+
   const auto AST =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
@@ -33,11 +36,25 @@ void test(std::string_view Code, std::string_view QueriedType,
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
   const auto FoundPaths = pathTraversal(Graph, SourceVertex);
 
-  const auto FoundPathsAsString = toString(FoundPaths, Graph, Data);
+  auto FoundPathsAsString = toString(FoundPaths, Graph, Data);
+  ranges::sort(FoundPathsAsString);
+  const auto ToString = [](const auto &Val) { return std::string{Val}; };
+  const auto ToSetDifference = [&ToString](const auto &Lhs, const auto &Rhs) {
+    std::vector<std::string> Res{};
+    ranges::set_difference(Lhs, Rhs, std::back_inserter(Res), std::less{},
+                           ToString, ToString);
+    return Res;
+  };
 
   EXPECT_TRUE(ranges::is_permutation(FoundPathsAsString, ExpectedPaths))
-      << fmt::format("Expected: {}\nFound: {}", ExpectedPaths,
-                     FoundPathsAsString);
+      << fmt::format(
+             "Expected: {}\nFound: {}\nNot found: {}\nNot expected: {}",
+             ExpectedPaths, FoundPathsAsString,
+             ToSetDifference(ExpectedPaths | ranges::views::transform(ToString),
+                             FoundPathsAsString),
+             ToSetDifference(FoundPathsAsString,
+                             ExpectedPaths |
+                                 ranges::views::transform(ToString)));
 }
 
 GetMeTest::GetMeTest() {
