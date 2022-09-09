@@ -32,14 +32,17 @@ struct FieldDecl;
 struct NamedDecl;
 } // namespace clang
 
-// FIXME: make this type something to be usable with more types of custom
-// transitions
-using CustomTransitionType = std::string;
+struct DefaultedConstructor {
+  const clang::CXXRecordDecl *Record;
+
+  [[nodiscard]] friend bool operator==(const DefaultedConstructor &,
+                                       const DefaultedConstructor &) = default;
+};
 
 using TransitionDataType =
     std::variant<std::monostate, const clang::FunctionDecl *,
                  const clang::FieldDecl *, const clang::VarDecl *,
-                 CustomTransitionType>;
+                 DefaultedConstructor>;
 
 using GraphType =
     boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,

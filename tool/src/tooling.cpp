@@ -215,7 +215,7 @@ public:
     if (RDecl->hasDefaultConstructor() &&
         !RDecl->hasUserProvidedDefaultConstructor()) {
       Collector.emplace_back(TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
-                             TransitionDataType{RDecl->getNameAsString()},
+                             TransitionDataType{DefaultedConstructor{RDecl}},
                              TypeSet{});
     }
     return true;

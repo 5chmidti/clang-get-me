@@ -19,7 +19,9 @@ std::string getTransitionName(const TransitionDataType &Data) {
   return std::visit(
       Overloaded{
           [](const DeclaratorDecl *DDecl) { return DDecl->getNameAsString(); },
-          [](const CustomTransitionType &Val) { return Val; },
+          [](const DefaultedConstructor &Val) {
+            return Val.Record->getNameAsString();
+          },
           [](const std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
@@ -44,7 +46,9 @@ std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
                  [](const VarDecl *const VDecl) {
                    return VDecl->getType().getAsString();
                  },
-                 [](const CustomTransitionType &Val) { return Val; },
+                 [](const DefaultedConstructor &Val) {
+                   return Val.Record->getNameAsString();
+                 },
                  [](std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
@@ -80,8 +84,7 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
             return FDecl->getParent()->getNameAsString();
           },
           [](const VarDecl *const /*VDecl*/) -> std::string { return ""; },
-          // FIXME: placeholder, written to work with defaulted constructors
-          [](const CustomTransitionType & /*Val*/) -> std::string {
+          [](const DefaultedConstructor & /*Val*/) -> std::string {
             return "";
           },
           [](const std::monostate) -> std::string { return "monostate"; }},
