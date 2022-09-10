@@ -385,13 +385,11 @@ createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
           Data};
 }
 
-VertexDescriptor
+std::optional<VertexDescriptor>
 getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const std::string &TypeName) {
   // FIXME: improve queried type matching:
-  // - better matching of names
   // - allow matching mutiple to get around QualType vs NamedDecl problem
-  // - better: fix QualType vs NamedDecl problem
   // FIXME: only getting the 'A' type, not the & qualified
   const auto SourceVertex =
       ranges::find_if(Data.VertexData, [&TypeName](const TypeSet &TSet) {
@@ -400,8 +398,8 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
       });
 
   if (SourceVertex == Data.VertexData.end()) {
-    spdlog::error("found no type matching {}", TypeName);
-    return 0;
+    spdlog::error("found no type matching {} in {}", TypeName, Data.VertexData);
+    return std::nullopt;
   }
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));

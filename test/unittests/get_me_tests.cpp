@@ -42,9 +42,13 @@ void test(std::string_view Code, std::string_view QueriedType,
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
   const auto VertexDataSize = Data.VertexData.size();
+  ASSERT_TRUE(SourceVertex.has_value());
+  if (!SourceVertex.has_value()) {
+    return;
+  }
   // adjusted for empty set
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
-  const auto FoundPaths = pathTraversal(Graph, SourceVertex);
+  const auto FoundPaths = pathTraversal(Graph, *SourceVertex);
 
   auto FoundPathsAsString = toString(FoundPaths, Graph, Data);
   ranges::sort(FoundPathsAsString);

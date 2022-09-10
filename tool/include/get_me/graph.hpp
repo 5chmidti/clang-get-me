@@ -2,6 +2,7 @@
 #define get_me_graph_hpp
 
 #include <map>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -116,7 +117,7 @@ createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 [[nodiscard]] std::vector<TypeSetTransitionDataType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
-[[nodiscard]] VertexDescriptor
+[[nodiscard]] std::optional<VertexDescriptor>
 getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const std::string &TypeName);
 

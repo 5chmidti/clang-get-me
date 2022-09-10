@@ -92,7 +92,10 @@ int main(int argc, const char **argv) {
 
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, QueriedType);
-  auto Paths = pathTraversal(Graph, SourceVertexDesc);
+  if (!SourceVertexDesc) {
+    return 1;
+  }
+  auto Paths = pathTraversal(Graph, *SourceVertexDesc);
   ranges::sort(Paths, [](const auto &Lhs, const auto &Rhs) {
     return Lhs.size() < Rhs.size();
   });
