@@ -297,22 +297,20 @@ static constexpr auto HasTransitionWithBaseClass = [](const auto &Val) {
 
 [[nodiscard]] static auto
 toNewTransitionFactory(const clang::Type *const Alias) {
-  return
-      [Alias, AliasTS = TypeSet{TypeSetValueType{Alias}}](
-          std::tuple<TypeSetTransitionDataType, bool, bool, TypeSet::iterator>
-              Val) {
-        auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
-               RequiredIter] = Val;
-        auto &[Acquired, Function, Required] = Transition;
-        if (AllowAcquiredConversion) {
-          Acquired = AliasTS;
-        }
-        if (AllowRequiredConversion) {
-          Required.erase(RequiredIter);
-          Required.emplace(Alias);
-        }
-        return Transition;
-      };
+  return [Alias, AliasTS = TypeSet{TypeSetValueType{Alias}}](
+             std::tuple<TransitionType, bool, bool, TypeSet::iterator> Val) {
+    auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
+           RequiredIter] = Val;
+    auto &[Acquired, Function, Required] = Transition;
+    if (AllowAcquiredConversion) {
+      Acquired = AliasTS;
+    }
+    if (AllowRequiredConversion) {
+      Required.erase(RequiredIter);
+      Required.emplace(Alias);
+    }
+    return Transition;
+  };
 }
 
 [[nodiscard]] static auto
@@ -326,10 +324,8 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
     const auto DerivedTS = TypeSet{DerivedTSValue};
     const auto BaseTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
 
-    const auto ToFilterData = [&BaseTSValue,
-                               RDecl](TypeSetTransitionDataType Val)
-        -> std::tuple<TypeSetTransitionDataType, bool, bool,
-                      TypeSet::iterator> {
+    const auto ToFilterData = [&BaseTSValue, RDecl](TransitionType Val)
+        -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
       const auto &[Acquired, Transition, Required] = Val;
       const auto AllowAcquiredConversion = [&Transition, RDecl]() {
         return std::visit(
@@ -378,10 +374,9 @@ propagateTypeAliasFactory(TransitionCollector &Transitions) {
         launderType(NDecl->getUnderlyingType().getTypePtr());
 
     const auto ToAliasFilterDataFactory = [](const clang::Type *const Type) {
-      return [Type, TypeAsTSValueType =
-                        TypeSetValueType{Type}](TypeSetTransitionDataType Val)
-                 -> std::tuple<TypeSetTransitionDataType, bool, bool,
-                               TypeSet::iterator> {
+      return [Type,
+              TypeAsTSValueType = TypeSetValueType{Type}](TransitionType Val)
+                 -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
         const auto &[Acquired, Transition, Required] = Val;
         const auto AllowAcquiredConversion = [Type, &TypeAsTSValueType,
                                               &Transition]() {

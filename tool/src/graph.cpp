@@ -180,9 +180,9 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 }
 
 static void initializeVertexDataWithQueried(
-    const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-    GraphData &Data, const std::string &TypeName) {
-  const auto ToAcquired = [](const TypeSetTransitionDataType &Val) {
+    const std::vector<TransitionType> &TypeSetTransitionData, GraphData &Data,
+    const std::string &TypeName) {
+  const auto ToAcquired = [](const TransitionType &Val) {
     return std::get<0>(Val);
   };
   const auto matchesQueriedName = matchesNamePredicateFactory(TypeName);
@@ -227,9 +227,8 @@ isSubsetPredicateFactory(const TypeSet &AcquiredTypeSet) {
   return Res;
 }
 
-static void
-buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
-           GraphData &Data) {
+static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
+                       GraphData &Data) {
   using indexed_vertex_type = std::pair<TypeSet, size_t>;
   std::set<indexed_vertex_type> VertexData =
       ranges::to<std::set>(ranges::views::zip(
@@ -250,7 +249,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
     size_t TransitionCounter = 0U;
     spdlog::trace("{:=^50}", "");
     const auto TransitionWithInterestingAcquiredTypeSet =
-        [&TypeSetsOfInterest](const TypeSetTransitionDataType &Val) {
+        [&TypeSetsOfInterest](const TransitionType &Val) {
           const auto &Acquired = std::get<0>(Val);
           return ranges::any_of(TypeSetsOfInterest,
                                 isSubsetPredicateFactory(Acquired),
@@ -367,7 +366,7 @@ buildGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
 }
 
 std::pair<GraphType, GraphData>
-createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+createGraph(const std::vector<TransitionType> &TypeSetTransitionData,
             const std::string &TypeName) {
   GraphData Data{};
   initializeVertexDataWithQueried(TypeSetTransitionData, Data, TypeName);

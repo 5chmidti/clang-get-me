@@ -61,13 +61,12 @@ using VertexDescriptor =
 // FIXME: optimize this from pair of edges to list of vertices
 using PathType = std::vector<EdgeDescriptor>;
 
-using TypeSetTransitionDataType =
-    std::tuple<TypeSet, TransitionDataType, TypeSet>;
+using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
 
-using TransitionCollector = std::vector<TypeSetTransitionDataType>;
+using TransitionCollector = std::vector<TransitionType>;
 
 struct GraphData {
-  using EdgeWeightType = TypeSetTransitionDataType;
+  using EdgeWeightType = TransitionType;
   using VertexDataType = TypeSet;
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
@@ -111,10 +110,10 @@ pathTraversal(const GraphType &Graph, VertexDescriptor SourceVertex);
 independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph);
 
 [[nodiscard]] std::pair<GraphType, GraphData>
-createGraph(const std::vector<TypeSetTransitionDataType> &TypeSetTransitionData,
+createGraph(const std::vector<TransitionType> &TypeSetTransitionData,
             const std::string &TypeName);
 
-[[nodiscard]] std::vector<TypeSetTransitionDataType>
+[[nodiscard]] std::vector<TransitionType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
 [[nodiscard]] std::optional<VertexDescriptor>
