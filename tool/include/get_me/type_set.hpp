@@ -25,4 +25,8 @@ toTypeSet(const clang::VarDecl *VDecl);
 [[nodiscard]] std::pair<TypeSet, TypeSet>
 toTypeSet(const clang::FunctionDecl *FDecl);
 
+[[nodiscard]] TypeSetValueType toTypeSetValueType(const clang::Type *Type);
+
+[[nodiscard]] const clang::Type *launderType(const clang::Type *Type);
+
 #endif

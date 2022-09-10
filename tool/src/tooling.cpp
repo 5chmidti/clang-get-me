@@ -8,6 +8,7 @@
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/AST/Type.h>
 #include <clang/Basic/Specifiers.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/Tooling.h>
@@ -246,6 +247,32 @@ public:
   TransitionCollector &Collector;
 };
 
+static constexpr auto HasTransitionWithBaseClass = [](const auto &Val) {
+  const auto &[Transition, HasBaseInAcquired, HasBaseInRequired, RequiredIter] =
+      Val;
+  return HasBaseInAcquired || HasBaseInRequired;
+};
+
+[[nodiscard]] static auto
+toNewTransitionFactory(const clang::Type *const Alias) {
+  return
+      [Alias, AliasTS = TypeSet{TypeSetValueType{Alias}}](
+          std::tuple<TypeSetTransitionDataType, bool, bool, TypeSet::iterator>
+              Val) {
+        auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
+               RequiredIter] = Val;
+        auto &[Acquired, Function, Required] = Transition;
+        if (AllowAcquiredConversion) {
+          Acquired = AliasTS;
+        }
+        if (AllowRequiredConversion) {
+          Required.erase(RequiredIter);
+          Required.emplace(Alias);
+        }
+        return Transition;
+      };
+}
+
 class GetMePostVisitor : public clang::RecursiveASTVisitor<GetMePostVisitor> {
 public:
   explicit GetMePostVisitor(TransitionCollector &Collector)
@@ -255,17 +282,13 @@ public:
     if (filterCXXRecord(RDecl)) {
       return true;
     }
-    const auto DerivedTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
+    const auto *const DerivedType = RDecl->getTypeForDecl();
+    const auto DerivedTSValue = TypeSetValueType{DerivedType};
     const auto DerivedTS = TypeSet{DerivedTSValue};
     const auto BaseTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
-    const auto HasTransitionWithBaseClass = [](const auto &Val) {
-      const auto &[Transition, HasBaseInAcquired, HasBaseInRequired,
-                   RequiredIter] = Val;
-      return HasBaseInAcquired || HasBaseInRequired;
-    };
 
-    const auto TransformToFilterData = [&BaseTSValue,
-                                        RDecl](TypeSetTransitionDataType Val)
+    const auto ToFilterData = [&BaseTSValue,
+                               RDecl](TypeSetTransitionDataType Val)
         -> std::tuple<TypeSetTransitionDataType, bool, bool,
                       TypeSet::iterator> {
       const auto &[Acquired, Transition, Required] = Val;
@@ -294,31 +317,85 @@ public:
               AllowRequiredConversion};
     };
 
-    const auto FilterDataToNewTransition =
-        [&DerivedTS, &DerivedTSValue](
-            std::tuple<TypeSetTransitionDataType, bool, bool, TypeSet::iterator>
-                Val) {
-          auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
-                 RequiredIter] = Val;
-          auto &[Acquired, Function, Required] = Transition;
-          if (AllowAcquiredConversion) {
-            Acquired = DerivedTS;
-          }
-          if (AllowRequiredConversion) {
-            Required.erase(RequiredIter);
-            Required.emplace(DerivedTSValue);
-          }
-          return Transition;
-        };
-
     auto NewTransitions = ranges::to_vector(
-        Collector | ranges::views::transform(TransformToFilterData) |
+        Collector | ranges::views::transform(ToFilterData) |
         ranges::views::filter(HasTransitionWithBaseClass) |
-        ranges::views::transform(FilterDataToNewTransition));
+        ranges::views::transform(toNewTransitionFactory(DerivedType)));
     spdlog::trace("adding new transitions for derived: {}", NewTransitions);
     Collector.insert(Collector.end(),
                      std::make_move_iterator(NewTransitions.begin()),
                      std::make_move_iterator(NewTransitions.end()));
+    return true;
+  }
+
+  TransitionCollector &Collector;
+};
+
+class GetMeAliasVisitor : public clang::RecursiveASTVisitor<GetMeAliasVisitor> {
+public:
+  explicit GetMeAliasVisitor(TransitionCollector &Collector)
+      : Collector{Collector} {}
+
+  [[nodiscard]] bool VisitTypedefNameDecl(clang::TypedefNameDecl *NDecl) {
+    const auto *const AliasType = launderType(NDecl->getTypeForDecl()
+                                                  ->getAs<clang::TypedefType>()
+                                                  ->getDecl()
+                                                  ->getTypeForDecl());
+    const auto *const BaseType =
+        launderType(NDecl->getUnderlyingType().getTypePtr());
+
+    const auto ToAliasFilterDataFactory = [](const clang::Type *const Type) {
+      return [Type, TypeAsTSValueType =
+                        TypeSetValueType{Type}](TypeSetTransitionDataType Val)
+                 -> std::tuple<TypeSetTransitionDataType, bool, bool,
+                               TypeSet::iterator> {
+        const auto &[Acquired, Transition, Required] = Val;
+        const auto AllowAcquiredConversion = [Type, &TypeAsTSValueType,
+                                              &Transition]() {
+          const auto AllowConversionForFunctionDecl =
+              [Type,
+               &TypeAsTSValueType](const clang::FunctionDecl *const FDecl) {
+                if (const auto *const Ctor =
+                        llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
+                  return Type == Ctor->getParent()->getTypeForDecl();
+                }
+                if (const auto *const ReturnType =
+                        FDecl->getReturnType().getTypePtr()) {
+                  return TypeAsTSValueType == toTypeSetValueType(ReturnType);
+                }
+                return false;
+              };
+          return std::visit(
+              Overloaded{AllowConversionForFunctionDecl,
+                         [Type](const DefaultedConstructor &Ctor) {
+                           return Type == Ctor.Record->getTypeForDecl();
+                         },
+                         [](auto &&) { return false; }},
+              Transition);
+        }();
+        const auto AllowRequiredConversion = Required.find(TypeAsTSValueType);
+        return {std::move(Val), AllowAcquiredConversion,
+                AllowRequiredConversion != Required.end(),
+                AllowRequiredConversion};
+      };
+    };
+    const auto AddAliasTransitionsForType =
+        [this, &ToAliasFilterDataFactory](const clang::Type *const ExistingType,
+                                          const clang::Type *const NewType) {
+          auto NewTransitions = ranges::to_vector(
+              Collector |
+              ranges::views::transform(ToAliasFilterDataFactory(ExistingType)) |
+              ranges::views::filter(HasTransitionWithBaseClass) |
+              ranges::views::transform(toNewTransitionFactory(NewType)));
+          spdlog::trace("adding new transitions for type alias: {}",
+                        NewTransitions);
+          Collector.insert(Collector.end(),
+                           std::make_move_iterator(NewTransitions.begin()),
+                           std::make_move_iterator(NewTransitions.end()));
+        };
+    AddAliasTransitionsForType(BaseType, AliasType);
+    AddAliasTransitionsForType(AliasType, BaseType);
+
     return true;
   }
 
@@ -333,6 +410,9 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
 
   auto PostVisitor = GetMePostVisitor{Collector};
   PostVisitor.TraverseDecl(Context.getTranslationUnitDecl());
+
+  auto AliasVisitor = GetMeAliasVisitor{Collector};
+  AliasVisitor.TraverseDecl(Context.getTranslationUnitDecl());
 
   spdlog::trace("collected: {}", Visitor.Collector);
 }

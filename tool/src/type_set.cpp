@@ -3,15 +3,25 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/Type.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/view/transform.hpp>
 
-[[nodiscard]] static TypeSetValueType
-toTypeSetValueType(const clang::Type *const Type) {
-  if (const auto *const RDecl = Type->getAsCXXRecordDecl()) {
-    return TypeSetValueType{RDecl->getTypeForDecl()};
+#include "get_me/formatting.hpp"
+
+TypeSetValueType toTypeSetValueType(const clang::Type *const Type) {
+  return TypeSetValueType{launderType(Type)};
+}
+
+const clang::Type *launderType(const clang::Type *Type) {
+  if (const auto *const TypeAlias = Type->getAs<clang::TypedefType>()) {
+    return TypeAlias->getDecl()->getTypeForDecl();
   }
-  return TypeSetValueType{Type};
+
+  if (const auto *const RDecl = Type->getAsCXXRecordDecl()) {
+    return RDecl->getTypeForDecl();
+  }
+  return Type;
 }
 
 std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
@@ -23,8 +33,7 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
       return TypeSetValueType{Decl->getTypeForDecl()};
     }
     const auto RQType = FDecl->getReturnType();
-    const auto *const ReturnTypePtr = RQType.getTypePtr();
-    return toTypeSetValueType(ReturnTypePtr);
+    return toTypeSetValueType(RQType.getTypePtr());
   }();
   const auto RequiredTypes = [FDecl]() {
     const auto Parameters = FDecl->parameters();
@@ -32,7 +41,7 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
         Parameters |
         ranges::views::transform([](const clang::ParmVarDecl *PVDecl) {
           const auto QType = PVDecl->getType();
-          return TypeSetValueType{QType.getTypePtr()};
+          return toTypeSetValueType(QType.getTypePtr());
         });
     auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
                        std::make_move_iterator(ParameterTypeRange.end())};

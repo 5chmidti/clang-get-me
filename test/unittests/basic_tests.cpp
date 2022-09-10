@@ -134,3 +134,24 @@ B getB();
        {"({struct A}, A getA(), {})", "({struct A}, B getB(), {})",
         "({struct A}, A A(int, float), {int, float})"});
 }
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
+TEST_F(GetMeTest, typealias) {
+  test(R"(
+  struct A {};
+  using B = A;
+  A getA();
+  B getB();
+  )",
+       "B", {"({B}, B getB(), {})", "({B}, A getA(), {})", "({B}, A A(), {})"});
+
+  test(R"(
+  struct A {};
+  using B = A;
+  A getA();
+  B getB();
+  )",
+       "A",
+       {"({struct A}, B getB(), {})", "({struct A}, A getA(), {})",
+        "({struct A}, A A(), {})"});
+}
