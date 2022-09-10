@@ -1,14 +1,24 @@
 #include "get_me_tests.hpp"
 
+#include <functional>
+#include <iterator>
+#include <memory>
 #include <source_location>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
+#include <fmt/format.h>
 #include <get_me/formatting.hpp>
+#include <get_me/graph.hpp>
 #include <get_me/tooling.hpp>
 #include <gtest/gtest.h>
 #include <range/v3/algorithm/permutation.hpp>
+#include <range/v3/algorithm/set_algorithm.hpp>
+#include <range/v3/algorithm/sort.hpp>
+#include <range/v3/view/transform.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 

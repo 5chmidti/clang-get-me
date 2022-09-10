@@ -10,7 +10,6 @@
 #include <vector>
 
 #include <clang/AST/ASTConsumer.h>
-#include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
 

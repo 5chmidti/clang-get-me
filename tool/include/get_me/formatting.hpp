@@ -10,7 +10,6 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
 

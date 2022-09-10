@@ -1,16 +1,4 @@
-#include <filesystem>
-#include <fstream>
-#include <memory>
-#include <string>
-#include <string_view>
-#include <vector>
-
-#include <fmt/format.h>
-#include <get_me/formatting.hpp>
-#include <get_me/graph.hpp>
 #include <gtest/gtest.h>
-#include <range/v3/algorithm/permutation.hpp>
-#include <spdlog/spdlog.h>
 
 #include "get_me_tests.hpp"
 

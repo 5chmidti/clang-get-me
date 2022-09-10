@@ -8,7 +8,6 @@
 #include <llvm/Support/Casting.h>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
-#include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
 #include "get_me/utility.hpp"
