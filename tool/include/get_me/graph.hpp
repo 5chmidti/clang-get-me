@@ -27,12 +27,6 @@
 
 using namespace std::string_view_literals;
 
-namespace clang {
-struct FunctionDecl;
-struct FieldDecl;
-struct NamedDecl;
-} // namespace clang
-
 struct DefaultedConstructor {
   const clang::CXXRecordDecl *Record;
 
