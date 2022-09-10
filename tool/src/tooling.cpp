@@ -51,21 +51,34 @@ hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
   return VDecl->getType().getAsString().find(Name) != std::string::npos;
 }
 
+[[nodiscard]] static bool hasReservedIdentifier(const clang::QualType &QType) {
+  auto QTypeAsString = QType.getAsString();
+  return QTypeAsString.starts_with("_") ||
+         (QTypeAsString.find("::_") != std::string::npos);
+}
+
+[[nodiscard]] static bool
+hasReservedIdentifierType(const clang::Type *const Type) {
+  return hasReservedIdentifier(clang::QualType(Type, 0));
+}
+
 template <typename T>
 [[nodiscard]] static bool
 hasReservedIdentifierTypeOrReturnType(const T *const Decl) {
-  const auto GetReturnTypeOrValueType = [Decl]() {
+  const auto GetReturnTypeOrValueType = [Decl]() -> clang::QualType {
     if constexpr (std::is_same_v<T, clang::FunctionDecl>) {
       return Decl->getReturnType();
     } else if constexpr (std::is_same_v<T, clang::VarDecl> ||
                          std::is_same_v<T, clang::FieldDecl>) {
       return Decl->getType();
+    } else if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
+      return clang::QualType(Decl->getTypeForDecl(), 0);
     } else {
       static_assert(std::is_same_v<T, void>,
                     "hasReservedIdentifierType called with unsupported type");
     }
   };
-  return GetReturnTypeOrValueType().getAsString().starts_with("_");
+  return hasReservedIdentifier(GetReturnTypeOrValueType());
 }
 
 template <typename T>
@@ -77,6 +90,10 @@ template <typename T>
                 std::is_same_v<T, clang::VarDecl> ||
                 std::is_same_v<T, clang::FieldDecl>) {
     return hasReservedIdentifierTypeOrReturnType(Decl);
+  }
+  if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
+    return hasReservedIdentifierTypeOrReturnType(Decl) ||
+           hasReservedIdentifierType(Decl->getUnderlyingType().getTypePtr());
   }
   return false;
 }
