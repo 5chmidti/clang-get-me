@@ -267,6 +267,9 @@ public:
   }
 
   [[nodiscard]] bool VisitTypedefNameDecl(clang::TypedefNameDecl *NDecl) {
+    if (hasReservedIdentifierNameOrType(NDecl)) {
+      return true;
+    }
     TypedefNameDecls.push_back(NDecl);
     return true;
   }
