@@ -83,7 +83,7 @@ int main(int argc, const char **argv) {
     auto FormattedEdge = fmt::format(
         R"(  "{}" -> "{}"[label="{}"]
 )",
-        SourceVertex, TargetVertex, EdgeWeight);
+        SourceVertex, TargetVertex, toString(EdgeWeight));
     Res += FormattedEdge;
   }
 
@@ -106,7 +106,8 @@ int main(int argc, const char **argv) {
         "path #{}: {}", Number,
         fmt::join(Path | views::transform([&Data, &IndexMap](
                                               const EdgeDescriptor &Edge) {
-                    return Data.EdgeWeights[boost::get(IndexMap, Edge)];
+                    return toString(
+                        Data.EdgeWeights[boost::get(IndexMap, Edge)]);
                   }),
                   ", "));
   }
