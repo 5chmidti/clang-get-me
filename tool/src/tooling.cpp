@@ -309,7 +309,7 @@ toNewTransitionFactory(const clang::Type *const Alias) {
 propagateInheritanceFactory(TransitionCollector &Transitions) {
   return [&Transitions](const clang::CXXRecordDecl *const RDecl) {
     if (filterCXXRecord(RDecl)) {
-      return true;
+      return;
     }
     const auto *const DerivedType = RDecl->getTypeForDecl();
     const auto DerivedTSValue = TypeSetValueType{DerivedType};
@@ -354,7 +354,6 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
     Transitions.insert(Transitions.end(),
                        std::make_move_iterator(NewTransitions.begin()),
                        std::make_move_iterator(NewTransitions.end()));
-    return true;
   };
 }
 
@@ -417,8 +416,6 @@ propagateTypeAliasFactory(TransitionCollector &Transitions) {
         };
     AddAliasTransitionsForType(BaseType, AliasType);
     AddAliasTransitionsForType(AliasType, BaseType);
-
-    return true;
   };
 }
 
