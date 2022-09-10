@@ -341,10 +341,7 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
 [[nodiscard]] static auto
 propagateTypeAliasFactory(TransitionCollector &Transitions) {
   return [&Transitions](const clang::TypedefNameDecl *const NDecl) {
-    const auto *const AliasType = launderType(NDecl->getTypeForDecl()
-                                                  ->getAs<clang::TypedefType>()
-                                                  ->getDecl()
-                                                  ->getTypeForDecl());
+    const auto *const AliasType = launderType(NDecl->getTypeForDecl());
     const auto *const BaseType =
         launderType(NDecl->getUnderlyingType().getTypePtr());
 
