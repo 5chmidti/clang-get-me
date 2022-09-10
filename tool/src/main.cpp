@@ -70,7 +70,7 @@ int main(int argc, const char **argv) {
 
   std::ofstream DotFile("graph.dot");
   std::string Res{};
-  Res += fmt::format("digraph D {{\n");
+  Res += fmt::format("digraph D {{\n  layout = \"sfdp\";\n");
 
   for (const auto &Edge : toRange(edges(Graph))) {
     const auto SourceNode = source(Edge, Graph);
