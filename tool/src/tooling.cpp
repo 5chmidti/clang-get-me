@@ -267,6 +267,16 @@ public:
   }
 
   [[nodiscard]] bool VisitTypedefNameDecl(clang::TypedefNameDecl *NDecl) {
+    if (NDecl->isInvalidDecl()) {
+      return true;
+    }
+    if (NDecl->isTemplateDecl()) {
+      return true;
+    }
+    if (NDecl->getTypeForDecl() == nullptr ||
+        NDecl->getUnderlyingType().getTypePtr() == nullptr) {
+      return true;
+    }
     if (hasReservedIdentifierNameOrType(NDecl)) {
       return true;
     }
