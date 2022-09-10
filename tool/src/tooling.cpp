@@ -349,8 +349,11 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
     auto NewTransitions = ranges::to_vector(
         Transitions | ranges::views::transform(ToFilterData) |
         ranges::views::filter(HasTransitionWithBaseClass) |
-        ranges::views::transform(toNewTransitionFactory(DerivedType)));
-    spdlog::trace("adding new transitions for derived: {}", NewTransitions);
+        ranges::views::transform(toNewTransitionFactory(DerivedType)) |
+        // FIXME: figure out how to not need this filter
+        ranges::views::filter([&Transitions](const auto &Transition) {
+          return !ranges::contains(Transitions, Transition);
+        }));
     Transitions.insert(Transitions.end(),
                        std::make_move_iterator(NewTransitions.begin()),
                        std::make_move_iterator(NewTransitions.end()));
@@ -407,9 +410,11 @@ propagateTypeAliasFactory(TransitionCollector &Transitions) {
               Transitions |
               ranges::views::transform(ToAliasFilterDataFactory(ExistingType)) |
               ranges::views::filter(HasTransitionWithBaseClass) |
-              ranges::views::transform(toNewTransitionFactory(NewType)));
-          spdlog::trace("adding new transitions for type alias: {}",
-                        NewTransitions);
+              ranges::views::transform(toNewTransitionFactory(NewType)) |
+              // FIXME: figure out how to not need this filter
+              ranges::views::filter([&Transitions](const auto &Transition) {
+                return !ranges::contains(Transitions, Transition);
+              }));
           Transitions.insert(Transitions.end(),
                              std::make_move_iterator(NewTransitions.begin()),
                              std::make_move_iterator(NewTransitions.end()));
