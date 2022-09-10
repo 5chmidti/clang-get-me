@@ -47,4 +47,5 @@ target_link_libraries(project_libraries INTERFACE fmt::fmt spdlog::spdlog)
 include(cmake/StaticAnalyzers.cmake)
 
 add_subdirectory(tool)
+enable_testing()
 add_subdirectory(test)
