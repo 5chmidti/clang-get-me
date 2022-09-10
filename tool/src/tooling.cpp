@@ -17,6 +17,7 @@
 #include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/mismatch.hpp>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/algorithm/unique.hpp>
@@ -149,8 +150,11 @@ filterCXXRecord(const clang::CXXRecordDecl *const RDecl) {
 // std::vector<TypeSetTransitionDataType -> GraphData in the visitor directly
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
-  explicit GetMeVisitor(TransitionCollector &Collector)
-      : Collector{Collector} {}
+  GetMeVisitor(TransitionCollector &TransitionsRef,
+               std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
+               std::vector<const clang::TypedefNameDecl *> &TypedefNameDeclsRef)
+      : Transitions{TransitionsRef}, CXXRecords{CXXRecordsRef},
+        TypedefNameDecls{TypedefNameDeclsRef} {}
 
   [[nodiscard]] bool VisitFunctionDecl(clang::FunctionDecl *FDecl) {
     if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
@@ -161,8 +165,8 @@ public:
     }
 
     auto [Acquired, Required] = toTypeSet(FDecl);
-    Collector.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
-                           std::move(Required));
+    Transitions.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
+                             std::move(Required));
     return true;
   }
 
@@ -183,8 +187,8 @@ public:
     }
 
     auto [Acquired, Required] = toTypeSet(FDecl);
-    Collector.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
-                           std::move(Required));
+    Transitions.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
+                             std::move(Required));
     return true;
   }
 
@@ -208,17 +212,18 @@ public:
       }
 
       auto [Acquired, Required] = toTypeSet(Method);
-      Collector.emplace_back(std::move(Acquired), TransitionDataType{Method},
-                             std::move(Required));
+      Transitions.emplace_back(std::move(Acquired), TransitionDataType{Method},
+                               std::move(Required));
     }
 
     // add non user provided default constructor
     if (RDecl->hasDefaultConstructor() &&
         !RDecl->hasUserProvidedDefaultConstructor()) {
-      Collector.emplace_back(TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
-                             TransitionDataType{DefaultedConstructor{RDecl}},
-                             TypeSet{});
+      Transitions.emplace_back(
+          TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
+          TransitionDataType{DefaultedConstructor{RDecl}}, TypeSet{});
     }
+    CXXRecords.push_back(RDecl);
     return true;
   }
 
@@ -238,13 +243,20 @@ public:
 
     if (const auto *const RDecl =
             llvm::dyn_cast<clang::RecordDecl>(VDecl->getDeclContext())) {
-      Collector.emplace_back(std::get<0>(toTypeSet(VDecl)),
-                             TransitionDataType{VDecl}, TypeSet{});
+      Transitions.emplace_back(std::get<0>(toTypeSet(VDecl)),
+                               TransitionDataType{VDecl}, TypeSet{});
     }
     return true;
   }
 
-  TransitionCollector &Collector;
+  [[nodiscard]] bool VisitTypedefNameDecl(clang::TypedefNameDecl *NDecl) {
+    TypedefNameDecls.push_back(NDecl);
+    return true;
+  }
+
+  TransitionCollector &Transitions;
+  std::vector<const clang::CXXRecordDecl *> &CXXRecords;
+  std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls;
 };
 
 static constexpr auto HasTransitionWithBaseClass = [](const auto &Val) {
@@ -273,12 +285,9 @@ toNewTransitionFactory(const clang::Type *const Alias) {
       };
 }
 
-class GetMePostVisitor : public clang::RecursiveASTVisitor<GetMePostVisitor> {
-public:
-  explicit GetMePostVisitor(TransitionCollector &Collector)
-      : Collector{Collector} {}
-
-  [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
+[[nodiscard]] static auto
+propagateInheritanceFactory(TransitionCollector &Transitions) {
+  return [&Transitions](const clang::CXXRecordDecl *const RDecl) {
     if (filterCXXRecord(RDecl)) {
       return true;
     }
@@ -318,25 +327,20 @@ public:
     };
 
     auto NewTransitions = ranges::to_vector(
-        Collector | ranges::views::transform(ToFilterData) |
+        Transitions | ranges::views::transform(ToFilterData) |
         ranges::views::filter(HasTransitionWithBaseClass) |
         ranges::views::transform(toNewTransitionFactory(DerivedType)));
     spdlog::trace("adding new transitions for derived: {}", NewTransitions);
-    Collector.insert(Collector.end(),
-                     std::make_move_iterator(NewTransitions.begin()),
-                     std::make_move_iterator(NewTransitions.end()));
+    Transitions.insert(Transitions.end(),
+                       std::make_move_iterator(NewTransitions.begin()),
+                       std::make_move_iterator(NewTransitions.end()));
     return true;
-  }
+  };
+}
 
-  TransitionCollector &Collector;
-};
-
-class GetMeAliasVisitor : public clang::RecursiveASTVisitor<GetMeAliasVisitor> {
-public:
-  explicit GetMeAliasVisitor(TransitionCollector &Collector)
-      : Collector{Collector} {}
-
-  [[nodiscard]] bool VisitTypedefNameDecl(clang::TypedefNameDecl *NDecl) {
+[[nodiscard]] static auto
+propagateTypeAliasFactory(TransitionCollector &Transitions) {
+  return [&Transitions](const clang::TypedefNameDecl *const NDecl) {
     const auto *const AliasType = launderType(NDecl->getTypeForDecl()
                                                   ->getAs<clang::TypedefType>()
                                                   ->getDecl()
@@ -380,39 +384,35 @@ public:
       };
     };
     const auto AddAliasTransitionsForType =
-        [this, &ToAliasFilterDataFactory](const clang::Type *const ExistingType,
-                                          const clang::Type *const NewType) {
+        [&ToAliasFilterDataFactory,
+         &Transitions](const clang::Type *const ExistingType,
+                       const clang::Type *const NewType) {
           auto NewTransitions = ranges::to_vector(
-              Collector |
+              Transitions |
               ranges::views::transform(ToAliasFilterDataFactory(ExistingType)) |
               ranges::views::filter(HasTransitionWithBaseClass) |
               ranges::views::transform(toNewTransitionFactory(NewType)));
           spdlog::trace("adding new transitions for type alias: {}",
                         NewTransitions);
-          Collector.insert(Collector.end(),
-                           std::make_move_iterator(NewTransitions.begin()),
-                           std::make_move_iterator(NewTransitions.end()));
+          Transitions.insert(Transitions.end(),
+                             std::make_move_iterator(NewTransitions.begin()),
+                             std::make_move_iterator(NewTransitions.end()));
         };
     AddAliasTransitionsForType(BaseType, AliasType);
     AddAliasTransitionsForType(AliasType, BaseType);
 
     return true;
-  }
-
-  TransitionCollector &Collector;
-};
+  };
+}
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
-  // Traversing the translation unit decl via a RecursiveASTVisitor
-  // will visit all nodes in the AST.
-  GetMeVisitor Visitor{Collector};
+  std::vector<const clang::CXXRecordDecl *> CXXRecords{};
+  std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
+  GetMeVisitor Visitor{Transitions, CXXRecords, TypedefNameDecls};
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
 
-  auto PostVisitor = GetMePostVisitor{Collector};
-  PostVisitor.TraverseDecl(Context.getTranslationUnitDecl());
+  ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions));
+  ranges::for_each(TypedefNameDecls, propagateTypeAliasFactory(Transitions));
 
-  auto AliasVisitor = GetMeAliasVisitor{Collector};
-  AliasVisitor.TraverseDecl(Context.getTranslationUnitDecl());
-
-  spdlog::trace("collected: {}", Visitor.Collector);
+  spdlog::trace("collected: {}", Visitor.Transitions);
 }

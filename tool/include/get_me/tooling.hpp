@@ -23,13 +23,13 @@ struct FieldDecl;
 // current context
 class GetMe : public clang::ASTConsumer {
 public:
-  explicit GetMe(TransitionCollector &CollectorReference)
-      : Collector{CollectorReference} {}
+  explicit GetMe(TransitionCollector &TransitionsRef)
+      : Transitions{TransitionsRef} {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) override;
 
 private:
-  TransitionCollector &Collector;
+  TransitionCollector &Transitions;
 };
 
 #endif
