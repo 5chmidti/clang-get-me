@@ -118,6 +118,15 @@ filterFunction(const clang::FunctionDecl *const FDecl) {
   if (hasParameterOrReturnTypeWithName(FDecl, "exception")) {
     return true;
   }
+  if (hasParameterOrReturnTypeWithName(FDecl, "bad_array_new_length")) {
+    return true;
+  }
+  if (hasParameterOrReturnTypeWithName(FDecl, "bad_alloc")) {
+    return true;
+  }
+  if (hasParameterOrReturnTypeWithName(FDecl, "traits")) {
+    return true;
+  }
   // FIXME: maybe need heuristic to reduce unwanted edges
   if (FDecl->getReturnType()->isArithmeticType()) {
     spdlog::trace("filtered due to returning arithmetic type: {}",
@@ -135,6 +144,14 @@ filterFunction(const clang::FunctionDecl *const FDecl) {
   }
 
   return false;
+}
+
+[[nodiscard]] static bool hasAnyName(const clang::NamedDecl *const NDecl,
+                                     ranges::range auto RangeOfNames) {
+  return ranges::any_of(
+      RangeOfNames, [NameOfDecl = NDecl->getNameAsString()](const auto &Name) {
+        return NameOfDecl.find(Name) != std::string::npos;
+      });
 }
 
 [[nodiscard]] static bool
@@ -157,6 +174,11 @@ filterCXXRecord(const clang::CXXRecordDecl *const RDecl) {
   }
   if (RDecl->getNameAsString().empty()) {
     spdlog::trace("filtered due to having empty name");
+    return true;
+  }
+  if (hasAnyName(RDecl,
+                 std::array{"FILE"sv, "exception"sv, "bad_array_new_length"sv,
+                            "bad_alloc"sv, "traits"sv})) {
     return true;
   }
 
