@@ -14,6 +14,9 @@ TypeSetValueType toTypeSetValueType(const clang::Type *const Type) {
 }
 
 const clang::Type *launderType(const clang::Type *Type) {
+  if (Type == nullptr) {
+    return nullptr;
+  }
   if (const auto *const TypeAlias = Type->getAs<clang::TypedefType>()) {
     return TypeAlias->getDecl()->getTypeForDecl();
   }
