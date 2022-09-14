@@ -30,8 +30,8 @@ using namespace std::string_view_literals;
 struct DefaultedConstructor {
   const clang::CXXRecordDecl *Record;
 
-  [[nodiscard]] friend bool operator==(const DefaultedConstructor &,
-                                       const DefaultedConstructor &) = default;
+  [[nodiscard]] friend auto operator<=>(const DefaultedConstructor &,
+                                        const DefaultedConstructor &) = default;
 };
 
 using TransitionDataType =
