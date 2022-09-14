@@ -54,7 +54,9 @@ int main(int argc, const char **argv) {
     spdlog::error("error building ASTs");
     return 1;
   }
-  auto Consumer = GetMe{getDefaultConfig(), TypeSetTransitionData};
+  auto Conf = getDefaultConfig();
+  Conf.EnableArithmeticTruncation = true;
+  auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
   }
