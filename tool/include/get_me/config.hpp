@@ -4,6 +4,8 @@
 struct Config {
   bool EnableArithmeticTruncation = false;
   bool EnableFilterOverloads = false;
+  bool EnablePropagateInheritance = false;
+  bool EnablePropagateTypeAlias = false;
 };
 
 [[nodiscard]] consteval Config getDefaultConfig() { return Config{}; }

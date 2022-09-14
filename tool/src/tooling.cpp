@@ -645,7 +645,11 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
     filterArithmeticOverloads(Transitions);
   }
 
-  ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions));
-  ranges::for_each(TypedefNameDecls,
-                   propagateTypeAliasFactory(Transitions, Conf));
+  if (Conf.EnablePropagateInheritance) {
+    ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions));
+  }
+  if (Conf.EnablePropagateTypeAlias) {
+    ranges::for_each(TypedefNameDecls,
+                     propagateTypeAliasFactory(Transitions, Conf));
+  }
 }

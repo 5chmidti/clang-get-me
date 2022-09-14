@@ -55,9 +55,10 @@ int main(int argc, const char **argv) {
     spdlog::error("error building ASTs");
     return 1;
   }
-  auto Conf = getDefaultConfig();
-  Conf.EnableArithmeticTruncation = true;
-  Conf.EnableFilterOverloads = true;
+  auto Conf = Config{.EnableArithmeticTruncation = true,
+                     .EnableFilterOverloads = true,
+                     .EnablePropagateInheritance = true,
+                     .EnablePropagateTypeAlias = true};
   auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
