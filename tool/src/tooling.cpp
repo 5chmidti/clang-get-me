@@ -453,31 +453,35 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
       return;
     }
     const auto *const DerivedType = RDecl->getTypeForDecl();
-    const auto DerivedTSValue = TypeSetValueType{DerivedType};
-    const auto DerivedTS = TypeSet{DerivedTSValue};
     const auto BaseTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
 
     const auto ToFilterData = [&BaseTSValue, RDecl](TransitionType Val)
         -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
       const auto &[Acquired, Transition, Required] = Val;
       const auto AllowAcquiredConversion = [&Transition, RDecl]() {
-        return std::visit(
-            Overloaded{[RDecl](const clang::FunctionDecl *const FDecl) {
-                         if (const auto *const Ctor =
-                                 llvm::dyn_cast<clang::CXXConstructorDecl>(
-                                     FDecl)) {
-                           return RDecl->isDerivedFrom(Ctor->getParent());
-                         }
-                         if (const auto *const ReturnType =
-                                 FDecl->getReturnType().getTypePtr();
-                             const auto *const ReturnedRecord =
-                                 ReturnType->getAsCXXRecordDecl()) {
-                           return ReturnedRecord->isDerivedFrom(RDecl);
-                         }
-                         return false;
-                       },
-                       [](auto &&) { return false; }},
-            Transition);
+        const auto AllowAcquiredConversionForFunction =
+            [RDecl](const clang::FunctionDecl *const FDecl) {
+              if (const auto *const Ctor =
+                      llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
+                return RDecl->isDerivedFrom(Ctor->getParent());
+              }
+              if (const auto *const ReturnType =
+                      FDecl->getReturnType().getTypePtr();
+                  const auto *const ReturnedRecord =
+                      ReturnType->getAsCXXRecordDecl()) {
+                if (!ReturnedRecord->hasDefinition()) {
+                  return false;
+                }
+                if (ReturnedRecord->getNumBases() == 0) {
+                  return false;
+                }
+                return ReturnedRecord->isDerivedFrom(RDecl);
+              }
+              return false;
+            };
+        return std::visit(Overloaded{AllowAcquiredConversionForFunction,
+                                     [](auto &&) { return false; }},
+                          Transition);
       }();
       const auto AllowRequiredConversion = Required.find(BaseTSValue);
       return {std::move(Val), AllowAcquiredConversion,
