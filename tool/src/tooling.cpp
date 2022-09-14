@@ -32,20 +32,6 @@
 #include "get_me/utility.hpp"
 
 [[nodiscard]] static bool
-hasParameterOrReturnTypeWithName(const clang::FunctionDecl *const FDecl,
-                                 std::string_view Name) {
-  if (FDecl->getReturnType().getUnqualifiedType().getAsString().find(Name) !=
-      std::string::npos) {
-    return true;
-  }
-  return ranges::any_of(
-      FDecl->parameters(), [Name](const clang::ParmVarDecl *const PVDecl) {
-        return PVDecl->getType().getUnqualifiedType().getAsString().find(
-                   Name) != std::string::npos;
-      });
-}
-
-[[nodiscard]] static bool
 hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
                           std::string_view Name) {
   return VDecl->getType().getAsString().find(Name) != std::string::npos;
@@ -108,25 +94,25 @@ returnTypeIsInParameterList(const clang::FunctionDecl *const FDecl) {
 }
 
 [[nodiscard]] static bool
+hasAnyParameterOrReturnTypeWithName(const clang::NamedDecl *const NDecl,
+                                    ranges::range auto RangeOfNames) {
+  return ranges::any_of(
+      RangeOfNames, [NameOfDecl = NDecl->getNameAsString()](const auto &Name) {
+        return NameOfDecl.find(Name) != std::string::npos;
+      });
+}
+
+[[nodiscard]] static bool
 filterFunction(const clang::FunctionDecl *const FDecl) {
   if (hasReservedIdentifierNameOrType(FDecl)) {
     return true;
   }
-  if (hasParameterOrReturnTypeWithName(FDecl, "FILE")) {
+  if (hasAnyParameterOrReturnTypeWithName(
+          FDecl, std::array{"FILE"sv, "exception"sv, "bad_array_new_length"sv,
+                            "bad_alloc"sv, "traits"sv})) {
     return true;
   }
-  if (hasParameterOrReturnTypeWithName(FDecl, "exception")) {
-    return true;
-  }
-  if (hasParameterOrReturnTypeWithName(FDecl, "bad_array_new_length")) {
-    return true;
-  }
-  if (hasParameterOrReturnTypeWithName(FDecl, "bad_alloc")) {
-    return true;
-  }
-  if (hasParameterOrReturnTypeWithName(FDecl, "traits")) {
-    return true;
-  }
+
   // FIXME: maybe need heuristic to reduce unwanted edges
   if (FDecl->getReturnType()->isArithmeticType()) {
     spdlog::trace("filtered due to returning arithmetic type: {}",
