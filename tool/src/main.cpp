@@ -1,3 +1,4 @@
+#include <compare>
 #include <fstream>
 #include <variant>
 
@@ -102,9 +103,17 @@ int main(int argc, const char **argv) {
     return 1;
   }
   auto Paths = pathTraversal(Graph, Data, *SourceVertexDesc);
+  ranges::sort(
+      Paths, [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {
+        if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_lt(Comp)) {
+          return true;
+        }
+        return Data.VertexData[target(Lhs.back(), Graph)].size() <
+               Data.VertexData[target(Rhs.back(), Graph)].size();
+      });
 
   for (const auto [Path, Number] :
-       views::zip(Paths | ranges::views::take(25), views::iota(0U))) {
+       views::zip(Paths | ranges::views::take(50), views::iota(0U))) {
     spdlog::info(
         "path #{}: {}", Number,
         fmt::join(Path | views::transform([&Data, &IndexMap](
