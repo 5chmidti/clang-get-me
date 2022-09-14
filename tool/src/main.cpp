@@ -1,6 +1,7 @@
 #include <fstream>
 #include <variant>
 
+#include <boost/algorithm/string/replace.hpp>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 #include <fmt/format.h>
@@ -80,10 +81,12 @@ int main(int argc, const char **argv) {
     const auto TargetVertex = Data.VertexData[TargetNode];
     const auto SourceVertex = Data.VertexData[SourceNode];
 
+    auto EdgeWeightAsString = toString(EdgeWeight);
+    boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
     auto FormattedEdge = fmt::format(
         R"(  "{}" -> "{}"[label="{}"]
 )",
-        SourceVertex, TargetVertex, toString(EdgeWeight));
+        SourceVertex, TargetVertex, EdgeWeightAsString);
     Res += FormattedEdge;
   }
 
@@ -101,7 +104,7 @@ int main(int argc, const char **argv) {
   });
 
   for (const auto [Path, Number] :
-       views::zip(Paths | ranges::views::take(10), views::iota(0U))) {
+       views::zip(Paths | ranges::views::take(25), views::iota(0U))) {
     spdlog::info(
         "path #{}: {}", Number,
         fmt::join(Path | views::transform([&Data, &IndexMap](
