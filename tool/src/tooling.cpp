@@ -8,6 +8,7 @@
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/DeclTemplate.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/Specifiers.h>
@@ -41,7 +42,8 @@ hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
   return VDecl->getType().getAsString().find(Name) != std::string::npos;
 }
 
-[[nodiscard]] static bool hasReservedIdentifier(const clang::QualType &QType) {
+[[nodiscard]] static bool
+hasReservedIdentifierName(const clang::QualType &QType) {
   auto QTypeAsString = QType.getAsString();
   return QTypeAsString.starts_with("_") ||
          (QTypeAsString.find("::_") != std::string::npos);
@@ -49,7 +51,7 @@ hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
 
 [[nodiscard]] static bool
 hasReservedIdentifierType(const clang::Type *const Type) {
-  return hasReservedIdentifier(clang::QualType(Type, 0));
+  return hasReservedIdentifierName(clang::QualType(Type, 0));
 }
 
 template <typename T>
@@ -68,7 +70,7 @@ hasReservedIdentifierTypeOrReturnType(const T *const Decl) {
                     "hasReservedIdentifierType called with unsupported type");
     }
   };
-  return hasReservedIdentifier(GetReturnTypeOrValueType());
+  return hasReservedIdentifierName(GetReturnTypeOrValueType());
 }
 
 template <typename T>
@@ -89,7 +91,7 @@ template <typename T>
 }
 
 [[nodiscard]] static bool
-returnTypeIsInParameterList(const clang::FunctionDecl *const FDecl) {
+isReturnTypeInParameterList(const clang::FunctionDecl *const FDecl) {
   return ranges::contains(FDecl->parameters(),
                           FDecl->getReturnType().getUnqualifiedType(),
                           [](const clang::ParmVarDecl *const PVarDecl) {
@@ -97,17 +99,35 @@ returnTypeIsInParameterList(const clang::FunctionDecl *const FDecl) {
                           });
 }
 
-[[nodiscard]] static bool
-hasAnyParameterOrReturnTypeWithName(const clang::NamedDecl *const NDecl,
-                                    ranges::range auto RangeOfNames) {
-  return ranges::any_of(
-      RangeOfNames, [NameOfDecl = NDecl->getNameAsString()](const auto &Name) {
-        return NameOfDecl.find(Name) != std::string::npos;
-      });
+[[nodiscard]] static bool containsAny(const std::string &Str,
+                                      ranges::range auto RangeOfNames) {
+  return ranges::any_of(RangeOfNames, [&Str](const auto &Name) {
+    return Str.find(Name) != std::string::npos;
+  });
 }
 
 [[nodiscard]] static bool
-filterFunction(const clang::FunctionDecl *const FDecl) {
+hasAnyParameterOrReturnTypeWithName(const clang::FunctionDecl *const FDecl,
+                                    ranges::forward_range auto RangeOfNames) {
+  return containsAny(FDecl->getReturnType().getAsString(), RangeOfNames) ||
+         ranges::any_of(
+             FDecl->parameters(),
+             [&RangeOfNames](const clang::ParmVarDecl *const PVDecl) {
+               return containsAny(PVDecl->getType().getAsString(),
+                                  RangeOfNames);
+             });
+}
+
+[[nodiscard]] static bool
+hasNameContainingAny(const clang::NamedDecl *const NDecl,
+                     ranges::range auto RangeOfNames) {
+  return containsAny(NDecl->getNameAsString(), RangeOfNames);
+}
+
+[[nodiscard]] static bool filterOut(const clang::FunctionDecl *const FDecl) {
+  if (FDecl->isDeleted()) {
+    return true;
+  }
   if (hasReservedIdentifierNameOrType(FDecl)) {
     return true;
   }
@@ -117,13 +137,14 @@ filterFunction(const clang::FunctionDecl *const FDecl) {
     return true;
   }
 
-  // FIXME: maybe need heuristic to reduce unwanted edges
   if (FDecl->getReturnType()->isArithmeticType()) {
-    spdlog::trace("filtered due to returning arithmetic type: {}",
-                  FDecl->getNameAsString());
     return true;
   }
-  if (returnTypeIsInParameterList(FDecl)) {
+  if (!llvm::isa<clang::CXXConstructorDecl>(FDecl) &&
+      FDecl->getReturnType()->isVoidType()) {
+    return true;
+  }
+  if (isReturnTypeInParameterList(FDecl)) {
     spdlog::trace("filtered due to require-acquire cycle: {}",
                   FDecl->getNameAsString());
     return true;
@@ -136,22 +157,36 @@ filterFunction(const clang::FunctionDecl *const FDecl) {
   return false;
 }
 
-[[nodiscard]] static bool hasAnyName(const clang::NamedDecl *const NDecl,
-                                     ranges::range auto RangeOfNames) {
-  return ranges::any_of(
-      RangeOfNames, [NameOfDecl = NDecl->getNameAsString()](const auto &Name) {
-        return NameOfDecl.find(Name) != std::string::npos;
-      });
+[[nodiscard]] static bool filterOut(const clang::CXXMethodDecl *const Method) {
+  if (Method->isCopyAssignmentOperator() ||
+      Method->isMoveAssignmentOperator()) {
+    return true;
+  }
+
+  if (const auto *const Constructor =
+          llvm::dyn_cast<clang::CXXConstructorDecl>(Method);
+      Constructor && Constructor->isCopyOrMoveConstructor()) {
+    return true;
+  }
+
+  return filterOut(static_cast<const clang::FunctionDecl *>(Method));
 }
 
-[[nodiscard]] static bool
-filterCXXRecord(const clang::CXXRecordDecl *const RDecl) {
+[[nodiscard]] static bool filterOut(const clang::CXXRecordDecl *const RDecl) {
   if (RDecl != RDecl->getDefinition()) {
     return true;
   }
-  if (RDecl->isDependentType()) {
-    spdlog::trace("filtered due to being dependent type: {}",
-                  RDecl->getNameAsString());
+  if (hasReservedIdentifierNameOrType(RDecl)) {
+    return true;
+  }
+  if (RDecl->getNameAsString().empty()) {
+    return true;
+  }
+  if (const auto Spec = RDecl->getTemplateSpecializationKind();
+      Spec != clang::TSK_Undeclared &&
+      Spec != clang::TSK_ImplicitInstantiation &&
+      Spec != clang::TSK_ExplicitInstantiationDefinition &&
+      Spec != clang::TSK_ExplicitInstantiationDeclaration) {
     return true;
   }
   if (RDecl->isTemplateDecl()) {
@@ -159,16 +194,12 @@ filterCXXRecord(const clang::CXXRecordDecl *const RDecl) {
                   RDecl->getNameAsString());
     return true;
   }
-  if (hasReservedIdentifierNameOrType(RDecl)) {
+  if (RDecl->isTemplated()) {
     return true;
   }
-  if (RDecl->getNameAsString().empty()) {
-    spdlog::trace("filtered due to having empty name");
-    return true;
-  }
-  if (hasAnyName(RDecl,
-                 std::array{"FILE"sv, "exception"sv, "bad_array_new_length"sv,
-                            "bad_alloc"sv, "traits"sv})) {
+  if (hasNameContainingAny(RDecl, std::array{"FILE"sv, "exception"sv,
+                                             "bad_array_new_length"sv,
+                                             "bad_alloc"sv, "traits"sv})) {
     return true;
   }
 
@@ -186,10 +217,11 @@ public:
         CXXRecords{CXXRecordsRef}, TypedefNameDecls{TypedefNameDeclsRef} {}
 
   [[nodiscard]] bool VisitFunctionDecl(clang::FunctionDecl *FDecl) {
+    // handled differently via iterating over a CXXRecord's methods
     if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
       return true;
     }
-    if (filterFunction(FDecl)) {
+    if (filterOut(FDecl)) {
       return true;
     }
 
@@ -204,9 +236,7 @@ public:
       return true;
     }
 
-    if (FDecl->getAccess() != clang::AccessSpecifier::AS_public) {
-      return true;
-    }
+    // FIXME: filter access spec for members, depends on context of query
 
     if (FDecl->getType()->isArithmeticType()) {
       return true;
@@ -222,7 +252,8 @@ public:
   }
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
-    if (filterCXXRecord(RDecl)) {
+    // spdlog::info("{}", RDecl->getNameAsString());
+    if (filterOut(RDecl)) {
       return true;
     }
     for (const clang::CXXMethodDecl *Method : RDecl->methods()) {
@@ -233,12 +264,11 @@ public:
       if (llvm::isa<clang::CXXDestructorDecl>(Method)) {
         continue;
       }
-      if (Method->isDeleted()) {
+      if (filterOut(Method)) {
         continue;
       }
-      if (filterFunction(Method)) {
-        continue;
-      }
+
+      // FIXME: filter access spec for members, depends on context of query
 
       auto [Acquired, Required] = toTypeSet(Method, Conf);
       Transitions.emplace_back(std::move(Acquired), TransitionDataType{Method},
@@ -457,7 +487,7 @@ static void filterOverloads(TransitionCollector &Data,
 [[nodiscard]] static auto
 propagateInheritanceFactory(TransitionCollector &Transitions) {
   return [&Transitions](const clang::CXXRecordDecl *const RDecl) {
-    if (filterCXXRecord(RDecl)) {
+    if (filterOut(RDecl)) {
       return;
     }
     const auto *const DerivedType = RDecl->getTypeForDecl();
