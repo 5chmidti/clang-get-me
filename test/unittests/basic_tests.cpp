@@ -142,4 +142,26 @@ TEST_F(GetMeTest, typealias) {
        "A",
        {"({struct A}, B getB(), {})", "({struct A}, A getA(), {})",
         "({struct A}, A A(), {})"});
+
+  test(R"(
+  template <typename T>
+  struct A {
+    explicit A(int);
+  };
+  using B = A<int>;
+  A<double> a{42};
+  B getB();
+  B b = getB();
+  )",
+       "B", {"({B}, A A(int), {int})", "({B}, B getB(), {})"});
+}
+
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
+TEST_F(GetMeTest, templates) {
+  test(R"(
+  template <typename T>
+  struct A {};
+  A<int> getA();
+  )",
+       "A<int>", {"({struct A<int>}, A<int> getA(), {})"});
 }

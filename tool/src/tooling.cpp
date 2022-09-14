@@ -256,6 +256,14 @@ public:
     return true;
   }
 
+  [[nodiscard]] bool
+  VisitTemplateSpecializationType(clang::TemplateSpecializationType *TSType) {
+    if (auto *const RDecl = TSType->getAsCXXRecordDecl()) {
+      std::ignore = VisitCXXRecordDecl(RDecl);
+    }
+    return true;
+  }
+
   [[nodiscard]] bool VisitVarDecl(clang::VarDecl *VDecl) {
     if (!VDecl->isStaticDataMember()) {
       return true;
