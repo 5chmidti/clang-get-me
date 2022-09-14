@@ -3,6 +3,7 @@
 
 struct Config {
   bool EnableArithmeticTruncation = false;
+  bool EnableFilterOverloads = false;
 };
 
 [[nodiscard]] consteval Config getDefaultConfig() { return Config{}; }

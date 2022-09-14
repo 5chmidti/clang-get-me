@@ -600,7 +600,9 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
   GetMeVisitor Visitor{Conf, Transitions, CXXRecords, TypedefNameDecls};
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-  filterOverloads(Transitions);
+  if (Conf.EnableFilterOverloads) {
+    filterOverloads(Transitions);
+  }
   if (Conf.EnableArithmeticTruncation) {
     filterArithmeticOverloads(Transitions);
   }
