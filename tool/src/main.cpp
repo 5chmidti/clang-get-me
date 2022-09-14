@@ -101,10 +101,7 @@ int main(int argc, const char **argv) {
   if (!SourceVertexDesc) {
     return 1;
   }
-  auto Paths = pathTraversal(Graph, *SourceVertexDesc);
-  ranges::sort(Paths, [](const auto &Lhs, const auto &Rhs) {
-    return Lhs.size() < Rhs.size();
-  });
+  auto Paths = pathTraversal(Graph, Data, *SourceVertexDesc);
 
   for (const auto [Path, Number] :
        views::zip(Paths | ranges::views::take(25), views::iota(0U))) {

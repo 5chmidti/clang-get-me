@@ -22,6 +22,7 @@
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/algorithm/transform.hpp>
+#include <range/v3/functional/comparisons.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/cartesian_product.hpp>
 #include <range/v3/view/filter.hpp>
@@ -33,8 +34,24 @@
 #include "get_me/formatting.hpp"
 #include "get_me/type_set.hpp"
 
+[[nodiscard]] static bool permutationExists(const std::vector<PathType> &Paths,
+                                            const PathType &CurrentPath,
+                                            const GraphType &Graph,
+                                            const GraphData &Data) {
+  const auto IndexMap = get(boost::edge_index, Graph);
+  const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
+    return Data.EdgeWeights[get(IndexMap, Edge)];
+  };
+  return ranges::any_of(Paths, [&ToEdgeWeight,
+                                &CurrentPath](const PathType &ExistingPath) {
+    return ranges::is_permutation(CurrentPath, ExistingPath, ranges::equal_to{},
+                                  ToEdgeWeight, ToEdgeWeight);
+  });
+}
+
 // FIXME: don't produce paths that end up with the queried type
 std::vector<PathType> pathTraversal(const GraphType &Graph,
+                                    const GraphData &Data,
                                     const VertexDescriptor SourceVertex) {
   using possible_path_type = std::pair<VertexDescriptor, EdgeDescriptor>;
 
@@ -118,7 +135,8 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     CurrentVertex = target(Edge, Graph);
     if (const auto IsFinalVertexInPath =
             !AddOutEdgesOfVertexToStack(CurrentVertex);
-        IsFinalVertexInPath) {
+        IsFinalVertexInPath &&
+        !permutationExists(Paths, CurrentPath, Graph, Data)) {
       Paths.push_back(CurrentPath);
     }
 
@@ -131,25 +149,13 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
 }
 
 std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
-                                       const GraphType &Graph) {
-  using ranges::any_of;
-  using ranges::is_permutation;
-  using ranges::views::transform;
-
+                                       const GraphType &Graph,
+                                       const GraphData &Data) {
   std::vector<PathType> Res{};
-
-  const auto IndexMap = get(boost::edge_index, Graph);
-  const auto ToIndex = [&IndexMap](const EdgeDescriptor &Edge) {
-    return get(IndexMap, Edge);
-  };
 
   for (const auto &Path : Paths) {
     if (const auto EquivalentPathContainedInResult =
-            any_of(Res,
-                   [&Path, &ToIndex](const auto &PathInRes) {
-                     return is_permutation(Path | transform(ToIndex),
-                                           PathInRes | transform(ToIndex));
-                   });
+            permutationExists(Res, Path, Graph, Data);
         EquivalentPathContainedInResult) {
       continue;
     }
