@@ -27,6 +27,8 @@ void test(std::string_view Code, std::string_view QueriedType,
           std::source_location Loc) {
   testing::ScopedTrace trace(Loc.file_name(), static_cast<int>(Loc.line()),
                              "Test source");
+  spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
+                                        Loc.function_name(), Loc.line()));
 
   ranges::sort(ExpectedPaths);
 
