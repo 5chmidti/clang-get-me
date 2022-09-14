@@ -72,7 +72,7 @@ void test(std::string_view Code, std::string_view QueriedType,
 }
 
 GetMeTest::GetMeTest() {
-  spdlog::set_level(spdlog::level::debug);
+  spdlog::set_level(spdlog::level::trace);
   static constexpr auto BacktraceCount = 1024U;
   spdlog::enable_backtrace(BacktraceCount);
 }
