@@ -23,7 +23,7 @@
 #include <spdlog/spdlog.h>
 
 void test(std::string_view Code, std::string_view QueriedType,
-          std::vector<std::string_view> ExpectedPaths,
+          std::vector<std::string_view> ExpectedPaths, Config CurrentConfig,
           std::source_location Loc) {
   testing::ScopedTrace trace(Loc.file_name(), static_cast<int>(Loc.line()),
                              "Test source");
@@ -34,7 +34,7 @@ void test(std::string_view Code, std::string_view QueriedType,
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
   TransitionCollector TypeSetTransitionData{};
-  auto Consumer = GetMe{TypeSetTransitionData};
+  auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData};
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto QueriedTypeAsString = std::string{QueriedType};
   const auto [Graph, Data] =

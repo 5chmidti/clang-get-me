@@ -162,20 +162,28 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 
 [[nodiscard]] static auto matchesNamePredicateFactory(std::string Name) {
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
-    const auto QType = clang::QualType(Val.Value, 0);
-    const auto TypeAsString = [&QType]() {
-      auto QTypeAsString = QType.getAsString();
-      boost::erase_all(QTypeAsString, "struct");
-      boost::erase_all(QTypeAsString, "class");
-      boost::trim(QTypeAsString);
-      return QTypeAsString;
-    }();
-    const auto EquivalentName = TypeAsString == Name;
-    if (!EquivalentName && (TypeAsString.find(Name) != std::string::npos)) {
-      spdlog::trace("matchesName(QualType): no match for close match: {} vs {}",
+    return std::visit(
+        Overloaded{
+            [&](const clang::Type *const Type) {
+              const auto QType = clang::QualType(Type, 0);
+              const auto TypeAsString = [&QType]() {
+                auto QTypeAsString = QType.getAsString();
+                boost::erase_all(QTypeAsString, "struct");
+                boost::erase_all(QTypeAsString, "class");
+                boost::trim(QTypeAsString);
+                return QTypeAsString;
+              }();
+              const auto EquivalentName = TypeAsString == Name;
+              if (!EquivalentName &&
+                  (TypeAsString.find(Name) != std::string::npos)) {
+                spdlog::trace(
+                    "matchesName(QualType): no match for close match: {} vs {}",
                     TypeAsString, Name);
-    }
-    return EquivalentName;
+              }
+              return EquivalentName;
+            },
+            [](const ArithmeticType &) { return false; }},
+        Val);
   };
 }
 
@@ -210,9 +218,7 @@ template <typename RangeType1, typename RangeType2>
 [[nodiscard]] static auto
 isSubsetPredicateFactory(const TypeSet &AcquiredTypeSet) {
   return [&AcquiredTypeSet](const TypeSet &Val) {
-    return isSubset(Val | ranges::views::transform(&TypeSetValueType::Value),
-                    AcquiredTypeSet |
-                        ranges::views::transform(&TypeSetValueType::Value));
+    return isSubset(Val, AcquiredTypeSet);
   };
 }
 

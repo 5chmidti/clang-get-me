@@ -5,6 +5,7 @@
 #include <tuple>
 #include <vector>
 
+#include <get_me/config.hpp>
 #include <get_me/graph.hpp>
 #include <gtest/gtest.h>
 
@@ -13,6 +14,7 @@ prepare(std::string_view Code, std::string_view QueriedType);
 
 void test(std::string_view Code, std::string_view QueriedType,
           std::vector<std::string_view> ExpectedPaths,
+          Config CurrentConfig = getDefaultConfig(),
           std::source_location Loc = std::source_location::current());
 
 class GetMeTest : public testing::Test {

@@ -11,6 +11,7 @@
 
 #include <clang/AST/ASTConsumer.h>
 
+#include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 
 namespace clang {
@@ -23,12 +24,13 @@ struct FieldDecl;
 // current context
 class GetMe : public clang::ASTConsumer {
 public:
-  explicit GetMe(TransitionCollector &TransitionsRef)
-      : Transitions{TransitionsRef} {}
+  explicit GetMe(Config Configuration, TransitionCollector &TransitionsRef)
+      : Conf{Configuration}, Transitions{TransitionsRef} {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) override;
 
 private:
+  Config Conf;
   TransitionCollector &Transitions;
 };
 

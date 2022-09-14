@@ -12,6 +12,8 @@
 #include <fmt/ranges.h>
 
 #include "get_me/graph.hpp"
+#include "get_me/type_set.hpp"
+#include "get_me/utility.hpp"
 
 [[nodiscard]] std::string getTransitionName(const TransitionDataType &Data);
 
@@ -62,8 +64,14 @@ template <> struct fmt::formatter<TypeSetValueType> {
   template <typename FormatContext>
   [[nodiscard]] auto format(const TypeSetValueType &Val,
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
-    return fmt::format_to(Ctx.out(), "{}",
-                          clang::QualType(Val.Value, 0).getAsString());
+    return fmt::format_to(
+        Ctx.out(), "{}",
+        std::visit(Overloaded{[](const clang::Type *const Type) {
+                                return clang::QualType(Type, 0).getAsString();
+                              },
+                              [](const ArithmeticType & /*Arithmetic*/)
+                                  -> std::string { return "arithmetic"; }},
+                   Val));
   }
 };
 

@@ -9,8 +9,13 @@
 
 #include "get_me/formatting.hpp"
 
-TypeSetValueType toTypeSetValueType(const clang::Type *const Type) {
-  return TypeSetValueType{launderType(Type)};
+TypeSetValueType toTypeSetValueType(const clang::Type *const Type,
+                                    Config Conf) {
+  const auto *const ResultType = launderType(Type);
+  if (Conf.EnableArithmeticTruncation && ResultType->isArithmeticType()) {
+    return TypeSetValueType{ArithmeticType{ResultType}};
+  }
+  return TypeSetValueType{ResultType};
 }
 
 const clang::Type *launderType(const clang::Type *Type) {
@@ -27,8 +32,9 @@ const clang::Type *launderType(const clang::Type *Type) {
   return Type;
 }
 
-std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
-  const auto AcquiredType = [FDecl]() {
+std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
+                                      Config Conf) {
+  const auto AcquiredType = [FDecl, Conf]() {
     if (const auto *const Constructor =
             llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
         Constructor) {
@@ -36,15 +42,15 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
       return TypeSetValueType{Decl->getTypeForDecl()};
     }
     const auto RQType = FDecl->getReturnType();
-    return toTypeSetValueType(RQType.getTypePtr());
+    return toTypeSetValueType(RQType.getTypePtr(), Conf);
   }();
-  const auto RequiredTypes = [FDecl]() {
+  const auto RequiredTypes = [FDecl, Conf]() {
     const auto Parameters = FDecl->parameters();
     auto ParameterTypeRange =
         Parameters |
-        ranges::views::transform([](const clang::ParmVarDecl *PVDecl) {
+        ranges::views::transform([Conf](const clang::ParmVarDecl *PVDecl) {
           const auto QType = PVDecl->getType();
-          return toTypeSetValueType(QType.getTypePtr());
+          return toTypeSetValueType(QType.getTypePtr(), Conf);
         });
     auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
                        std::make_move_iterator(ParameterTypeRange.end())};
@@ -60,11 +66,13 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl) {
   return {{AcquiredType}, RequiredTypes};
 }
 
-std::pair<TypeSet, TypeSet> toTypeSet(const clang::FieldDecl *FDecl) {
-  return {{{toTypeSetValueType(FDecl->getType().getTypePtr())}},
-          {{toTypeSetValueType(FDecl->getParent()->getTypeForDecl())}}};
+std::pair<TypeSet, TypeSet> toTypeSet(const clang::FieldDecl *FDecl,
+                                      Config Conf) {
+  return {{{toTypeSetValueType(FDecl->getType().getTypePtr(), Conf)}},
+          {{toTypeSetValueType(FDecl->getParent()->getTypeForDecl(), Conf)}}};
 }
 
-std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl) {
-  return {{{toTypeSetValueType(VDecl->getType().getTypePtr())}}, {}};
+std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
+                                      Config Conf) {
+  return {{{toTypeSetValueType(VDecl->getType().getTypePtr(), Conf)}}, {}};
 }
