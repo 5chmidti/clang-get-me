@@ -23,6 +23,9 @@ getTransitionAcquiredTypeNames(const TransitionDataType &Data);
 [[nodiscard]] std::string
 getTransitionRequiredTypeNames(const TransitionDataType &Data);
 
+[[nodiscard]] std::string toString(const TransitionType &Transition);
+[[nodiscard]] std::string toString(const clang::Type *Type);
+
 template <> struct fmt::formatter<EdgeDescriptor> {
   template <typename FormatContext>
   [[nodiscard]] constexpr auto parse(FormatContext &Ctx)
@@ -67,15 +70,13 @@ template <> struct fmt::formatter<TypeSetValueType> {
     return fmt::format_to(
         Ctx.out(), "{}",
         std::visit(Overloaded{[](const clang::Type *const Type) {
-                                return clang::QualType(Type, 0).getAsString();
+                                return toString(Type);
                               },
                               [](const ArithmeticType & /*Arithmetic*/)
                                   -> std::string { return "arithmetic"; }},
                    Val));
   }
 };
-
-[[nodiscard]] std::string toString(const TransitionType &Transition);
 
 [[nodiscard]] std::vector<std::string>
 toString(const std::vector<PathType> &Paths, const GraphType &Graph,

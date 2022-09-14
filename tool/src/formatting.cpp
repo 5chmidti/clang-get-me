@@ -4,6 +4,7 @@
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/Type.h>
 #include <fmt/format.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/range/conversion.hpp>
@@ -114,3 +115,7 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
                 ", "));
       }));
 };
+
+std::string toString(const clang::Type *const Type) {
+  return clang::QualType(Type, 0).getAsString();
+}
