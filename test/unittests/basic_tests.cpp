@@ -96,6 +96,17 @@ struct A { explicit A(int); };
 struct A { A(int, float); };
 )",
        "A", {"({struct A}, A A(int, float), {int, float})"});
+
+  test(R"(
+struct A {
+  A() = default;
+  explicit A(int);
+  A(int, float);
+};
+)",
+       "A",
+       {"({struct A}, A A(), {})", "({struct A}, A A(int), {int})",
+        "({struct A}, A A(int, float), {int, float})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)

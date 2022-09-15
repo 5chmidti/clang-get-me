@@ -1,6 +1,7 @@
 #include "get_me/graph.hpp"
 
 #include <functional>
+#include <initializer_list>
 #include <iterator>
 #include <stack>
 #include <string>

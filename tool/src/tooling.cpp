@@ -289,9 +289,32 @@ public:
       Transitions.emplace_back(std::move(Acquired), TransitionDataType{Method},
                                std::move(Required));
     }
+    bool AlreadyAddedDefaultCtor = false;
+    for (const clang::CXXConstructorDecl *Constructor : RDecl->ctors()) {
+      // FIXME: allow conversions
+      if (llvm::isa<clang::CXXConversionDecl>(Constructor)) {
+        continue;
+      }
+      if (llvm::isa<clang::CXXDestructorDecl>(Constructor)) {
+        continue;
+      }
+      if (filterOut(Constructor, Conf)) {
+        continue;
+      }
 
-    // add non user provided default constructor
-    if (RDecl->hasDefaultConstructor() &&
+      // FIXME: filter access spec for members, depends on context of query
+
+      if (Constructor->isDefaultConstructor()) {
+        AlreadyAddedDefaultCtor = true;
+      }
+
+      auto [Acquired, Required] = toTypeSet(Constructor, Conf);
+      Transitions.emplace_back(std::move(Acquired),
+                               TransitionDataType{Constructor},
+                               std::move(Required));
+    }
+
+    if (!AlreadyAddedDefaultCtor && RDecl->hasDefaultConstructor() &&
         !RDecl->hasUserProvidedDefaultConstructor()) {
       Transitions.emplace_back(
           TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
