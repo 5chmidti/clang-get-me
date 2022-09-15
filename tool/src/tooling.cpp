@@ -161,7 +161,7 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
 }
 
 [[nodiscard]] static bool filterOut(const clang::CXXMethodDecl *const Method,
-                                    const Config Conf) {
+                                    const Config &Conf) {
   if (Method->isCopyAssignmentOperator() ||
       Method->isMoveAssignmentOperator()) {
     return true;
@@ -177,7 +177,7 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
 }
 
 [[nodiscard]] static bool filterOut(const clang::CXXRecordDecl *const RDecl,
-                                    const Config Conf) {
+                                    const Config &Conf) {
   if (RDecl != RDecl->getDefinition()) {
     return true;
   }
