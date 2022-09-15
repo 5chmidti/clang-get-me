@@ -112,7 +112,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     return !ranges::any_of(CurrentPath, HasTargetEdge);
   };
   const auto AddOutEdgesOfVertexToStack =
-      [&Graph, &Paths, &AddToStackFactory,
+      [&Graph, &AddToStackFactory,
        &CurrentPathContainsTargetOfEdge](auto Vertex) {
         const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
         auto OutEdgesRange =
@@ -120,8 +120,6 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
         if (OutEdgesRange.empty()) {
           return false;
         }
-        spdlog::trace("path #{}: adding edges {} to EdgesStack", Paths.size(),
-                      OutEdgesRange);
 
         ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
 
@@ -148,24 +146,16 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       continue;
     }
 
-    spdlog::trace(
-        "path #{}: src: {}, prev target: {}, edge: {}, current path: {}",
-        CurrentPathIndex, Src, PrevTarget, Edge, CurrentPath);
-
     if (RequiresRollback(Src)) {
       // visiting an edge whose source is not the target of the previous edge.
       // the current path has to be reverted until the new edge can be added to
       // the path
       // remove edges that were added after the path got to src
-      const auto Msg =
-          fmt::format("path #{}: reverting current path {} back to ",
-                      CurrentPathIndex, CurrentPath);
       const auto GetEdgeSource = [&Graph](const EdgeDescriptor &Val) {
         return source(Val, Graph);
       };
       CurrentPath.erase(ranges::find(CurrentPath, Src, GetEdgeSource),
                         CurrentPath.end());
-      spdlog::trace("{}{}", Msg, CurrentPath);
     }
     PrevTarget = target(Edge, Graph);
 
@@ -308,7 +298,7 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
                                 isSubsetPredicateFactory(Acquired),
                                 &indexed_vertex_type::first);
         };
-    spdlog::trace("TypeSetsOfInterest: {}", TypeSetsOfInterest);
+
     for (const auto FilteredTypeSetTransitionData = ranges::to_vector(
              TypeSetTransitionData |
              ranges::views::filter(TransitionWithInterestingAcquiredTypeSet));
@@ -361,21 +351,16 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
             NewRequiredTypeSetIndexExists &&
             (TransitionToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
              TransitionToAddAlreadyExistsInContainer(EdgesData))) {
-          spdlog::trace("edge to add already exists: {}", EdgeToAdd);
           continue;
         }
 
         if (!NewRequiredTypeSetIndexExists) {
-          spdlog::trace("adding new type set: #{}({}), not included in {}",
-                        NewRequiredTypeSetIndex, NewRequiredTypeSet,
-                        VertexData);
           TemporaryVertexData.emplace(std::move(NewRequiredTypeSet),
                                       NewRequiredTypeSetIndex);
         }
 
         TemporaryEdgeData.push_back(EdgeToAdd);
         Data.EdgeWeights.push_back(Transition);
-
         AddedTransitions = true;
       }
       spdlog::trace("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
@@ -384,8 +369,6 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
                     TemporaryVertexData.size(),
                     EdgesData.size() + TemporaryEdgeData.size(),
                     TemporaryEdgeData.size(), Transition);
-      spdlog::trace("TemporaryVertexData: {}", TemporaryVertexData);
-      spdlog::trace("TemporaryEdgeData: {}", TemporaryEdgeData);
     }
 
     VertexData.merge(std::move(TemporaryVertexData));
