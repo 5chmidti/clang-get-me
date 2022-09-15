@@ -656,7 +656,7 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   if (Conf.EnableFilterOverloads) {
     filterOverloads(Transitions);
   }
-  if (Conf.EnableArithmeticTruncation) {
+  if (Conf.EnableTruncateArithmetic) {
     filterArithmeticOverloads(Transitions);
   }
 

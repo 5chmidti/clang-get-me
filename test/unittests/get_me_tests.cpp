@@ -40,7 +40,7 @@ void test(std::string_view Code, std::string_view QueriedType,
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto QueriedTypeAsString = std::string{QueriedType};
   const auto [Graph, Data] =
-      createGraph(TypeSetTransitionData, QueriedTypeAsString);
+      createGraph(TypeSetTransitionData, QueriedTypeAsString, CurrentConfig);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
   const auto VertexDataSize = Data.VertexData.size();
@@ -50,7 +50,8 @@ void test(std::string_view Code, std::string_view QueriedType,
   }
   // adjusted for empty set
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
-  const auto FoundPaths = pathTraversal(Graph, Data, *SourceVertex);
+  const auto FoundPaths =
+      pathTraversal(Graph, Data, CurrentConfig, *SourceVertex);
 
   auto FoundPathsAsString = toString(FoundPaths, Graph, Data);
   ranges::sort(FoundPathsAsString);

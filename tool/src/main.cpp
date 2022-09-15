@@ -56,11 +56,13 @@ int main(int argc, const char **argv) {
     spdlog::error("error building ASTs");
     return 1;
   }
-  auto Conf = Config{.EnableArithmeticTruncation = true,
-                     .EnableFilterOverloads = true,
-                     .EnablePropagateInheritance = true,
+  auto Conf = Config{
+      .EnableFilterOverloads = true,
+      .EnablePropagateInheritance = true,
+      .EnablePropagateTypeAlias = true,
       .EnableTruncateArithmetic = true,
       .EnableFilterStd = true,
+  };
   auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
@@ -68,7 +70,8 @@ int main(int argc, const char **argv) {
 
   const auto &QueriedType = TypeName.getValue();
 
-  const auto [Graph, Data] = createGraph(TypeSetTransitionData, QueriedType);
+  const auto [Graph, Data] =
+      createGraph(TypeSetTransitionData, QueriedType, Conf);
   const auto IndexMap = boost::get(boost::edge_index, Graph);
 
   // FIXME: apply greedy transition traversal strategy
@@ -105,7 +108,7 @@ int main(int argc, const char **argv) {
   if (!SourceVertexDesc) {
     return 1;
   }
-  auto Paths = pathTraversal(Graph, Data, *SourceVertexDesc);
+  auto Paths = pathTraversal(Graph, Data, Conf, *SourceVertexDesc);
   ranges::sort(
       Paths, [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {
         if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_lt(Comp)) {

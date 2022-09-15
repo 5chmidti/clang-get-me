@@ -49,9 +49,29 @@
   });
 }
 
+[[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
+  return [&](const PathType &CurrentPath) {
+    return Conf.MaxPathLength >= CurrentPath.size();
+  };
+}
+
+[[nodiscard]] static auto
+createContinuePathSearchPredicate(const Config &Conf,
+                                  const ranges::range auto &CurrentPaths) {
+  return [&]() { return Conf.MaxPathCount >= CurrentPaths.size(); };
+}
+
+[[nodiscard]] static auto
+createCommitPathPredicate(const Config &Conf,
+                          const ranges::range auto &CurrentPaths) {
+  return [&]() { return true /*CurrentPaths.size() < Conf.MinPathCount*/; };
+}
+
+// FIXME: there exist paths that contain edges with aliased types and edges with
+// their base types, basically creating redundant/non-optimal paths
 // FIXME: don't produce paths that end up with the queried type
 std::vector<PathType> pathTraversal(const GraphType &Graph,
-                                    const GraphData &Data,
+                                    const GraphData &Data, const Config &Conf,
                                     const VertexDescriptor SourceVertex) {
   using possible_path_type = std::pair<VertexDescriptor, EdgeDescriptor>;
 
@@ -107,14 +127,18 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
         return true;
       };
 
+  const auto IsValidPath = createIsValidPathPredicate(Conf);
+  const auto ContinuePathSearch =
+      createContinuePathSearchPredicate(Conf, Paths);
+  const auto ShouldCommitPath = createCommitPathPredicate(Conf, Paths);
+
   VertexDescriptor CurrentVertex{};
   VertexDescriptor PrevTarget{SourceVertex};
   const auto RequiresRollback = [&CurrentPath,
                                  &PrevTarget](const VertexDescriptor Src) {
     return !CurrentPath.empty() && PrevTarget != Src;
   };
-  while (!EdgesStack.empty()) {
-    auto CurrentPathIndex = Paths.size();
+  while (!EdgesStack.empty() && ContinuePathSearch()) {
     const auto [Src, Edge] = EdgesStack.top();
     EdgesStack.pop();
 
@@ -146,9 +170,14 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
 
     CurrentPath.emplace_back(Edge);
     CurrentVertex = target(Edge, Graph);
+
+    if (!IsValidPath(CurrentPath)) {
+      continue;
+    }
+
     if (const auto IsFinalVertexInPath =
             !AddOutEdgesOfVertexToStack(CurrentVertex);
-        IsFinalVertexInPath) {
+        IsFinalVertexInPath && ShouldCommitPath()) {
       Paths.insert(CurrentPath);
     }
   }
@@ -249,7 +278,7 @@ isSubsetPredicateFactory(const TypeSet &AcquiredTypeSet) {
 }
 
 static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
-                       GraphData &Data) {
+                       GraphData &Data, const Config &Conf) {
   using indexed_vertex_type = std::pair<TypeSet, size_t>;
   std::set<indexed_vertex_type> VertexData =
       ranges::to<std::set>(ranges::views::zip(
@@ -262,7 +291,9 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
 
   Data.VertexData.emplace_back();
 
-  for (bool AddedTransitions = true; AddedTransitions; ++IterationCount) {
+  for (bool AddedTransitions = true;
+       AddedTransitions && IterationCount < Conf.MaxGraphDepth;
+       ++IterationCount) {
     std::set<indexed_vertex_type> TemporaryVertexData{};
     std::vector<GraphData::EdgeType> TemporaryEdgeData{};
     // FIXME: this needs to know the position of the TS in Data.VertexData
@@ -388,17 +419,13 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
 
 std::pair<GraphType, GraphData>
 createGraph(const std::vector<TransitionType> &TypeSetTransitionData,
-            const std::string &TypeName) {
+            const std::string &TypeName, const Config &Conf) {
   GraphData Data{};
   initializeVertexDataWithQueried(TypeSetTransitionData, Data, TypeName);
 
   spdlog::trace("initial GraphData.VertexData: {}", Data.VertexData);
 
-  buildGraph(TypeSetTransitionData, Data);
-
-  spdlog::trace("GraphData.VertexData: {}", Data.VertexData);
-  spdlog::trace("GraphData.Edges: {}", Data.Edges);
-  spdlog::trace("GraphData.EdgeWeights: {}", Data.EdgeWeights);
+  buildGraph(TypeSetTransitionData, Data, Conf);
 
   return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                     Data.EdgeIndices.data(), Data.EdgeIndices.size()),

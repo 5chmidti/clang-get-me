@@ -98,7 +98,7 @@ struct GraphData {
 }
 
 [[nodiscard]] std::vector<PathType>
-pathTraversal(const GraphType &Graph, const GraphData &Data,
+pathTraversal(const GraphType &Graph, const GraphData &Data, const Config &Conf,
               VertexDescriptor SourceVertex);
 
 [[nodiscard]] std::vector<PathType>
@@ -107,7 +107,7 @@ independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph,
 
 [[nodiscard]] std::pair<GraphType, GraphData>
 createGraph(const std::vector<TransitionType> &TypeSetTransitionData,
-            const std::string &TypeName);
+            const std::string &TypeName, const Config &Conf);
 
 [[nodiscard]] std::vector<TransitionType>
 getTypeSetTransitionData(const TransitionCollector &Collector);
