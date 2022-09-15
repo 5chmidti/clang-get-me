@@ -18,6 +18,7 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
+#include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/tooling.hpp"
@@ -59,6 +60,7 @@ int main(int argc, const char **argv) {
                      .EnableFilterOverloads = true,
                      .EnablePropagateInheritance = true,
       .EnableTruncateArithmetic = true,
+      .EnableFilterStd = true,
   auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
     Consumer.HandleTranslationUnit(AST->getASTContext());

@@ -124,7 +124,8 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
   return containsAny(NDecl->getNameAsString(), RangeOfNames);
 }
 
-[[nodiscard]] static bool filterOut(const clang::FunctionDecl *const FDecl) {
+[[nodiscard]] static bool filterOut(const clang::FunctionDecl *const FDecl,
+                                    const Config &Conf) {
   if (FDecl->isDeleted()) {
     return true;
   }
@@ -136,7 +137,9 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
                             "bad_alloc"sv, "traits"sv})) {
     return true;
   }
-
+  if (Conf.EnableFilterStd && FDecl->isInStdNamespace()) {
+    return true;
+  }
   if (FDecl->getReturnType()->isArithmeticType()) {
     return true;
   }
@@ -157,7 +160,8 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
   return false;
 }
 
-[[nodiscard]] static bool filterOut(const clang::CXXMethodDecl *const Method) {
+[[nodiscard]] static bool filterOut(const clang::CXXMethodDecl *const Method,
+                                    const Config Conf) {
   if (Method->isCopyAssignmentOperator() ||
       Method->isMoveAssignmentOperator()) {
     return true;
@@ -169,10 +173,11 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
     return true;
   }
 
-  return filterOut(static_cast<const clang::FunctionDecl *>(Method));
+  return filterOut(static_cast<const clang::FunctionDecl *>(Method), Conf);
 }
 
-[[nodiscard]] static bool filterOut(const clang::CXXRecordDecl *const RDecl) {
+[[nodiscard]] static bool filterOut(const clang::CXXRecordDecl *const RDecl,
+                                    const Config Conf) {
   if (RDecl != RDecl->getDefinition()) {
     return true;
   }
@@ -180,6 +185,9 @@ hasNameContainingAny(const clang::NamedDecl *const NDecl,
     return true;
   }
   if (RDecl->getNameAsString().empty()) {
+    return true;
+  }
+  if (Conf.EnableFilterStd && RDecl->isInStdNamespace()) {
     return true;
   }
   if (const auto Spec = RDecl->getTemplateSpecializationKind();
@@ -216,12 +224,19 @@ public:
       : Conf{Configuration}, Transitions{TransitionsRef},
         CXXRecords{CXXRecordsRef}, TypedefNameDecls{TypedefNameDeclsRef} {}
 
+  [[nodiscard]] bool TraverseDecl(clang::Decl *Decl) {
+    if (!Conf.EnableFilterStd || (Decl && !Decl->isInStdNamespace())) {
+      clang::RecursiveASTVisitor<GetMeVisitor>::TraverseDecl(Decl);
+    }
+    return true;
+  }
+
   [[nodiscard]] bool VisitFunctionDecl(clang::FunctionDecl *FDecl) {
     // handled differently via iterating over a CXXRecord's methods
     if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
       return true;
     }
-    if (filterOut(FDecl)) {
+    if (filterOut(FDecl, Conf)) {
       return true;
     }
 
@@ -253,7 +268,7 @@ public:
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
     // spdlog::info("{}", RDecl->getNameAsString());
-    if (filterOut(RDecl)) {
+    if (filterOut(RDecl, Conf)) {
       return true;
     }
     for (const clang::CXXMethodDecl *Method : RDecl->methods()) {
@@ -264,7 +279,7 @@ public:
       if (llvm::isa<clang::CXXDestructorDecl>(Method)) {
         continue;
       }
-      if (filterOut(Method)) {
+      if (filterOut(Method, Conf)) {
         continue;
       }
 

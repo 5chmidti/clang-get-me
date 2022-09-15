@@ -69,12 +69,14 @@ template <> struct fmt::formatter<TypeSetValueType> {
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(
         Ctx.out(), "{}",
-        std::visit(Overloaded{[](const clang::Type *const Type) {
-                                return toString(Type);
-                              },
-                              [](const ArithmeticType & /*Arithmetic*/)
-                                  -> std::string { return "arithmetic"; }},
-                   Val));
+        std::visit(
+            Overloaded{
+                [](const clang::Type *const Type) { return toString(Type); },
+                [](const ArithmeticType & /*Arithmetic*/) -> std::string {
+                  return "arithmetic";
+                },
+                [](const StdType & /*Std*/) -> std::string { return "std"; }},
+            Val));
   }
 };
 
