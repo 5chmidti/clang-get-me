@@ -672,19 +672,38 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
   std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
   GetMeVisitor Visitor{Conf, Transitions, CXXRecords, TypedefNameDecls};
+
+  const auto ForceUniquness = [&]() {
+    const auto PreUniqueSize = Transitions.size();
+    ranges::sort(Transitions);
+    Transitions.erase(ranges::unique(Transitions), Transitions.end());
+    if (const auto PostUniqueSize = Transitions.size();
+        PreUniqueSize > PostUniqueSize) {
+      spdlog::warn("PreUniqueSize {} differs from PostUniqueSize {}",
+                   PreUniqueSize, PostUniqueSize);
+    }
+  };
+
+  // FIXME: produces duplicates
   Visitor.TraverseDecl(Context.getTranslationUnitDecl());
+  ForceUniquness();
   if (Conf.EnableFilterOverloads) {
     filterOverloads(Transitions);
+    ForceUniquness();
   }
   if (Conf.EnableTruncateArithmetic) {
     filterArithmeticOverloads(Transitions);
+    ForceUniquness();
   }
 
   if (Conf.EnablePropagateInheritance) {
     ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions));
+    ForceUniquness();
   }
   if (Conf.EnablePropagateTypeAlias) {
+    // FIXME: produces duplicates
     ranges::for_each(TypedefNameDecls,
                      propagateTypeAliasFactory(Transitions, Conf));
+    ForceUniquness();
   }
 }
