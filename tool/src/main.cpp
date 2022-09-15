@@ -62,6 +62,8 @@ int main(int argc, const char **argv) {
       .EnablePropagateTypeAlias = true,
       .EnableTruncateArithmetic = true,
       .EnableFilterStd = true,
+      .MaxGraphDepth = 4,
+      .MaxPathCount = 1000,
   };
   auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
