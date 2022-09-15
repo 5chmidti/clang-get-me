@@ -525,9 +525,6 @@ static void filterOverloads(TransitionCollector &Data,
 [[nodiscard]] static auto
 propagateInheritanceFactory(TransitionCollector &Transitions) {
   return [&Transitions](const clang::CXXRecordDecl *const RDecl) {
-    if (filterOut(RDecl)) {
-      return;
-    }
     const auto *const DerivedType = RDecl->getTypeForDecl();
     const auto BaseTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
 
