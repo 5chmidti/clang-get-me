@@ -116,6 +116,12 @@ int main(int argc, const char **argv) {
         if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_lt(Comp)) {
           return true;
         }
+        if (Lhs.empty()) {
+          return false;
+        }
+        if (Rhs.empty()) {
+          return true;
+        }
         return Data.VertexData[target(Lhs.back(), Graph)].size() <
                Data.VertexData[target(Rhs.back(), Graph)].size();
       });
