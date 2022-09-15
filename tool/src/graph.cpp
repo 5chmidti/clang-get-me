@@ -56,7 +56,20 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   using possible_path_type = std::pair<VertexDescriptor, EdgeDescriptor>;
 
   PathType CurrentPath{};
-  std::vector<PathType> Paths{};
+  // FIXME: use a set with a comparator of permutations
+  const auto IsPermutation = [&Graph, &Data](const PathType &Lhs,
+                                             const PathType &Rhs) {
+    const auto IndexMap = get(boost::edge_index, Graph);
+    const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
+      return Data.EdgeWeights[get(IndexMap, Edge)];
+    };
+    if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
+      return std::is_lt(Comp);
+    }
+    return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{}, ToEdgeWeight,
+                                   ToEdgeWeight);
+  };
+  auto Paths = std::set(std::initializer_list<PathType>{}, IsPermutation);
   std::stack<possible_path_type> EdgesStack{};
 
   const auto AddToStackFactory = [&EdgesStack](auto Vertex) {
@@ -135,17 +148,12 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     CurrentVertex = target(Edge, Graph);
     if (const auto IsFinalVertexInPath =
             !AddOutEdgesOfVertexToStack(CurrentVertex);
-        IsFinalVertexInPath &&
-        !permutationExists(Paths, CurrentPath, Graph, Data)) {
-      Paths.push_back(CurrentPath);
+        IsFinalVertexInPath) {
+      Paths.insert(CurrentPath);
     }
-
-    spdlog::trace("path #{}: post algo src: {}, prev target: {}, edge: {}, "
-                  "current path: {}",
-                  CurrentPathIndex, Src, PrevTarget, Edge, CurrentPath);
   }
 
-  return Paths;
+  return ranges::to_vector(Paths);
 }
 
 std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
