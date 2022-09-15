@@ -12,7 +12,7 @@
 TypeSetValueType toTypeSetValueType(const clang::Type *const Type,
                                     Config Conf) {
   const auto *const ResultType = launderType(Type);
-  if (Conf.EnableArithmeticTruncation && ResultType->isArithmeticType()) {
+  if (Conf.EnableTruncateArithmetic && ResultType->isArithmeticType()) {
     return TypeSetValueType{ArithmeticType{ResultType}};
   }
   return TypeSetValueType{ResultType};

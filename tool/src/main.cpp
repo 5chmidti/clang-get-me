@@ -58,7 +58,7 @@ int main(int argc, const char **argv) {
   auto Conf = Config{.EnableArithmeticTruncation = true,
                      .EnableFilterOverloads = true,
                      .EnablePropagateInheritance = true,
-                     .EnablePropagateTypeAlias = true};
+      .EnableTruncateArithmetic = true,
   auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
     Consumer.HandleTranslationUnit(AST->getASTContext());
