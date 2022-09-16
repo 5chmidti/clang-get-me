@@ -62,12 +62,6 @@ createContinuePathSearchPredicate(const Config &Conf,
   return [&]() { return Conf.MaxPathCount >= CurrentPaths.size(); };
 }
 
-[[nodiscard]] static auto
-createCommitPathPredicate(const Config &Conf,
-                          const ranges::range auto &CurrentPaths) {
-  return [&]() { return true /*CurrentPaths.size() < Conf.MinPathCount*/; };
-}
-
 // FIXME: there exist paths that contain edges with aliased types and edges with
 // their base types, basically creating redundant/non-optimal paths
 // FIXME: don't produce paths that end up with the queried type
@@ -129,7 +123,6 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   const auto IsValidPath = createIsValidPathPredicate(Conf);
   const auto ContinuePathSearch =
       createContinuePathSearchPredicate(Conf, Paths);
-  const auto ShouldCommitPath = createCommitPathPredicate(Conf, Paths);
 
   VertexDescriptor CurrentVertex{};
   VertexDescriptor PrevTarget{SourceVertex};
@@ -168,7 +161,7 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
 
     if (const auto IsFinalVertexInPath =
             !AddOutEdgesOfVertexToStack(CurrentVertex);
-        IsFinalVertexInPath && ShouldCommitPath()) {
+        IsFinalVertexInPath) {
       Paths.insert(CurrentPath);
     }
   }
