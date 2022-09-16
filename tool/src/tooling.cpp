@@ -154,6 +154,9 @@ public:
     if (!VDecl->isStaticDataMember()) {
       return true;
     }
+    if (Conf.EnableFilterStd && VDecl->isInStdNamespace()) {
+      return true;
+    }
     if (VDecl->getType()->isArithmeticType()) {
       return true;
     }
@@ -174,6 +177,9 @@ public:
 
   [[nodiscard]] bool VisitTypedefNameDecl(clang::TypedefNameDecl *NDecl) {
     if (NDecl->isInvalidDecl()) {
+      return true;
+    }
+    if (Conf.EnableFilterStd && NDecl->isInStdNamespace()) {
       return true;
     }
     if (NDecl->isTemplateDecl()) {
