@@ -113,13 +113,10 @@ int main(int argc, const char **argv) {
   auto Paths = pathTraversal(Graph, Data, Conf, *SourceVertexDesc);
   ranges::sort(
       Paths, [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {
-        if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_lt(Comp)) {
-          return true;
+        if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
+          return std::is_lt(Comp);
         }
         if (Lhs.empty()) {
-          return false;
-        }
-        if (Rhs.empty()) {
           return true;
         }
         return Data.VertexData[target(Lhs.back(), Graph)].size() <
