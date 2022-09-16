@@ -59,7 +59,7 @@
 [[nodiscard]] static auto
 createContinuePathSearchPredicate(const Config &Conf,
                                   const ranges::range auto &CurrentPaths) {
-  return [&]() { return Conf.MaxPathCount >= CurrentPaths.size(); };
+  return [&]() { return Conf.MaxPathCount > CurrentPaths.size(); };
 }
 
 // FIXME: there exist paths that contain edges with aliased types and edges with
