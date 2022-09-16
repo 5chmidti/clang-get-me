@@ -10,6 +10,7 @@ target_sources(
   PRIVATE src/formatting.cpp
           src/graph.cpp
           src/tooling.cpp
+          src/tooling_filters.cpp
           src/type_set.cpp)
 
 target_compile_options(get_me_lib PUBLIC -fno-rtti)

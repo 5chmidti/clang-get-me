@@ -6,8 +6,6 @@
 #include <type_traits>
 
 #include <clang/AST/ASTContext.h>
-#include <clang/AST/Decl.h>
-#include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/AST/Type.h>
@@ -17,7 +15,6 @@
 #include <fmt/ranges.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
-#include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -33,189 +30,10 @@
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
+#include "get_me/tooling_filters.hpp"
 #include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
-[[nodiscard]] static bool
-hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
-                          std::string_view Name) {
-  return VDecl->getType().getAsString().find(Name) != std::string::npos;
-}
-
-[[nodiscard]] static bool
-hasReservedIdentifierName(const clang::QualType &QType) {
-  auto QTypeAsString = QType.getAsString();
-  return QTypeAsString.starts_with("_") ||
-         (QTypeAsString.find("::_") != std::string::npos);
-}
-
-[[nodiscard]] static bool
-hasReservedIdentifierType(const clang::Type *const Type) {
-  return hasReservedIdentifierName(clang::QualType(Type, 0));
-}
-
-template <typename T>
-[[nodiscard]] static bool
-hasReservedIdentifierTypeOrReturnType(const T *const Decl) {
-  const auto GetReturnTypeOrValueType = [Decl]() -> clang::QualType {
-    if constexpr (std::is_same_v<T, clang::FunctionDecl>) {
-      return Decl->getReturnType();
-    } else if constexpr (std::is_same_v<T, clang::VarDecl> ||
-                         std::is_same_v<T, clang::FieldDecl>) {
-      return Decl->getType();
-    } else if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
-      return clang::QualType(Decl->getTypeForDecl(), 0);
-    } else {
-      static_assert(std::is_same_v<T, void>,
-                    "hasReservedIdentifierType called with unsupported type");
-    }
-  };
-  return hasReservedIdentifierName(GetReturnTypeOrValueType());
-}
-
-template <typename T>
-[[nodiscard]] static bool hasReservedIdentifierNameOrType(const T *const Decl) {
-  if (Decl->getDeclName().isIdentifier() && Decl->getName().startswith("_")) {
-    return true;
-  }
-  if constexpr (std::is_same_v<T, clang::FunctionDecl> ||
-                std::is_same_v<T, clang::VarDecl> ||
-                std::is_same_v<T, clang::FieldDecl>) {
-    return hasReservedIdentifierTypeOrReturnType(Decl);
-  }
-  if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
-    return hasReservedIdentifierTypeOrReturnType(Decl) ||
-           hasReservedIdentifierType(Decl->getUnderlyingType().getTypePtr());
-  }
-  return false;
-}
-
-[[nodiscard]] static bool
-isReturnTypeInParameterList(const clang::FunctionDecl *const FDecl) {
-  return ranges::contains(FDecl->parameters(),
-                          FDecl->getReturnType().getUnqualifiedType(),
-                          [](const clang::ParmVarDecl *const PVarDecl) {
-                            return PVarDecl->getType().getUnqualifiedType();
-                          });
-}
-
-[[nodiscard]] static bool containsAny(const std::string &Str,
-                                      ranges::range auto RangeOfNames) {
-  return ranges::any_of(RangeOfNames, [&Str](const auto &Name) {
-    return Str.find(Name) != std::string::npos;
-  });
-}
-
-[[nodiscard]] static bool
-hasAnyParameterOrReturnTypeWithName(const clang::FunctionDecl *const FDecl,
-                                    ranges::forward_range auto RangeOfNames) {
-  return containsAny(FDecl->getReturnType().getAsString(), RangeOfNames) ||
-         ranges::any_of(
-             FDecl->parameters(),
-             [&RangeOfNames](const clang::ParmVarDecl *const PVDecl) {
-               return containsAny(PVDecl->getType().getAsString(),
-                                  RangeOfNames);
-             });
-}
-
-[[nodiscard]] static bool
-hasNameContainingAny(const clang::NamedDecl *const NDecl,
-                     ranges::range auto RangeOfNames) {
-  return containsAny(NDecl->getNameAsString(), RangeOfNames);
-}
-
-[[nodiscard]] static bool filterOut(const clang::FunctionDecl *const FDecl,
-                                    const Config &Conf) {
-  if (FDecl->isDeleted()) {
-    return true;
-  }
-  if (hasReservedIdentifierNameOrType(FDecl)) {
-    return true;
-  }
-  if (hasAnyParameterOrReturnTypeWithName(
-          FDecl, std::array{"FILE"sv, "exception"sv, "bad_array_new_length"sv,
-                            "bad_alloc"sv, "traits"sv})) {
-    return true;
-  }
-  if (Conf.EnableFilterStd && FDecl->isInStdNamespace()) {
-    return true;
-  }
-  if (FDecl->getReturnType()->isArithmeticType()) {
-    return true;
-  }
-  if (!llvm::isa<clang::CXXConstructorDecl>(FDecl) &&
-      FDecl->getReturnType()->isVoidType()) {
-    return true;
-  }
-  if (isReturnTypeInParameterList(FDecl)) {
-    spdlog::trace("filtered due to require-acquire cycle: {}",
-                  FDecl->getNameAsString());
-    return true;
-  }
-  // FIXME: support templates
-  if (FDecl->isTemplateDecl()) {
-    return true;
-  }
-
-  return false;
-}
-
-[[nodiscard]] static bool filterOut(const clang::CXXMethodDecl *const Method,
-                                    const Config &Conf) {
-  if (Method->isCopyAssignmentOperator() ||
-      Method->isMoveAssignmentOperator()) {
-    return true;
-  }
-
-  if (const auto *const Constructor =
-          llvm::dyn_cast<clang::CXXConstructorDecl>(Method);
-      Constructor && Constructor->isCopyOrMoveConstructor()) {
-    return true;
-  }
-
-  return filterOut(static_cast<const clang::FunctionDecl *>(Method), Conf);
-}
-
-[[nodiscard]] static bool filterOut(const clang::CXXRecordDecl *const RDecl,
-                                    const Config &Conf) {
-  if (RDecl != RDecl->getDefinition()) {
-    return true;
-  }
-  if (hasReservedIdentifierNameOrType(RDecl)) {
-    return true;
-  }
-  if (RDecl->getNameAsString().empty()) {
-    return true;
-  }
-  if (Conf.EnableFilterStd && RDecl->isInStdNamespace()) {
-    return true;
-  }
-  if (const auto Spec = RDecl->getTemplateSpecializationKind();
-      Spec != clang::TSK_Undeclared &&
-      Spec != clang::TSK_ImplicitInstantiation &&
-      Spec != clang::TSK_ExplicitInstantiationDefinition &&
-      Spec != clang::TSK_ExplicitInstantiationDeclaration) {
-    return true;
-  }
-  if (RDecl->isTemplateDecl()) {
-    spdlog::trace("filtered due to being template decl: {}",
-                  RDecl->getNameAsString());
-    return true;
-  }
-  if (RDecl->isTemplated()) {
-    return true;
-  }
-  if (hasNameContainingAny(RDecl, std::array{"FILE"sv, "exception"sv,
-                                             "bad_array_new_length"sv,
-                                             "bad_alloc"sv, "traits"sv})) {
-    return true;
-  }
-
-  return false;
-}
-
-// FIXME: skip TransitionCollector and generate
-// std::vector<TypeSetTransitionDataType -> GraphData in the visitor directly
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
   GetMeVisitor(Config Configuration, TransitionCollector &TransitionsRef,
