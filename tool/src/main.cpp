@@ -85,9 +85,9 @@ int main(int argc, const char **argv) {
   std::string Res{};
   Res += fmt::format("digraph D {{\n  layout = \"sfdp\";\n");
 
-  for (const auto &Edge : toRange(edges(Graph))) {
-    const auto SourceNode = source(Edge, Graph);
-    const auto TargetNode = target(Edge, Graph);
+  for (const auto &Edge : toRange(boost::edges(Graph))) {
+    const auto SourceNode = boost::source(Edge, Graph);
+    const auto TargetNode = boost::target(Edge, Graph);
 
     const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
     const auto TargetVertex = Data.VertexData[TargetNode];
