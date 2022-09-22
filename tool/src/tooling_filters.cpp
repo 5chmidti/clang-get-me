@@ -1,5 +1,9 @@
 #include "get_me/tooling_filters.hpp"
 
+#include <clang/AST/CanonicalType.h>
+#include <clang/AST/DeclCXX.h>
+#include <clang/AST/Type.h>
+
 bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
                                std::string_view Name) {
   return VDecl->getType().getAsString().find(Name) != std::string::npos;
@@ -16,11 +20,12 @@ bool hasReservedIdentifierType(const clang::Type *const Type) {
 }
 
 bool isReturnTypeInParameterList(const clang::FunctionDecl *const FDecl) {
-  return ranges::contains(FDecl->parameters(),
-                          FDecl->getReturnType().getUnqualifiedType(),
-                          [](const clang::ParmVarDecl *const PVarDecl) {
-                            return PVarDecl->getType().getUnqualifiedType();
-                          });
+  return ranges::contains(
+      FDecl->parameters(),
+      FDecl->getReturnType()->getCanonicalTypeUnqualified(),
+      [](const clang::ParmVarDecl *const PVarDecl) {
+        return PVarDecl->getType()->getCanonicalTypeUnqualified();
+      });
 }
 
 bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
