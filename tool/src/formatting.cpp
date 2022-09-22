@@ -18,7 +18,18 @@ using namespace clang;
 std::string getTransitionName(const TransitionDataType &Data) {
   return std::visit(
       Overloaded{
-          [](const DeclaratorDecl *DDecl) { return DDecl->getNameAsString(); },
+          [](const DeclaratorDecl *DDecl) {
+            if (!DDecl->getDeclName().isIdentifier()) {
+              if (const auto *const Constructor =
+                      llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
+                return Constructor->getParent()->getNameAsString();
+              }
+              return fmt::format("non-identifier {}({})",
+                                 DDecl->getDeclKindName(),
+                                 static_cast<const void *>(DDecl));
+            }
+            return DDecl->getNameAsString();
+          },
           [](const DefaultedConstructor &Val) {
             return Val.Record->getNameAsString();
           },
