@@ -52,6 +52,9 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
       FDecl->getReturnType()->isVoidType()) {
     return true;
   }
+  if (llvm::isa<clang::CXXDeductionGuideDecl>(FDecl)) {
+    return true;
+  }
   if (isReturnTypeInParameterList(FDecl)) {
     spdlog::trace("filtered due to require-acquire cycle: {}",
                   FDecl->getNameAsString());
@@ -68,6 +71,13 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
 bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
   if (Method->isCopyAssignmentOperator() ||
       Method->isMoveAssignmentOperator()) {
+    return true;
+  }
+  // FIXME: allow conversions
+  if (llvm::isa<clang::CXXConversionDecl>(Method)) {
+    return true;
+  }
+  if (llvm::isa<clang::CXXDestructorDecl>(Method)) {
     return true;
   }
 
