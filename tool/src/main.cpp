@@ -126,12 +126,13 @@ int main(int argc, const char **argv) {
   for (const auto [Path, Number] :
        views::zip(Paths | ranges::views::take(50), views::iota(0U))) {
     spdlog::info(
-        "path #{}: {}", Number,
+        "path #{}: {} -> remaining: {}", Number,
         fmt::join(Path | views::transform([&Data, &IndexMap](
                                               const EdgeDescriptor &Edge) {
                     return toString(
                         Data.EdgeWeights[boost::get(IndexMap, Edge)]);
                   }),
-                  ", "));
+                  ", "),
+        Data.VertexData[boost::target(Path.back(), Graph)]);
   }
 }
