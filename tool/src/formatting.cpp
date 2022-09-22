@@ -37,9 +37,7 @@ functionDeclToStringForAcquired(const FunctionDecl *const FDecl) {
 
 std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
-      Overloaded{[](const FunctionDecl *const FDecl) {
-                   return functionDeclToStringForAcquired(FDecl);
-                 },
+      Overloaded{FunctionToClosure(functionDeclToStringForAcquired),
                  [](const FieldDecl *const FDecl) {
                    return FDecl->getType().getAsString();
                  },
@@ -77,9 +75,7 @@ functionDeclToStringForRequired(const FunctionDecl *const FDecl) {
 std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
       Overloaded{
-          [](const FunctionDecl *const FDecl) {
-            return functionDeclToStringForRequired(FDecl);
-          },
+          FunctionToClosure{functionDeclToStringForRequired},
           [](const FieldDecl *const FDecl) {
             return FDecl->getParent()->getNameAsString();
           },
