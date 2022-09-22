@@ -232,22 +232,25 @@ static void initializeVertexDataWithQueried(
                     std::back_inserter(Data.VertexData), ToAcquired);
 }
 
-// is range2 a subset of range1
-template <typename RangeType1, typename RangeType2>
-[[nodiscard]] static bool isSubset(RangeType1 &&Range1, RangeType2 &&Range2) {
-  return ranges::all_of(
-      std::forward<RangeType2>(Range2),
-      [Range = std::forward<RangeType1>(Range1)](const auto &Val) {
-        return ranges::contains(Range, Val);
-      });
+template <typename T>
+[[nodiscard]] static bool isSubset(const std::set<T> &Superset,
+                                   const std::set<T> &Subset) {
+  if (Subset.size() > Superset.size()) {
+    return false;
+  }
+  auto SupersetIter = Superset.begin();
+  const auto SupersetEnd = Superset.end();
+  for (const auto &SubsetVal : Subset) {
+    for (; SupersetIter != SupersetEnd && *SupersetIter != SubsetVal;
+         ++SupersetIter) {
+    }
+  }
+  return SupersetIter != SupersetEnd;
 }
 
-// create predicate if AcquiredTypeSet is a subset of Val
-[[nodiscard]] static auto
-isSubsetPredicateFactory(const TypeSet &AcquiredTypeSet) {
-  return [&AcquiredTypeSet](const TypeSet &Val) {
-    return isSubset(Val, AcquiredTypeSet);
-  };
+[[nodiscard]] static auto isSubsetPredicateFactory(const TypeSet &Subset) {
+  return
+      [&Subset](const TypeSet &Superset) { return isSubset(Superset, Subset); };
 }
 
 [[nodiscard]] static TypeSet merge(TypeSet Lhs, TypeSet Rhs) {
