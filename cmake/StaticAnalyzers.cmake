@@ -11,18 +11,7 @@ if(ENABLE_CPPCHECK)
         ${CPPCHECK}
         --suppress=missingInclude
         --enable=all
-        --inline-suppr
-        --inconclusive
-        -i
-        ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
-    set(CMAKE_CUDA_CPPCHECK
-        ${CPPCHECK}
-        --suppress=missingInclude
-        --enable=all
-        --inline-suppr
-        --inconclusive
-        -i
-        ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+        --inline-suppr)
   else()
     message(SEND_ERROR "cppcheck requested but executable not found")
   endif()
@@ -33,8 +22,6 @@ if(ENABLE_CLANG_TIDY)
   if(CLANGTIDY)
     set(CMAKE_CXX_CLANG_TIDY ${CLANGTIDY}
                              -extra-arg=-Wno-unknown-warning-option)
-    set(CMAKE_CUDA_CLANG_TIDY ${CLANGTIDY}
-                              -extra-arg=-Wno-unknown-warning-option)
   else()
     message(SEND_ERROR "clang-tidy requested but executable not found")
   endif()
@@ -44,7 +31,6 @@ if(ENABLE_INCLUDE_WHAT_YOU_USE)
   find_program(INCLUDE_WHAT_YOU_USE include-what-you-use)
   if(INCLUDE_WHAT_YOU_USE)
     set(CMAKE_CXX_INCLUDE_WHAT_YOU_USE ${INCLUDE_WHAT_YOU_USE})
-    set(CMAKE_CUDA_INCLUDE_WHAT_YOU_USE ${INCLUDE_WHAT_YOU_USE})
   else()
     message(
       SEND_ERROR "include-what-you-use requested but executable not found")
