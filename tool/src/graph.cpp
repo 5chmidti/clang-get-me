@@ -1,5 +1,6 @@
 #include "get_me/graph.hpp"
 
+#include <compare>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
@@ -12,9 +13,11 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <clang/AST/DeclCXX.h>
+#include <fmt/chrono.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
+#include <range/v3/algorithm/binary_search.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/find_if.hpp>
@@ -23,11 +26,15 @@
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/algorithm/transform.hpp>
+#include <range/v3/algorithm/unique.hpp>
 #include <range/v3/functional/comparisons.hpp>
+#include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/cartesian_product.hpp>
+#include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
+#include <range/v3/view/join.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
@@ -172,18 +179,39 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
 std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
                                        const GraphType &Graph,
                                        const GraphData &Data) {
-  std::vector<PathType> Res{};
+  assert(std::ranges::is_sorted(Paths, std::less{}, &PathType::size));
 
-  for (const auto &Path : Paths) {
-    if (const auto EquivalentPathContainedInResult =
-            permutationExists(Res, Path, Graph, Data);
-        EquivalentPathContainedInResult) {
-      continue;
-    }
+  const auto IndexMap = get(boost::edge_index, Graph);
+  const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
+    return Data.EdgeWeights[get(IndexMap, Edge)];
+  };
 
-    Res.push_back(Path);
-  }
+  auto Res = ranges::to_vector(ranges::views::join(
+      Paths |
+      ranges::views::chunk_by([](const PathType &Lhs, const PathType &Rhs) {
+        return Lhs.size() == Rhs.size();
+      }) |
+      ranges::views::transform([&ToEdgeWeight](
+                                   const ranges::forward_range auto Range) {
+        std::vector<PathType> UniquePaths{};
 
+        for (const auto &Path : Range) {
+          if (const auto EquivalentPathContainedInResult = ranges::any_of(
+                  UniquePaths,
+                  [&ToEdgeWeight, &Path](const PathType &ExistingPath) {
+                    return ranges::is_permutation(Path, ExistingPath,
+                                                  ranges::equal_to{},
+                                                  ToEdgeWeight, ToEdgeWeight);
+                  });
+              EquivalentPathContainedInResult) {
+            continue;
+          }
+
+          UniquePaths.push_back(Path);
+        }
+
+        return UniquePaths;
+      })));
   return Res;
 }
 
