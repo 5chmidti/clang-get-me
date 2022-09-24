@@ -292,12 +292,29 @@ template <typename T>
   return Res;
 }
 
+using indexed_vertex_type = std::pair<TypeSet, size_t>;
+struct VertexSetComparator {
+  using is_transparent = void;
+  [[nodiscard]] bool operator()(const indexed_vertex_type &Lhs,
+                                const indexed_vertex_type &Rhs) const {
+    return Lhs.first < Rhs.first;
+  }
+  [[nodiscard]] bool operator()(const indexed_vertex_type &Lhs,
+                                const TypeSet &Rhs) const {
+    return Lhs.first < Rhs;
+  }
+  [[nodiscard]] bool operator()(const TypeSet &Lhs,
+                                const indexed_vertex_type &Rhs) const {
+    return Lhs < Rhs.first;
+  }
+};
+
 static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
                        GraphData &Data, const Config &Conf) {
-  using indexed_vertex_type = std::pair<TypeSet, size_t>;
-  std::set<indexed_vertex_type> VertexData =
-      ranges::to<std::set>(ranges::views::zip(
-          Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
+  using vertex_set = std::set<indexed_vertex_type, VertexSetComparator>;
+
+  auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
+      Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
 
   std::vector<GraphData::EdgeType> EdgesData{};
 
@@ -309,7 +326,7 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
   for (bool AddedTransitions = true;
        AddedTransitions && IterationCount < Conf.MaxGraphDepth;
        ++IterationCount) {
-    std::set<indexed_vertex_type> TemporaryVertexData{};
+    vertex_set TemporaryVertexData{};
     std::vector<GraphData::EdgeType> TemporaryEdgeData{};
     // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
@@ -339,26 +356,26 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
             merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
 
         const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
-            [&NewRequiredTypeSet, &TemporaryVertexData, &VertexData]() {
-              const auto GetExistingOpt =
-                  [&NewRequiredTypeSet](const auto &Container)
-                  -> std::optional<std::pair<bool, size_t>> {
-                if (const auto Iter =
-                        ranges::find(Container, NewRequiredTypeSet,
-                                     &indexed_vertex_type::first);
-                    Iter != Container.end()) {
-                  return std::pair{true, Iter->second};
-                }
-                return std::nullopt;
-              };
-              if (const auto Existing = GetExistingOpt(TemporaryVertexData);
-                  Existing) {
-                return Existing.value();
-              }
-              return GetExistingOpt(VertexData)
-                  .value_or(std::pair{false, VertexData.size() +
-                                                 TemporaryVertexData.size()});
-            }();
+            [&NewRequiredTypeSet, &TemporaryVertexData,
+             &VertexData]() -> std::pair<bool, size_t> {
+          const auto GetExistingOpt =
+              [&NewRequiredTypeSet](
+                  const auto &Container) -> std::optional<size_t> {
+            if (auto Iter = Container.find(NewRequiredTypeSet);
+                Iter != Container.end()) {
+              return Iter->second;
+            }
+            return std::nullopt;
+          };
+          if (const auto Existing = GetExistingOpt(TemporaryVertexData);
+              Existing) {
+            return {true, Existing.value()};
+          }
+          if (const auto Existing = GetExistingOpt(VertexData)) {
+            return {true, Existing.value()};
+          }
+          return {false, VertexData.size() + TemporaryVertexData.size()};
+        }();
 
         const auto EdgeToAdd =
             std::pair{SourceTypeSetIndex, NewRequiredTypeSetIndex};
@@ -399,10 +416,10 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
     TemporaryVertexData.clear();
     // FIXME: move this filling of TypeSetsOfInterest into loop to remove
     // redundant traversal of VertexData
-    TypeSetsOfInterest = ranges::to<std::set>(
+    TypeSetsOfInterest = ranges::to<vertex_set>(
         VertexData |
         ranges::views::filter(
-            [&TemporaryEdgeData](const auto &Val) {
+            [&TemporaryEdgeData](const indexed_vertex_type::second_type &Val) {
               return ranges::contains(TemporaryEdgeData, Val,
                                       &GraphData::EdgeType::second);
             },
