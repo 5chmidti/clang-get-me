@@ -349,150 +349,124 @@ static void filterOverloads(TransitionCollector &Transitions,
                                     std::make_move_iterator(Data.end()));
 }
 
+template <typename AcquiredClosure, typename RequiredClosure>
+  requires std::is_invocable_r_v<bool, AcquiredClosure, TransitionType> &&
+           std::is_invocable_r_v<std::pair<TypeSet::iterator, bool>,
+                                 RequiredClosure, TypeSet>
+[[nodiscard]] auto
+toFilterDataFactory(const AcquiredClosure &AllowConversionForAcquired,
+                    const RequiredClosure &AllowConversionForRequired) {
+  return [&AllowConversionForAcquired,
+          &AllowConversionForRequired](TransitionType Val)
+             -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
+    const auto &[Acquired, Transition, Required] = Val;
+    const auto [RequiredConversionIter, RequiredConvertionAllowed] =
+        AllowConversionForRequired(Required);
+    return {std::move(Val), AllowConversionForAcquired(Val),
+            RequiredConvertionAllowed, RequiredConversionIter};
+  };
+}
+
+[[nodiscard]] static TransitionCollector
+computePropagatedTransitions(const TransitionCollector &Transitions,
+                             const clang::Type *const NewType,
+                             const auto &AllowConversionForAcquired,
+                             const auto &AllowConversionForRequired) {
+  return ranges::to<TransitionCollector>(
+      Transitions |
+      ranges::views::transform(toFilterDataFactory(
+          AllowConversionForAcquired, AllowConversionForRequired)) |
+      ranges::views::filter(HasTransitionWithBaseClass) |
+      ranges::views::transform(toNewTransitionFactory(NewType)) |
+      // FIXME: figure out how to not need this filter
+      ranges::views::filter([&Transitions](const TransitionType &Transition) {
+        return !ranges::contains(Transitions, Transition);
+      }));
+}
+
+[[nodiscard]] static const clang::CXXRecordDecl *
+getRecordDeclOfConstructorOrNull(const TransitionDataType &Transition) {
+  return std::visit(
+      Overloaded{
+          [](const clang::FunctionDecl *const FDecl)
+              -> const clang::CXXRecordDecl * {
+            if (const auto *const Constructor =
+                    llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
+              return Constructor->getParent();
+            }
+            return nullptr;
+          },
+          [](const DefaultedConstructor *DefaultConstructor) {
+            return DefaultConstructor->Record;
+          },
+          [](auto &&) -> const clang::CXXRecordDecl * { return nullptr; }},
+      Transition);
+}
+
 [[nodiscard]] static auto
 propagateInheritanceFactory(TransitionCollector &Transitions) {
   return [&Transitions](const clang::CXXRecordDecl *const RDecl) {
     const auto *const DerivedType = RDecl->getTypeForDecl();
-    const auto BaseTSValue = TypeSetValueType{RDecl->getTypeForDecl()};
+    for (const auto &Base : RDecl->bases()) {
+      const auto *const BaseType = launderType(Base.getType().getTypePtr());
+      // propagate base -> derived
+      auto NewTransitionsForDerived = computePropagatedTransitions(
+          Transitions, DerivedType,
+          [&BaseType](const TransitionType &Val) {
+            if (const clang::CXXRecordDecl *const RecordForConstructor =
+                    getRecordDeclOfConstructorOrNull(std::get<1>(Val))) {
+              return RecordForConstructor->getTypeForDecl() == BaseType;
+            }
+            return false;
+          },
+          [BaseType](const TypeSet &Required) {
+            const auto Iter = Required.find(BaseType);
+            return std::pair{Iter, Iter != Required.end()};
+          });
+      Transitions.merge(std::move(NewTransitionsForDerived));
 
-    const auto ToFilterData = [&BaseTSValue, RDecl](TransitionType Val)
-        -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
-      const auto &[Acquired, Transition, Required] = Val;
-      const auto AllowAcquiredConversion = [&Transition, RDecl]() {
-        const auto AllowAcquiredConversionForFunction =
-            [RDecl](const clang::FunctionDecl *const FDecl) {
-              if (const auto *const Ctor =
-                      llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
-                return RDecl->isDerivedFrom(Ctor->getParent());
-              }
-              if (const auto *const ReturnType =
-                      FDecl->getReturnType().getTypePtr();
-                  const auto *const ReturnedRecord =
-                      ReturnType->getAsCXXRecordDecl()) {
-                if (!ReturnedRecord->hasDefinition()) {
-                  return false;
-                }
-                if (ReturnedRecord->getNumBases() == 0) {
-                  return false;
-                }
-                return ReturnedRecord->isDerivedFrom(RDecl);
-              }
-              return false;
-            };
-        return std::visit(Overloaded{AllowAcquiredConversionForFunction,
-                                     [](auto &&) { return false; }},
-                          Transition);
-      }();
-      const auto AllowRequiredConversion = Required.find(BaseTSValue);
-      return {std::move(Val), AllowAcquiredConversion,
-              AllowRequiredConversion != Required.end(),
-              AllowRequiredConversion};
-    };
-
-    auto NewTransitions = ranges::to_vector(
-        Transitions | ranges::views::transform(ToFilterData) |
-        ranges::views::filter(HasTransitionWithBaseClass) |
-        ranges::views::transform(toNewTransitionFactory(DerivedType)) |
-        // FIXME: figure out how to not need this filter
-        ranges::views::filter([&Transitions](const auto &Transition) {
-          return !ranges::contains(Transitions, Transition);
-        }));
-    Transitions.insert(Transitions.end(),
-                       std::make_move_iterator(NewTransitions.begin()),
-                       std::make_move_iterator(NewTransitions.end()));
+      // propagate derived -> base
+      auto NewTransitionsForBase = computePropagatedTransitions(
+          Transitions, BaseType,
+          [DerivedType](const TransitionType &Val) {
+            return std::get<0>(Val) == TypeSet{TypeSetValueType{DerivedType}};
+          },
+          [](const TypeSet &Required) {
+            return std::pair{Required.end(), false};
+          });
+      Transitions.merge(std::move(NewTransitionsForBase));
+    }
+    spdlog::trace("propagate inheritance: |Transitions| = {}",
+                  Transitions.size());
   };
 }
 
 [[nodiscard]] static auto
-propagateTypeAliasFactory(TransitionCollector &Transitions, Config Conf) {
-  return [&Transitions, Conf](const clang::TypedefNameDecl *const NDecl) {
+propagateTypeAliasFactory(TransitionCollector &Transitions,
+                          const Config & /*Conf*/) {
+  return [&Transitions](const clang::TypedefNameDecl *const NDecl) {
     const auto *const AliasType = launderType(NDecl->getTypeForDecl());
     const auto *const BaseType =
         launderType(NDecl->getUnderlyingType().getTypePtr());
-
-    const auto ToAliasFilterDataFactory = [Conf](
-                                              const clang::Type *const Type) {
-      return [Type, TypeAsTSValueType = TypeSetValueType{Type},
-              Conf](TransitionType Val)
-                 -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
-        const auto &[Acquired, Transition, Required] = Val;
-        const auto AllowAcquiredConversion = [Type, &TypeAsTSValueType,
-                                              &Transition, Conf]() {
-          const auto AllowConversionForFunctionDecl =
-              [Type, &TypeAsTSValueType,
-               Conf](const clang::FunctionDecl *const FDecl) {
-                if (const auto *const Ctor =
-                        llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
-                  return Type == Ctor->getParent()->getTypeForDecl();
-                }
-                if (const auto *const ReturnType =
-                        FDecl->getReturnType().getTypePtr()) {
-                  return TypeAsTSValueType ==
-                         toTypeSetValueType(ReturnType, Conf);
-                }
-                return false;
-              };
-          return std::visit(
-              Overloaded{AllowConversionForFunctionDecl,
-                         [Type](const DefaultedConstructor &Ctor) {
-                           return Type == Ctor.Record->getTypeForDecl();
-                         },
-                         [](auto &&) { return false; }},
-              Transition);
-        }();
-        const auto AllowRequiredConversion = Required.find(TypeAsTSValueType);
-        return {std::move(Val), AllowAcquiredConversion,
-                AllowRequiredConversion != Required.end(),
-                AllowRequiredConversion};
-      };
-    };
     const auto AddAliasTransitionsForType =
-        [&ToAliasFilterDataFactory,
-         &Transitions](const clang::Type *const ExistingType,
+        [&Transitions](const clang::Type *const ExistingType,
                        const clang::Type *const NewType) {
-          auto NewTransitions = ranges::to_vector(
-              Transitions |
-              ranges::views::transform(ToAliasFilterDataFactory(ExistingType)) |
-              ranges::views::filter(HasTransitionWithBaseClass) |
-              ranges::views::transform(toNewTransitionFactory(NewType)) |
-              // FIXME: figure out how to not need this filter
-              ranges::views::filter([&Transitions](const auto &Transition) {
-                return !ranges::contains(Transitions, Transition);
-              }));
-          Transitions.insert(Transitions.end(),
-                             std::make_move_iterator(NewTransitions.begin()),
-                             std::make_move_iterator(NewTransitions.end()));
+          auto NewTransitions = computePropagatedTransitions(
+              Transitions, NewType,
+              [ExistingType = TypeSet{TypeSetValueType{ExistingType}}](
+                  const TransitionType &Val) {
+                return std::get<0>(Val) == ExistingType;
+              },
+              [ExistingType =
+                   TypeSetValueType{ExistingType}](const TypeSet &Required) {
+                const auto Iter = Required.find(ExistingType);
+                return std::pair{Iter, Iter != Required.end()};
+              });
+          Transitions.merge(std::move(NewTransitions));
         };
     AddAliasTransitionsForType(BaseType, AliasType);
     AddAliasTransitionsForType(AliasType, BaseType);
   };
-}
-
-static void filterArithmeticOverloads(TransitionCollector &Transitions) {
-  const auto UniquenessComparator = [](const TransitionType &Lhs,
-                                       const TransitionType &Rhs) {
-    const auto &[LhsAcquired, LhsFunction, LhsRequired] = Lhs;
-    const auto &[RhsAcquired, RhsFunction, RhsRequired] = Rhs;
-
-    if (const auto Comp = LhsAcquired <=> RhsAcquired; std::is_neq(Comp)) {
-      return false;
-    }
-    if (const auto Comp =
-            getTransitionName(LhsFunction) <=> getTransitionName(RhsFunction);
-        std::is_neq(Comp)) {
-      return false;
-    }
-
-    const auto IsNotArithmetic = [](const TypeSetValueType &TSet) {
-      return TSet.index() != 1;
-    };
-    return ranges::equal(ranges::views::filter(LhsRequired, IsNotArithmetic),
-                         ranges::views::filter(RhsRequired, IsNotArithmetic));
-  };
-  ranges::sort(Transitions, std::less{});
-
-  Transitions.erase(ranges::unique(Transitions, UniquenessComparator),
-                    Transitions.end());
 }
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
