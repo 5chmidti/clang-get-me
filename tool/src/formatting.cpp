@@ -108,7 +108,7 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
                                   const GraphType &Graph,
                                   const GraphData &Data) {
   return ranges::to_vector(
-      Paths | ranges::views::transform([&Graph, &Data](const auto &Path) {
+      Paths | ranges::views::transform([&Graph, &Data](const PathType &Path) {
         return fmt::format(
             "{}",
             fmt::join(

@@ -42,21 +42,6 @@
 #include "get_me/formatting.hpp"
 #include "get_me/type_set.hpp"
 
-[[nodiscard]] static bool permutationExists(const std::vector<PathType> &Paths,
-                                            const PathType &CurrentPath,
-                                            const GraphType &Graph,
-                                            const GraphData &Data) {
-  const auto IndexMap = get(boost::edge_index, Graph);
-  const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
-    return Data.EdgeWeights[get(IndexMap, Edge)];
-  };
-  return ranges::any_of(Paths, [&ToEdgeWeight,
-                                &CurrentPath](const PathType &ExistingPath) {
-    return ranges::is_permutation(CurrentPath, ExistingPath, ranges::equal_to{},
-                                  ToEdgeWeight, ToEdgeWeight);
-  });
-}
-
 [[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
   return [&](const PathType &CurrentPath) {
     return Conf.MaxPathLength >= CurrentPath.size();
@@ -94,27 +79,27 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   auto Paths = std::set(std::initializer_list<PathType>{}, IsPermutation);
   std::stack<possible_path_type> EdgesStack{};
 
-  const auto AddToStackFactory = [&EdgesStack](auto Vertex) {
-    return [&EdgesStack, Vertex](auto Val) {
-      EdgesStack.emplace(Vertex, std::move(Val));
+  const auto AddToStackFactory = [&EdgesStack](const VertexDescriptor Vertex) {
+    return [&EdgesStack, Vertex](const EdgeDescriptor Edge) {
+      EdgesStack.emplace(Vertex, Edge);
     };
   };
 
   ranges::for_each(toRange(out_edges(SourceVertex, Graph)),
                    AddToStackFactory(SourceVertex));
 
-  const auto CurrentPathContainsTargetOfEdge = [&CurrentPath,
-                                                &Graph](const auto &Edge) {
-    const auto HasTargetEdge = [&Graph, TargetVertex = target(Edge, Graph)](
-                                   const EdgeDescriptor &EdgeInPath) {
-      return source(EdgeInPath, Graph) == TargetVertex ||
-             target(EdgeInPath, Graph) == TargetVertex;
-    };
-    return !ranges::any_of(CurrentPath, HasTargetEdge);
-  };
+  const auto CurrentPathContainsTargetOfEdge =
+      [&CurrentPath, &Graph](const EdgeDescriptor Edge) {
+        const auto HasTargetEdge = [&Graph, TargetVertex = target(Edge, Graph)](
+                                       const EdgeDescriptor &EdgeInPath) {
+          return source(EdgeInPath, Graph) == TargetVertex ||
+                 target(EdgeInPath, Graph) == TargetVertex;
+        };
+        return !ranges::any_of(CurrentPath, HasTargetEdge);
+      };
   const auto AddOutEdgesOfVertexToStack =
       [&Graph, &AddToStackFactory,
-       &CurrentPathContainsTargetOfEdge](auto Vertex) {
+       &CurrentPathContainsTargetOfEdge](const VertexDescriptor Vertex) {
         const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
         auto OutEdgesRange =
             ranges::views::filter(Vec, CurrentPathContainsTargetOfEdge);
@@ -181,9 +166,10 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
                                        const GraphData &Data) {
   assert(std::ranges::is_sorted(Paths, std::less{}, &PathType::size));
 
-  const auto IndexMap = get(boost::edge_index, Graph);
-  const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
-    return Data.EdgeWeights[get(IndexMap, Edge)];
+  const auto ToEdgeWeight = [IndexMap = get(boost::edge_index, Graph),
+                             EdgeWeights =
+                                 Data.EdgeWeights](const EdgeDescriptor &Edge) {
+    return EdgeWeights[get(IndexMap, Edge)];
   };
 
   auto Res = ranges::to_vector(ranges::views::join(
@@ -282,7 +268,7 @@ template <typename T>
 }
 
 [[nodiscard]] static TypeSet merge(TypeSet Lhs, TypeSet Rhs) {
-  Lhs.merge(Rhs);
+  Lhs.merge(std::move(Rhs));
   return Lhs;
 }
 

@@ -86,6 +86,9 @@ public:
         TypedefNameDecls_{TypedefNameDeclsRef}, Sema_{Sema} {}
 
   [[nodiscard]] bool TraverseDecl(clang::Decl *Decl) {
+    if (Decl == nullptr) {
+      return true;
+    }
     if (!Conf_.EnableFilterStd || !Decl->isInStdNamespace()) {
       clang::RecursiveASTVisitor<GetMeVisitor>::TraverseDecl(Decl);
     }
@@ -101,9 +104,7 @@ public:
       return true;
     }
 
-    auto [Acquired, Required] = toTypeSet(FDecl, Conf);
-    Transitions.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
-                             std::move(Required));
+    Transitions_.emplace(toTransitionType(FDecl, Conf_));
     return true;
   }
 
@@ -121,15 +122,12 @@ public:
       return true;
     }
 
-    auto [Acquired, Required] = toTypeSet(FDecl, Conf);
-    Transitions.emplace_back(std::move(Acquired), TransitionDataType{FDecl},
-                             std::move(Required));
+    Transitions_.emplace(toTransitionType(FDecl, Conf_));
     return true;
   }
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
-    // spdlog::info("{}", RDecl->getNameAsString());
-    if (filterOut(RDecl, Conf)) {
+    if (filterOut(RDecl, Conf_)) {
       return true;
     }
     const auto AddToTransitions =
@@ -183,11 +181,8 @@ public:
       return true;
     }
 
-    if (const auto *const RDecl =
-            llvm::dyn_cast<clang::RecordDecl>(VDecl->getDeclContext())) {
-      Transitions.emplace_back(std::get<0>(toTypeSet(VDecl, Conf)),
-                               TransitionDataType{VDecl}, TypeSet{});
-    }
+    Transitions_.emplace(std::get<0>(toTypeSet(VDecl, Conf_)),
+                         TransitionDataType{VDecl}, TypeSet{});
     return true;
   }
 
@@ -196,6 +191,9 @@ public:
       return true;
     }
     if (Conf_.EnableFilterStd && NDecl->isInStdNamespace()) {
+      return true;
+    }
+    if (NDecl->getUnderlyingType()->isArithmeticType()) {
       return true;
     }
     if (NDecl->isTemplateDecl()) {
@@ -232,7 +230,7 @@ toNewTransitionFactory(const clang::Type *const Alias) {
              std::tuple<TransitionType, bool, bool, TypeSet::iterator> Val) {
     auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
            RequiredIter] = Val;
-    auto &[Acquired, Function, Required] = Transition;
+    auto &[Acquired, _, Required] = Transition;
     if (AllowAcquiredConversion) {
       Acquired = AliasTS;
     }
@@ -292,25 +290,24 @@ static void filterOverloads(TransitionCollector &Transitions,
         const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
           return PVarDecl->getType();
         };
-        const auto MismatchResult =
-            ranges::mismatch(LhsParams.value(), RhsParams.value(),
-                             std::equal_to{}, Projection, Projection);
-        const auto Res = MismatchResult.in1 == LhsParams.value().end();
-        if (Res) {
+
+        if (const auto MismatchResult =
+                ranges::mismatch(LhsParams.value(), RhsParams.value(),
+                                 std::equal_to{}, Projection, Projection);
+            MismatchResult.in1 == LhsParams.value().end()) {
           return static_cast<size_t>(
                      std::distance(LhsParams->begin(), MismatchResult.in1)) <
                  OverloadFilterParameterCountThreshold;
         }
-        return Res;
+        return false;
       };
   // sort data, this sorts overloads by their number of parameters
   // FIXME: sorting just to make sure the overloads with longer parameter lists
   // are removed, figure out a better way. The algo also depends on this order
   // to determine if it is an overload
   ranges::sort(Data, Comparator,
-               [](const auto &Val) { return std::get<1>(Val); });
-  const auto IsOverload = [&GetName,
-                           &GetParameters](const TransitionType &LhsTuple,
+               [](const TransitionType &Val) { return std::get<1>(Val); });
+  const auto IsOverload = [&GetParameters](const TransitionType &LhsTuple,
                                            const TransitionType &RhsTuple) {
     const auto &Lhs = std::get<1>(LhsTuple);
     const auto &Rhs = std::get<1>(RhsTuple);

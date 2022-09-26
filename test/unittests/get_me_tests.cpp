@@ -25,14 +25,12 @@
 #include <spdlog/spdlog.h>
 
 void test(std::string_view Code, std::string_view QueriedType,
-          std::vector<std::string_view> ExpectedPaths, Config CurrentConfig,
-          std::source_location Loc) {
-  testing::ScopedTrace trace(Loc.file_name(), static_cast<int>(Loc.line()),
-                             "Test source");
+          const std::set<std::string_view> &ExpectedPaths,
+          const Config &CurrentConfig, std::source_location Loc) {
+  const testing::ScopedTrace Trace(Loc.file_name(),
+                                   static_cast<int>(Loc.line()), "Test source");
   spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
                                         Loc.function_name(), Loc.line()));
-
-  ranges::sort(ExpectedPaths);
 
   const auto AST =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
