@@ -1,17 +1,22 @@
 #include "get_me/tooling.hpp"
 
 #include <compare>
+#include <concepts>
 #include <functional>
+#include <iterator>
 #include <string_view>
 #include <type_traits>
 
 #include <clang/AST/ASTContext.h>
+#include <clang/AST/Decl.h>
+#include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclTemplate.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/Specifiers.h>
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Tooling/Tooling.h>
+#include <concepts/concepts.hpp>
 #include <fmt/ranges.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
@@ -20,6 +25,7 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/mismatch.hpp>
 #include <range/v3/algorithm/sort.hpp>
+#include <range/v3/algorithm/transform.hpp>
 #include <range/v3/algorithm/unique.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/all.hpp>
@@ -34,16 +40,53 @@
 #include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
+namespace ranges {
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<typename clang::CXXRecordDecl::base_class_range> =
+        true;
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<
+        typename clang::CXXRecordDecl::base_class_const_range> = true;
+
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<typename clang::CXXRecordDecl::method_range> = true;
+
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<typename clang::CXXRecordDecl::ctor_range> = true;
+} // namespace ranges
+
+static_assert(ranges::viewable_range<
+              typename clang::CXXRecordDecl::base_class_const_range>);
+
+template <typename T>
+[[nodiscard]] static TransitionType toTransitionType(const T *const Transition,
+                                                     const Config &Conf) {
+
+  auto [Acquired, Required] = toTypeSet(Transition, Conf);
+  return {std::move(Acquired), TransitionDataType{Transition},
+          std::move(Required)};
+}
+
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
   GetMeVisitor(const Config &Configuration, TransitionCollector &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
-               std::vector<const clang::TypedefNameDecl *> &TypedefNameDeclsRef)
-      : Conf{Configuration}, Transitions{TransitionsRef},
-        CXXRecords{CXXRecordsRef}, TypedefNameDecls{TypedefNameDeclsRef} {}
+               std::vector<const clang::TypedefNameDecl *> &TypedefNameDeclsRef,
+               clang::Sema &Sema)
+      : Conf_{Configuration}, Transitions_{TransitionsRef},
+        CXXRecords_{CXXRecordsRef},
+        TypedefNameDecls_{TypedefNameDeclsRef}, Sema_{Sema} {}
 
   [[nodiscard]] bool TraverseDecl(clang::Decl *Decl) {
-    if (!Conf.EnableFilterStd || (Decl && !Decl->isInStdNamespace())) {
+    if (!Conf_.EnableFilterStd || !Decl->isInStdNamespace()) {
       clang::RecursiveASTVisitor<GetMeVisitor>::TraverseDecl(Decl);
     }
     return true;
@@ -54,7 +97,7 @@ public:
     if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
       return true;
     }
-    if (filterOut(FDecl, Conf)) {
+    if (filterOut(FDecl, Conf_)) {
       return true;
     }
 
@@ -89,56 +132,29 @@ public:
     if (filterOut(RDecl, Conf)) {
       return true;
     }
-    for (const clang::CXXMethodDecl *Method : RDecl->methods()) {
-      // FIXME: allow conversions
-      if (llvm::isa<clang::CXXConversionDecl>(Method)) {
-        continue;
-      }
-      if (llvm::isa<clang::CXXDestructorDecl>(Method)) {
-        continue;
-      }
-      if (filterOut(Method, Conf)) {
-        continue;
-      }
+    const auto AddToTransitions =
+        [this](const ranges::viewable_range auto Range) {
+          ranges::transform(
+              Range | ranges::views::filter([this](const auto *const Function) {
+                return !filterOut(Function, Conf_);
+              }),
+              std::inserter(Transitions_, Transitions_.end()),
+              [this](const auto *const Function) {
+                return toTransitionType(Function, Conf_);
+              });
+        };
+    AddToTransitions(RDecl->methods());
 
-      // FIXME: filter access spec for members, depends on context of query
-
-      auto [Acquired, Required] = toTypeSet(Method, Conf);
-      Transitions.emplace_back(std::move(Acquired), TransitionDataType{Method},
-                               std::move(Required));
-    }
-    bool AlreadyAddedDefaultCtor = false;
-    for (const clang::CXXConstructorDecl *Constructor : RDecl->ctors()) {
-      // FIXME: allow conversions
-      if (llvm::isa<clang::CXXConversionDecl>(Constructor)) {
-        continue;
-      }
-      if (llvm::isa<clang::CXXDestructorDecl>(Constructor)) {
-        continue;
-      }
-      if (filterOut(Constructor, Conf)) {
-        continue;
-      }
-
-      // FIXME: filter access spec for members, depends on context of query
-
-      if (Constructor->isDefaultConstructor()) {
-        AlreadyAddedDefaultCtor = true;
-      }
-
-      auto [Acquired, Required] = toTypeSet(Constructor, Conf);
-      Transitions.emplace_back(std::move(Acquired),
-                               TransitionDataType{Constructor},
-                               std::move(Required));
+    // declare implicit default constructor even if it is not used
+    if (RDecl->needsImplicitDefaultConstructor()) {
+      Sema_.DeclareImplicitDefaultConstructor(RDecl);
     }
 
-    if (!AlreadyAddedDefaultCtor && RDecl->hasDefaultConstructor() &&
-        !RDecl->hasUserProvidedDefaultConstructor()) {
-      Transitions.emplace_back(
-          TypeSet{TypeSetValueType{RDecl->getTypeForDecl()}},
-          TransitionDataType{DefaultedConstructor{RDecl}}, TypeSet{});
+    AddToTransitions(RDecl->ctors());
+
+    if (RDecl->getNumBases() != 0) {
+      CXXRecords_.push_back(RDecl);
     }
-    CXXRecords.push_back(RDecl);
     return true;
   }
 
@@ -154,7 +170,7 @@ public:
     if (!VDecl->isStaticDataMember()) {
       return true;
     }
-    if (Conf.EnableFilterStd && VDecl->isInStdNamespace()) {
+    if (Conf_.EnableFilterStd && VDecl->isInStdNamespace()) {
       return true;
     }
     if (VDecl->getType()->isArithmeticType()) {
@@ -179,7 +195,7 @@ public:
     if (NDecl->isInvalidDecl()) {
       return true;
     }
-    if (Conf.EnableFilterStd && NDecl->isInStdNamespace()) {
+    if (Conf_.EnableFilterStd && NDecl->isInStdNamespace()) {
       return true;
     }
     if (NDecl->isTemplateDecl()) {
@@ -192,15 +208,16 @@ public:
     if (hasReservedIdentifierNameOrType(NDecl)) {
       return true;
     }
-    TypedefNameDecls.push_back(NDecl);
+    TypedefNameDecls_.push_back(NDecl);
     return true;
   }
 
 private:
-  const Config &Conf;
-  TransitionCollector &Transitions;
-  std::vector<const clang::CXXRecordDecl *> &CXXRecords;
-  std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls;
+  const Config &Conf_;
+  TransitionCollector &Transitions_;
+  std::vector<const clang::CXXRecordDecl *> &CXXRecords_;
+  std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls_;
+  clang::Sema &Sema_;
 };
 
 static constexpr auto HasTransitionWithBaseClass = [](const auto &Val) {
@@ -481,18 +498,19 @@ static void filterArithmeticOverloads(TransitionCollector &Transitions) {
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
   std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
-  GetMeVisitor Visitor{Conf, Transitions, CXXRecords, TypedefNameDecls};
+  GetMeVisitor Visitor{Conf_, Transitions_, CXXRecords, TypedefNameDecls,
+                       Sema_};
 
   std::ignore = Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-  if (Conf.EnableFilterOverloads) {
-    filterOverloads(Transitions);
+  if (Conf_.EnableFilterOverloads) {
+    filterOverloads(Transitions_);
   }
 
-  if (Conf.EnablePropagateInheritance) {
-    ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions));
+  if (Conf_.EnablePropagateInheritance) {
+    ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions_));
   }
-  if (Conf.EnablePropagateTypeAlias) {
+  if (Conf_.EnablePropagateTypeAlias) {
     ranges::for_each(TypedefNameDecls,
-                     propagateTypeAliasFactory(Transitions, Conf));
+                     propagateTypeAliasFactory(Transitions_, Conf_));
   }
 }

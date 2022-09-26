@@ -6,6 +6,11 @@
 TEST_F(GetMeTest, simpleSingleEdge) {
   test(R"(
 struct A {};
+)",
+       "A", {"({struct A}, A A(), {})"});
+
+  test(R"(
+struct A {};
 
 A getA();
 A getA(int);
@@ -120,8 +125,7 @@ TEST_F(GetMeTest, inheritance) {
   )",
        "B",
        {"({struct B}, B getB(), {})",
-        "({struct B}, A A(int, float), {int, float})",
-        "({struct B}, B B(), {})"});
+        "({struct B}, A A(int, float), {int, float})"});
   test(R"(
 struct A { A(int, float); };
 struct B : public A {};

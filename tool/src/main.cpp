@@ -3,6 +3,8 @@
 #include <variant>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <clang/AST/DeclCXX.h>
+#include <clang/Sema/Sema.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 #include <fmt/format.h>
@@ -65,9 +67,9 @@ int main(int argc, const char **argv) {
       .MaxGraphDepth = 4,
       .MaxPathCount = 1000,
   };
-  auto Consumer = GetMe{Conf, TypeSetTransitionData};
   for (const auto &AST : ASTs) {
-    Consumer.HandleTranslationUnit(AST->getASTContext());
+    GetMe{Conf, TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
+        AST->getASTContext());
   }
 
   const auto &QueriedType = TypeName.getValue();

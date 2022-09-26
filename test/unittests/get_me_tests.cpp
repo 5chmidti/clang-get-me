@@ -15,9 +15,11 @@
 #include <get_me/graph.hpp>
 #include <get_me/tooling.hpp>
 #include <gtest/gtest.h>
+#include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/permutation.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/algorithm/sort.hpp>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
@@ -36,7 +38,7 @@ void test(std::string_view Code, std::string_view QueriedType,
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
   TransitionCollector TypeSetTransitionData{};
-  auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData};
+  auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto QueriedTypeAsString = std::string{QueriedType};
   const auto [Graph, Data] =

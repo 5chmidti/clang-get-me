@@ -10,6 +10,7 @@
 #include <vector>
 
 #include <clang/AST/ASTConsumer.h>
+#include <clang/Sema/Sema.h>
 
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
@@ -24,14 +25,16 @@ struct FieldDecl;
 // current context
 class GetMe : public clang::ASTConsumer {
 public:
-  explicit GetMe(Config Configuration, TransitionCollector &TransitionsRef)
-      : Conf{Configuration}, Transitions{TransitionsRef} {}
+  explicit GetMe(const Config &Configuration,
+                 TransitionCollector &TransitionsRef, clang::Sema &Sema)
+      : Conf_{Configuration}, Transitions_{TransitionsRef}, Sema_{Sema} {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) override;
 
 private:
-  Config Conf;
-  TransitionCollector &Transitions;
+  Config Conf_;
+  TransitionCollector &Transitions_;
+  clang::Sema &Sema_;
 };
 
 #endif
