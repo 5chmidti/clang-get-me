@@ -58,14 +58,14 @@ int main(int argc, const char **argv) {
     spdlog::error("error building ASTs");
     return 1;
   }
-  auto Conf = Config{
+  const auto Conf = Config{
       .EnableFilterOverloads = true,
       .EnablePropagateInheritance = true,
       .EnablePropagateTypeAlias = true,
       .EnableTruncateArithmetic = true,
       .EnableFilterStd = true,
-      .MaxGraphDepth = 4,
-      .MaxPathCount = 1000,
+      .MaxGraphDepth = 6,
+      .MaxPathCount = 10000,
   };
   for (const auto &AST : ASTs) {
     GetMe{Conf, TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
