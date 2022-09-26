@@ -244,7 +244,7 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
 }
 
 static void initializeVertexDataWithQueried(
-    const std::vector<TransitionType> &TypeSetTransitionData, GraphData &Data,
+    const TransitionCollector &TypeSetTransitionData, GraphData &Data,
     const std::string &TypeName) {
   const auto ToAcquired = [](const TransitionType &Val) {
     return std::get<0>(Val);
@@ -309,7 +309,7 @@ struct VertexSetComparator {
   }
 };
 
-static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
+static void buildGraph(const TransitionCollector &TypeSetTransitionData,
                        GraphData &Data, const Config &Conf) {
   using vertex_set = std::set<indexed_vertex_type, VertexSetComparator>;
 
@@ -443,7 +443,7 @@ static void buildGraph(const std::vector<TransitionType> &TypeSetTransitionData,
 }
 
 std::pair<GraphType, GraphData>
-createGraph(const std::vector<TransitionType> &TypeSetTransitionData,
+createGraph(const TransitionCollector &TypeSetTransitionData,
             const std::string &TypeName, const Config &Conf) {
   GraphData Data{};
   initializeVertexDataWithQueried(TypeSetTransitionData, Data, TypeName);

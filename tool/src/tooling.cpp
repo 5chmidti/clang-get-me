@@ -227,8 +227,11 @@ toNewTransitionFactory(const clang::Type *const Alias) {
   };
 }
 
-static void filterOverloads(TransitionCollector &Data,
+static void filterOverloads(TransitionCollector &Transitions,
                             size_t OverloadFilterParameterCountThreshold = 0) {
+  std::vector<TransitionCollector::value_type> Data(
+      std::make_move_iterator(Transitions.begin()),
+      std::make_move_iterator(Transitions.end()));
   const auto GetParameters = [](const TransitionDataType &Val) {
     return std::visit(
         Overloaded{[](const clang::FunctionDecl *const CurrentDecl)
@@ -325,6 +328,8 @@ static void filterOverloads(TransitionCollector &Data,
     return MismatchResult.in1 == LhsParams.value().end();
   };
   Data.erase(ranges::unique(Data, IsOverload), Data.end());
+  Transitions = TransitionCollector(std::make_move_iterator(Data.begin()),
+                                    std::make_move_iterator(Data.end()));
 }
 
 [[nodiscard]] static auto
@@ -478,37 +483,16 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
   GetMeVisitor Visitor{Conf, Transitions, CXXRecords, TypedefNameDecls};
 
-  const auto ForceUniquness = [&]() {
-    const auto PreUniqueSize = Transitions.size();
-    ranges::sort(Transitions);
-    Transitions.erase(ranges::unique(Transitions), Transitions.end());
-    if (const auto PostUniqueSize = Transitions.size();
-        PreUniqueSize > PostUniqueSize) {
-      spdlog::warn("PreUniqueSize {} differs from PostUniqueSize {}",
-                   PreUniqueSize, PostUniqueSize);
-    }
-  };
-
-  // FIXME: produces duplicates
-  Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-  ForceUniquness();
+  std::ignore = Visitor.TraverseDecl(Context.getTranslationUnitDecl());
   if (Conf.EnableFilterOverloads) {
     filterOverloads(Transitions);
-    ForceUniquness();
-  }
-  if (Conf.EnableTruncateArithmetic) {
-    filterArithmeticOverloads(Transitions);
-    ForceUniquness();
   }
 
   if (Conf.EnablePropagateInheritance) {
     ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions));
-    ForceUniquness();
   }
   if (Conf.EnablePropagateTypeAlias) {
-    // FIXME: produces duplicates
     ranges::for_each(TypedefNameDecls,
                      propagateTypeAliasFactory(Transitions, Conf));
-    ForceUniquness();
   }
 }

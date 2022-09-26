@@ -53,25 +53,28 @@ void test(std::string_view Code, std::string_view QueriedType,
   const auto FoundPaths =
       pathTraversal(Graph, Data, CurrentConfig, *SourceVertex);
 
-  auto FoundPathsAsString = toString(FoundPaths, Graph, Data);
-  ranges::sort(FoundPathsAsString);
-  const auto ToString = [](const auto &Val) { return std::string{Val}; };
+  const auto FoundPathsAsString =
+      ranges::to<std::set>(toString(FoundPaths, Graph, Data));
+  const auto ToString = []<typename T>(const T &Val) -> std::string {
+    if constexpr (std::is_same_v<T, std::string>) {
+      return Val;
+    }
+    return std::string{Val};
+  };
   const auto ToSetDifference = [&ToString](const auto &Lhs, const auto &Rhs) {
-    std::vector<std::string> Res{};
-    ranges::set_difference(Lhs, Rhs, std::back_inserter(Res), std::less{},
+    std::set<std::string> Res{};
+    ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()), std::less{},
                            ToString, ToString);
     return Res;
   };
 
-  EXPECT_TRUE(ranges::is_permutation(FoundPathsAsString, ExpectedPaths))
-      << fmt::format(
-             "Expected: {}\nFound: {}\nNot found: {}\nNot expected: {}",
-             ExpectedPaths, FoundPathsAsString,
-             ToSetDifference(ExpectedPaths | ranges::views::transform(ToString),
-                             FoundPathsAsString),
-             ToSetDifference(FoundPathsAsString,
-                             ExpectedPaths |
-                                 ranges::views::transform(ToString)));
+  EXPECT_TRUE(ranges::equal(FoundPathsAsString, ExpectedPaths)) << fmt::format(
+      "Expected: {}\nFound: {}\nNot found: {}\nNot expected: {}", ExpectedPaths,
+      FoundPathsAsString,
+      ToSetDifference(ExpectedPaths | ranges::views::transform(ToString),
+                      FoundPathsAsString),
+      ToSetDifference(FoundPathsAsString,
+                      ExpectedPaths | ranges::views::transform(ToString)));
 }
 
 GetMeTest::GetMeTest() {

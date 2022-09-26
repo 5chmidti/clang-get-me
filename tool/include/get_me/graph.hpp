@@ -57,7 +57,7 @@ using PathType = std::vector<EdgeDescriptor>;
 
 using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
 
-using TransitionCollector = std::vector<TransitionType>;
+using TransitionCollector = std::set<TransitionType>;
 
 struct GraphData {
   using EdgeWeightType = TransitionType;
@@ -106,10 +106,10 @@ independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph,
                  const GraphData &Data);
 
 [[nodiscard]] std::pair<GraphType, GraphData>
-createGraph(const std::vector<TransitionType> &TypeSetTransitionData,
+createGraph(const TransitionCollector &TypeSetTransitionData,
             const std::string &TypeName, const Config &Conf);
 
-[[nodiscard]] std::vector<TransitionType>
+[[nodiscard]] TransitionCollector
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
 [[nodiscard]] std::optional<VertexDescriptor>
