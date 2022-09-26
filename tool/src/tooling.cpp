@@ -229,47 +229,27 @@ toNewTransitionFactory(const clang::Type *const Alias) {
 
 static void filterOverloads(TransitionCollector &Data,
                             size_t OverloadFilterParameterCountThreshold = 0) {
-  const auto GetName = [](const TransitionDataType &Val) {
-    const auto GetNameOfDeclaratorDecl =
-        [](const clang::DeclaratorDecl *const DDecl) -> std::string {
-      if (!DDecl->getDeclName().isIdentifier()) {
-        if (const auto *const Constructor =
-                llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
-          return fmt::format("constructor of {}",
-                             Constructor->getParent()->getNameAsString());
-        }
-        return "non-identifier";
-      }
-      return DDecl->getName().str();
-    };
-    return std::visit(
-        Overloaded{GetNameOfDeclaratorDecl,
-                   [](const DefaultedConstructor &DefaultCtor) {
-                     return DefaultCtor.Record->getNameAsString();
-                   },
-                   [](std::monostate) -> std::string { return "monostate"; }},
-        Val);
-  };
   const auto GetParameters = [](const TransitionDataType &Val) {
     return std::visit(
-        Overloaded{
-            [](const clang::FunctionDecl *const CurrentDecl)
-                -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-              return CurrentDecl->parameters();
-            },
-            [](auto) -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-              return {};
-            }},
+        Overloaded{[](const clang::FunctionDecl *const CurrentDecl)
+                       -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
+                     return CurrentDecl->parameters();
+                   },
+                   [](auto &&)
+                       -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
+                     return {};
+                   }},
         Val);
   };
   const auto Comparator =
-      [&GetName, &GetParameters, OverloadFilterParameterCountThreshold](
+      [&GetParameters, OverloadFilterParameterCountThreshold](
           const TransitionDataType &Lhs, const TransitionDataType &Rhs) {
         if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
             std::is_neq(IndexComparison)) {
           return std::is_lt(IndexComparison);
         }
-        if (const auto NameComparison = GetName(Lhs) <=> GetName(Rhs);
+        if (const auto NameComparison =
+                getTransitionName(Lhs) <=> getTransitionName(Rhs);
             std::is_neq(NameComparison)) {
           return std::is_lt(NameComparison);
         }
@@ -317,7 +297,7 @@ static void filterOverloads(TransitionCollector &Data,
     if (Lhs.index() != Rhs.index()) {
       return false;
     }
-    if (GetName(Lhs) != GetName(Rhs)) {
+    if (getTransitionName(Lhs) != getTransitionName(Rhs)) {
       return false;
     }
     const auto LhsParams = GetParameters(Lhs);
