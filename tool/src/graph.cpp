@@ -35,6 +35,7 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/join.hpp>
+#include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
@@ -295,14 +296,32 @@ struct VertexSetComparator {
   }
 };
 
+using indexed_edge_type = std::pair<GraphData::EdgeType, size_t>;
+struct EdgeSetComparator {
+  using is_transparent = void;
+  [[nodiscard]] bool operator()(const indexed_edge_type &Lhs,
+                                const indexed_edge_type &Rhs) const {
+    return Lhs < Rhs;
+  }
+  [[nodiscard]] bool operator()(const indexed_edge_type &Lhs,
+                                const GraphData::EdgeType &Rhs) const {
+    return Lhs.first < Rhs;
+  }
+  [[nodiscard]] bool operator()(const GraphData::EdgeType &Lhs,
+                                const indexed_edge_type &Rhs) const {
+    return Lhs < Rhs.first;
+  }
+};
+
 static void buildGraph(const TransitionCollector &TypeSetTransitionData,
                        GraphData &Data, const Config &Conf) {
   using vertex_set = std::set<indexed_vertex_type, VertexSetComparator>;
+  using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
 
   auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
       Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
 
-  std::vector<GraphData::EdgeType> EdgesData{};
+  edge_set EdgesData{};
 
   size_t IterationCount = 0U;
   auto TypeSetsOfInterest = VertexData;
@@ -313,7 +332,7 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
        AddedTransitions && IterationCount < Conf.MaxGraphDepth;
        ++IterationCount) {
     vertex_set TemporaryVertexData{};
-    std::vector<GraphData::EdgeType> TemporaryEdgeData{};
+    edge_set TemporaryEdgeData{};
     // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
@@ -341,7 +360,7 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
         auto NewRequiredTypeSet =
             merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
 
-        const auto [NewRequiredTypeSetIndexExists, NewRequiredTypeSetIndex] =
+        const auto [NewRequiredTypeSetExists, NewRequiredTypeSetIndex] =
             [&NewRequiredTypeSet, &TemporaryVertexData,
              &VertexData]() -> std::pair<bool, size_t> {
           const auto GetExistingOpt =
@@ -368,27 +387,36 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
 
         if (const auto TransitionToAddAlreadyExistsInContainer =
                 [EdgeToAdd, &Transition,
-                 &EdgeWeights =
-                     Data.EdgeWeights]<typename T>(const T &Container) {
-                  if (!ranges::contains(Container, EdgeToAdd)) {
-                    return false;
-                  }
-                  return ranges::contains(EdgeWeights, Transition);
+                 &EdgeWeights = Data.EdgeWeights](const edge_set &Container) {
+                  const auto LowerBound = Container.lower_bound(EdgeToAdd);
+                  const auto UpperBound = Container.upper_bound(EdgeToAdd);
+                  return ranges::contains(
+                      ranges::subrange(LowerBound, UpperBound) |
+                          ranges::views::transform(
+                              [&EdgeWeights](
+                                  const indexed_edge_type &IndexedEdge) {
+                                return std::pair{
+                                    IndexedEdge.first,
+                                    EdgeWeights[IndexedEdge.second]};
+                              }),
+                      std::pair{EdgeToAdd, Transition});
                 };
-            NewRequiredTypeSetIndexExists &&
+            NewRequiredTypeSetExists &&
             (TransitionToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
              TransitionToAddAlreadyExistsInContainer(EdgesData))) {
           continue;
         }
 
-        if (!NewRequiredTypeSetIndexExists) {
+        if (!NewRequiredTypeSetExists) {
           TemporaryVertexData.emplace(std::move(NewRequiredTypeSet),
                                       NewRequiredTypeSetIndex);
         }
-
-        TemporaryEdgeData.push_back(EdgeToAdd);
-        Data.EdgeWeights.push_back(Transition);
-        AddedTransitions = true;
+        if (const auto [_, EdgeAdded] = TemporaryEdgeData.emplace(
+                EdgeToAdd, EdgesData.size() + TemporaryEdgeData.size());
+            EdgeAdded) {
+          Data.EdgeWeights.push_back(Transition);
+          AddedTransitions = true;
+        }
       }
       spdlog::trace("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
                     IterationCount, TransitionCounter,
@@ -407,23 +435,33 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
         ranges::views::filter(
             [&TemporaryEdgeData](const indexed_vertex_type::second_type &Val) {
               return ranges::contains(TemporaryEdgeData, Val,
-                                      &GraphData::EdgeType::second);
+                                      [](const indexed_edge_type &IndexedEdge) {
+                                        return IndexedEdge.first.second;
+                                      });
             },
             &indexed_vertex_type::second));
 
-    EdgesData.insert(EdgesData.end(),
-                     std::make_move_iterator(TemporaryEdgeData.begin()),
-                     std::make_move_iterator(TemporaryEdgeData.end()));
+    EdgesData.merge(std::move(TemporaryEdgeData));
     TemporaryEdgeData.clear();
   }
   spdlog::trace("{:=^50}", "");
 
-  auto VertexDataToSort = ranges::to_vector(VertexData);
-  ranges::sort(VertexDataToSort, std::less{}, &indexed_vertex_type::second);
-  Data.VertexData = ranges::to_vector(
-      ranges::views::transform(VertexDataToSort, &indexed_vertex_type::first));
+  const auto GetSortedIndexedData =
+      []<ranges::range RangeType>(const RangeType &Range) {
+        auto DataToSort = ranges::to_vector(Range);
+        ranges::sort(DataToSort, std::less{},
+                     &ranges::range_value_t<RangeType>::second);
+        return DataToSort;
+      };
 
-  Data.Edges = ranges::to_vector(EdgesData);
+  auto SortedVertexData = GetSortedIndexedData(VertexData);
+  Data.VertexData = ranges::to_vector(
+      SortedVertexData | ranges::views::transform(&indexed_vertex_type::first));
+
+  auto SortedEdgeData = GetSortedIndexedData(EdgesData);
+  Data.Edges = ranges::to_vector(
+      SortedEdgeData | ranges::views::transform(&indexed_edge_type::first));
+
   Data.EdgeIndices = ranges::to_vector(
       ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()));
 }
