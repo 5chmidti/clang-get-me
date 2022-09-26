@@ -36,7 +36,7 @@
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
-  GetMeVisitor(Config Configuration, TransitionCollector &TransitionsRef,
+  GetMeVisitor(const Config &Configuration, TransitionCollector &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
                std::vector<const clang::TypedefNameDecl *> &TypedefNameDeclsRef)
       : Conf{Configuration}, Transitions{TransitionsRef},
@@ -196,7 +196,8 @@ public:
     return true;
   }
 
-  Config Conf;
+private:
+  const Config &Conf;
   TransitionCollector &Transitions;
   std::vector<const clang::CXXRecordDecl *> &CXXRecords;
   std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls;
