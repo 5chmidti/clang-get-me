@@ -333,6 +333,7 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
        ++IterationCount) {
     vertex_set TemporaryVertexData{};
     edge_set TemporaryEdgeData{};
+    vertex_set NewTypeSetsOfInterest{};
     // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
@@ -361,13 +362,14 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
             merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
 
         const auto [NewRequiredTypeSetExists, NewRequiredTypeSetIndex] =
-            [&NewRequiredTypeSet, &TemporaryVertexData,
-             &VertexData]() -> std::pair<bool, size_t> {
+            [&NewRequiredTypeSet, &TemporaryVertexData, &VertexData,
+             &NewTypeSetsOfInterest]() -> std::pair<bool, size_t> {
           const auto GetExistingOpt =
-              [&NewRequiredTypeSet](
+              [&NewRequiredTypeSet, &NewTypeSetsOfInterest](
                   const auto &Container) -> std::optional<size_t> {
             if (auto Iter = Container.find(NewRequiredTypeSet);
                 Iter != Container.end()) {
+              NewTypeSetsOfInterest.emplace(*Iter);
               return Iter->second;
             }
             return std::nullopt;
@@ -408,6 +410,8 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
         }
 
         if (!NewRequiredTypeSetExists) {
+          NewTypeSetsOfInterest.emplace(NewRequiredTypeSet,
+                                        NewRequiredTypeSetIndex);
           TemporaryVertexData.emplace(std::move(NewRequiredTypeSet),
                                       NewRequiredTypeSetIndex);
         }
@@ -428,21 +432,11 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
 
     VertexData.merge(std::move(TemporaryVertexData));
     TemporaryVertexData.clear();
-    // FIXME: move this filling of TypeSetsOfInterest into loop to remove
-    // redundant traversal of VertexData
-    TypeSetsOfInterest = ranges::to<vertex_set>(
-        VertexData |
-        ranges::views::filter(
-            [&TemporaryEdgeData](const indexed_vertex_type::second_type &Val) {
-              return ranges::contains(TemporaryEdgeData, Val,
-                                      [](const indexed_edge_type &IndexedEdge) {
-                                        return IndexedEdge.first.second;
-                                      });
-            },
-            &indexed_vertex_type::second));
 
     EdgesData.merge(std::move(TemporaryEdgeData));
     TemporaryEdgeData.clear();
+
+    TypeSetsOfInterest = std::move(NewTypeSetsOfInterest);
   }
   spdlog::trace("{:=^50}", "");
 
