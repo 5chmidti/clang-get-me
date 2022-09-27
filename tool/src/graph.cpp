@@ -1,11 +1,14 @@
 #include "get_me/graph.hpp"
 
 #include <compare>
+#include <cstddef>
 #include <functional>
 #include <initializer_list>
 #include <iterator>
+#include <limits>
 #include <stack>
 #include <string>
+#include <utility>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/graph/detail/adjacency_list.hpp>
@@ -44,15 +47,19 @@
 #include "get_me/type_set.hpp"
 
 [[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
-  return [&](const PathType &CurrentPath) {
-    return Conf.MaxPathLength >= CurrentPath.size();
+  return [MaxPathLength = Conf.MaxPathLength.value_or(
+              std::numeric_limits<std::size_t>::max())](
+             const PathType &CurrentPath) {
+    return MaxPathLength >= CurrentPath.size();
   };
 }
 
-[[nodiscard]] static auto
-createContinuePathSearchPredicate(const Config &Conf,
-                                  const ranges::range auto &CurrentPaths) {
-  return [&]() { return Conf.MaxPathCount > CurrentPaths.size(); };
+[[nodiscard]] static auto createContinuePathSearchPredicate(
+    const Config &Conf, const ranges::sized_range auto &CurrentPaths) {
+  return [&CurrentPaths, MaxPathCount = Conf.MaxPathCount.value_or(
+                             std::numeric_limits<std::size_t>::max())]() {
+    return MaxPathCount > ranges::size(CurrentPaths);
+  };
 }
 
 // FIXME: there exist paths that contain edges with aliased types and edges with
@@ -328,9 +335,10 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
 
   Data.VertexData.emplace_back();
 
+  const auto MaxGraphDepth =
+      Conf.MaxGraphDepth.value_or(std::numeric_limits<std::size_t>::max());
   for (bool AddedTransitions = true;
-       AddedTransitions && IterationCount < Conf.MaxGraphDepth;
-       ++IterationCount) {
+       AddedTransitions && IterationCount < MaxGraphDepth; ++IterationCount) {
     vertex_set TemporaryVertexData{};
     edge_set TemporaryEdgeData{};
     vertex_set NewTypeSetsOfInterest{};

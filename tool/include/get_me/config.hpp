@@ -2,6 +2,7 @@
 #define get_me_config_hpp
 
 #include <cstddef>
+#include <optional>
 
 struct Config {
   bool EnableFilterOverloads = false;
@@ -10,10 +11,10 @@ struct Config {
   bool EnableTruncateArithmetic = false;
   bool EnableFilterStd = false;
 
-  std::size_t MaxGraphDepth = 10;
-  std::size_t MaxPathLength = 10;
-  std::size_t MinPathCount = 10;
-  std::size_t MaxPathCount = 1000;
+  std::optional<std::size_t> MaxGraphDepth = 10;
+  std::optional<std::size_t> MaxPathLength = 10;
+  std::optional<std::size_t> MinPathCount = 10;
+  std::optional<std::size_t> MaxPathCount = 1000;
 };
 
 [[nodiscard]] consteval Config getDefaultConfig() { return Config{}; }
