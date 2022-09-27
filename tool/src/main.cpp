@@ -11,6 +11,7 @@
 #include <fmt/ranges.h>
 #include <llvm/Support/Signals.h>
 #include <range/v3/algorithm/find_if.hpp>
+#include <range/v3/algorithm/partial_sort.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/view/iota.hpp>
@@ -113,8 +114,10 @@ int main(int argc, const char **argv) {
     return 1;
   }
   auto Paths = pathTraversal(Graph, Data, Conf, *SourceVertexDesc);
-  ranges::sort(
-      Paths, [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {
+  const auto OutputPathCount = 50U;
+  ranges::partial_sort(
+      Paths, Paths.begin() + OutputPathCount,
+      [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {
         if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
           return std::is_lt(Comp);
         }
@@ -125,8 +128,8 @@ int main(int argc, const char **argv) {
                Data.VertexData[target(Rhs.back(), Graph)].size();
       });
 
-  for (const auto [Path, Number] :
-       views::zip(Paths | ranges::views::take(50), views::iota(0U))) {
+  for (const auto [Path, Number] : views::zip(
+           Paths | ranges::views::take(OutputPathCount), views::iota(0U))) {
     spdlog::info(
         "path #{}: {} -> remaining: {}", Number,
         fmt::join(Path | views::transform([&Data, &IndexMap](
