@@ -71,7 +71,6 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   using possible_path_type = std::pair<VertexDescriptor, EdgeDescriptor>;
 
   PathType CurrentPath{};
-  // FIXME: use a set with a comparator of permutations
   const auto IsPermutation = [&Graph, &Data](const PathType &Lhs,
                                              const PathType &Rhs) {
     const auto IndexMap = get(boost::edge_index, Graph);
@@ -342,7 +341,6 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
     vertex_set TemporaryVertexData{};
     edge_set TemporaryEdgeData{};
     vertex_set NewTypeSetsOfInterest{};
-    // FIXME: this needs to know the position of the TS in Data.VertexData
     AddedTransitions = false;
     size_t TransitionCounter = 0U;
     spdlog::trace("{:=^50}", "");

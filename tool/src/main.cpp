@@ -79,8 +79,6 @@ int main(int argc, const char **argv) {
       createGraph(TypeSetTransitionData, QueriedType, Conf);
   const auto IndexMap = boost::get(boost::edge_index, Graph);
 
-  // FIXME: apply greedy transition traversal strategy
-
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
