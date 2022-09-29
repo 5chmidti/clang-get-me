@@ -23,21 +23,7 @@ struct ArithmeticType {
   }
 };
 
-struct StdType {
-  const clang::Type *Value{};
-
-  [[nodiscard]] friend bool operator==(const StdType & /*Lhs*/,
-                                       const StdType & /*Rhs*/) {
-    return true;
-  }
-  [[nodiscard]] friend bool operator<(const StdType & /*Lhs*/,
-                                      const StdType & /*Rhs*/) {
-    return false;
-  }
-};
-
-using TypeSetValueType =
-    std::variant<const clang::Type *, ArithmeticType, StdType>;
+using TypeSetValueType = std::variant<const clang::Type *, ArithmeticType>;
 using TypeSet = std::set<TypeSetValueType>;
 
 [[nodiscard]] std::pair<TypeSet, TypeSet>

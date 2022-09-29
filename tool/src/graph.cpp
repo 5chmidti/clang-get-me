@@ -230,8 +230,7 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
               }
               return EquivalentName;
             },
-            [](const ArithmeticType &) { return false; },
-            [](const StdType &) { return false; }},
+            [](const ArithmeticType &) { return false; }},
         Val);
   };
 }
