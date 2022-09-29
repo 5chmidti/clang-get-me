@@ -17,4 +17,12 @@ add_custom_target(
   COMMAND ${CMAKE_CTEST_COMMAND} ${check_args}
   USES_TERMINAL)
 
+if(${COVERAGE_REPORT_AVAILABLE})
+  add_custom_target(
+    check-coverage
+    DEPENDS check
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target
+            coverage-report)
+endif()
+
 add_subdirectory(unittests)
