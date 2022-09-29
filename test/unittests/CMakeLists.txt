@@ -17,6 +17,7 @@ function(add_get_me_test name)
   target_sources(test_${name} PRIVATE ${TEST_SOURCES})
   target_link_libraries(test_${name} PRIVATE get_me_test_lib)
   add_test(NAME ${name} COMMAND test_${name})
+  add_dependencies(check test_${name})
 endfunction()
 
 add_get_me_test(basic_tests SOURCES basic_tests.cpp)
