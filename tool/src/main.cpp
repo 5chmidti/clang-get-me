@@ -75,8 +75,11 @@ int main(int argc, const char **argv) {
 
   const auto &QueriedType = TypeName.getValue();
 
-  const auto [Graph, Data] =
+  // workaround for lmdba captures in clang
+  const auto GraphAndData =
       createGraph(TypeSetTransitionData, QueriedType, Conf);
+  const auto &Graph = GraphAndData.first;
+  const auto &Data = GraphAndData.second;
   const auto IndexMap = boost::get(boost::edge_index, Graph);
 
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),

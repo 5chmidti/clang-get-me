@@ -324,9 +324,8 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
 findNewRequiredTypeSet(const TypeSet &NewRequiredTypeSet,
                        const vertex_set &TemporaryVertexData,
                        const vertex_set &VertexData) {
-  const auto GetExistingOpt =
-      [&NewRequiredTypeSet](
-          const auto &Container) -> std::optional<vertex_set::const_iterator> {
+  const auto GetExistingOpt = [&NewRequiredTypeSet](const auto &Container)
+      -> std::optional<typename vertex_set::const_iterator> {
     if (auto Iter = Container.find(NewRequiredTypeSet);
         Iter != Container.end()) {
       return Iter;
