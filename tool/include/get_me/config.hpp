@@ -17,6 +17,6 @@ struct Config {
   std::optional<std::size_t> MaxPathCount = 1000;
 };
 
-[[nodiscard]] consteval Config getDefaultConfig() { return Config{}; }
+[[nodiscard]] constexpr Config getDefaultConfig() { return Config{}; }
 
 #endif

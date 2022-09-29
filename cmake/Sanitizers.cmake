@@ -88,7 +88,7 @@ function(enable_sanitizers project_name)
 endfunction()
 
 set(COVERAGE_REPORT_AVAILABLE OFF)
-if(NOT WIN32 AND ${ENABLE_COVERAGE})
+if(NOT WIN32 AND ENABLE_COVERAGE)
   find_program(LCOV lcov)
   if(NOT
      LCOV
