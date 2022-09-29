@@ -212,7 +212,7 @@ std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
     return std::visit(
         Overloaded{
-            [&](const clang::Type *const Type) {
+            [&Name](const clang::Type *const Type) {
               const auto QType = clang::QualType(Type, 0);
               const auto TypeAsString = [&QType]() {
                 auto QTypeAsString = QType.getAsString();
@@ -241,11 +241,11 @@ static void initializeVertexDataWithQueried(
   const auto ToAcquired = [](const TransitionType &Val) {
     return std::get<0>(Val);
   };
-  const auto matchesQueriedName = matchesNamePredicateFactory(TypeName);
+  const auto MatchesQueriedName = matchesNamePredicateFactory(TypeName);
   ranges::transform(ranges::views::filter(
                         TypeSetTransitionData,
-                        [&Data, &matchesQueriedName](const TypeSet &Acquired) {
-                          return ranges::any_of(Acquired, matchesQueriedName) &&
+                        [&Data, &MatchesQueriedName](const TypeSet &Acquired) {
+                          return ranges::any_of(Acquired, MatchesQueriedName) &&
                                  !ranges::contains(Data.VertexData, Acquired);
                         },
                         ToAcquired),
@@ -300,6 +300,7 @@ struct VertexSetComparator {
     return Lhs < Rhs.first;
   }
 };
+using vertex_set = std::set<indexed_vertex_type, VertexSetComparator>;
 
 using indexed_edge_type = std::pair<GraphData::EdgeType, size_t>;
 struct EdgeSetComparator {
@@ -317,11 +318,48 @@ struct EdgeSetComparator {
     return Lhs < Rhs.first;
   }
 };
+using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
+
+[[nodiscard]] static std::pair<bool, vertex_set::const_iterator>
+findNewRequiredTypeSet(const TypeSet &NewRequiredTypeSet,
+                       const vertex_set &TemporaryVertexData,
+                       const vertex_set &VertexData) {
+  const auto GetExistingOpt =
+      [&NewRequiredTypeSet](
+          const auto &Container) -> std::optional<vertex_set::const_iterator> {
+    if (auto Iter = Container.find(NewRequiredTypeSet);
+        Iter != Container.end()) {
+      return Iter;
+    }
+    return std::nullopt;
+  };
+  if (const auto Existing = GetExistingOpt(TemporaryVertexData); Existing) {
+    return {true, Existing.value()};
+  }
+  if (const auto Existing = GetExistingOpt(VertexData)) {
+    return {true, Existing.value()};
+  }
+  return {false, TemporaryVertexData.end()};
+}
+
+[[nodiscard]] static bool transitionToAddAlreadyExistsInContainer(
+    const edge_set &Container, const GraphData::EdgeType &EdgeToAdd,
+    const TransitionType &Transition,
+    const std::vector<GraphData::EdgeWeightType> &EdgeWeights) {
+  const auto LowerBound = Container.lower_bound(EdgeToAdd);
+  const auto UpperBound = Container.upper_bound(EdgeToAdd);
+  return ranges::contains(
+      ranges::subrange(LowerBound, UpperBound) |
+          ranges::views::transform(
+              [&EdgeWeights](const indexed_edge_type &IndexedEdge) {
+                return std::pair{IndexedEdge.first,
+                                 EdgeWeights[IndexedEdge.second]};
+              }),
+      std::pair{EdgeToAdd, Transition});
+}
 
 static void buildGraph(const TransitionCollector &TypeSetTransitionData,
                        GraphData &Data, const Config &Conf) {
-  using vertex_set = std::set<indexed_vertex_type, VertexSetComparator>;
-  using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
 
   auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
       Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
@@ -365,52 +403,26 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
            FilteredTypeSetsOfInterest) {
         auto NewRequiredTypeSet =
             merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
+        const auto [NewRequiredTypeSetExists, NewRequiredTypeSetIter] =
+            findNewRequiredTypeSet(NewRequiredTypeSet, TemporaryVertexData,
+                                   VertexData);
 
-        const auto [NewRequiredTypeSetExists, NewRequiredTypeSetIndex] =
-            [&NewRequiredTypeSet, &TemporaryVertexData, &VertexData,
-             &NewTypeSetsOfInterest]() -> std::pair<bool, size_t> {
-          const auto GetExistingOpt =
-              [&NewRequiredTypeSet, &NewTypeSetsOfInterest](
-                  const auto &Container) -> std::optional<size_t> {
-            if (auto Iter = Container.find(NewRequiredTypeSet);
-                Iter != Container.end()) {
-              NewTypeSetsOfInterest.emplace(*Iter);
-              return Iter->second;
-            }
-            return std::nullopt;
-          };
-          if (const auto Existing = GetExistingOpt(TemporaryVertexData);
-              Existing) {
-            return {true, Existing.value()};
-          }
-          if (const auto Existing = GetExistingOpt(VertexData)) {
-            return {true, Existing.value()};
-          }
-          return {false, VertexData.size() + TemporaryVertexData.size()};
-        }();
+        if (NewRequiredTypeSetExists) {
+          NewTypeSetsOfInterest.emplace(*NewRequiredTypeSetIter);
+        }
+        const auto NewRequiredTypeSetIndex =
+            NewRequiredTypeSetExists
+                ? NewRequiredTypeSetIter->second
+                : VertexData.size() + TemporaryVertexData.size();
 
         const auto EdgeToAdd =
             std::pair{SourceTypeSetIndex, NewRequiredTypeSetIndex};
 
-        if (const auto TransitionToAddAlreadyExistsInContainer =
-                [EdgeToAdd, &Transition,
-                 &EdgeWeights = Data.EdgeWeights](const edge_set &Container) {
-                  const auto LowerBound = Container.lower_bound(EdgeToAdd);
-                  const auto UpperBound = Container.upper_bound(EdgeToAdd);
-                  return ranges::contains(
-                      ranges::subrange(LowerBound, UpperBound) |
-                          ranges::views::transform(
-                              [&EdgeWeights](
-                                  const indexed_edge_type &IndexedEdge) {
-                                return std::pair{
-                                    IndexedEdge.first,
-                                    EdgeWeights[IndexedEdge.second]};
-                              }),
-                      std::pair{EdgeToAdd, Transition});
-                };
-            NewRequiredTypeSetExists &&
-            (TransitionToAddAlreadyExistsInContainer(TemporaryEdgeData) ||
-             TransitionToAddAlreadyExistsInContainer(EdgesData))) {
+        if (NewRequiredTypeSetExists &&
+            (transitionToAddAlreadyExistsInContainer(
+                 TemporaryEdgeData, EdgeToAdd, Transition, Data.EdgeWeights) ||
+             transitionToAddAlreadyExistsInContainer(
+                 EdgesData, EdgeToAdd, Transition, Data.EdgeWeights))) {
           continue;
         }
 
