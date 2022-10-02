@@ -45,7 +45,7 @@ generateForkingPath(const size_t NumStructs) {
 template <typename T>
 void BM_generator(benchmark::State &State, T &&Generator) {
   const auto [QueriedTypeAsString, Code] =
-      std::forward<T>(Generator)(State.range(0));
+      std::forward<T>(Generator)(static_cast<size_t>(State.range(0)));
   std::unique_ptr<clang::ASTUnit> Ast =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
   setupCounters(State, *Ast, QueriedTypeAsString);
