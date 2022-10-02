@@ -42,43 +42,11 @@ generateForkingPath(const size_t NumStructs) {
                             "\n"))};
 }
 
-template <typename T>
-void BM_generator(benchmark::State &State, T &&Generator) {
-  const auto [QueriedTypeAsString, Code] =
-      std::forward<T>(Generator)(static_cast<size_t>(State.range(0)));
-  std::unique_ptr<clang::ASTUnit> Ast =
-      clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
-  setupCounters(State, *Ast, QueriedTypeAsString);
-  const auto Config = getConfig();
-  for (auto _ : State) {
-    TransitionCollector TypeSetTransitionData{};
-    auto Consumer = GetMe{Config, TypeSetTransitionData, Ast->getSema()};
-    Consumer.HandleTranslationUnit(Ast->getASTContext());
-    benchmark::DoNotOptimize(TypeSetTransitionData.begin());
-    const auto [Graph, Data] =
-        createGraph(TypeSetTransitionData, QueriedTypeAsString, Config);
-    benchmark::DoNotOptimize(Data.VertexData.data());
-    benchmark::DoNotOptimize(Data.Edges.data());
-    benchmark::DoNotOptimize(Data.EdgeIndices.data());
-    benchmark::DoNotOptimize(Data.EdgeWeights.data());
-    const auto SourceVertex =
-        getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
-    if (!SourceVertex) [[unlikely]] {
-      spdlog::error("QueriedType not found");
-      return;
-    }
-    const auto FoundPaths = pathTraversal(Graph, Data, Config, *SourceVertex);
-    benchmark::DoNotOptimize(FoundPaths.data());
-    benchmark::ClobberMemory();
-  }
-  State.SetComplexityN(State.range(0));
-}
 // NOLINTNEXTLINE
-BENCHMARK_CAPTURE(BM_generator, straightPath, generateStraightPath)
-    ->Range(1, size_t{1U} << size_t{12U})
-    ->Complexity();
+GENERATE_GENERATED_BENCHMARKS(
+    straightPath,
+    generateStraightPath, ->Range(1, size_t{1U} << size_t{12U})->Complexity());
 
 // NOLINTNEXTLINE
-BENCHMARK_CAPTURE(BM_generator, forkingPath, generateForkingPath)
-    ->DenseRange(1, 10, 2)
-    ->Complexity();
+GENERATE_GENERATED_BENCHMARKS(
+    forkingPath, generateForkingPath, ->DenseRange(1, 10, 2)->Complexity());

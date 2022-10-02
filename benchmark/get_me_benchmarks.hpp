@@ -47,117 +47,145 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   State.counters["paths"] = static_cast<double>(FoundPaths.size());
 }
 
-template <boost::hana::string Code, boost::hana::string QueriedType>
-class GetMeFixture : public benchmark::Fixture {
-public:
-  void SetUp(::benchmark::State &State) override {
-    setupCounters(State, getAst(), std::string{getQueriedType()});
+#define SETUP_BENCHMARK(Code, QueriedType)                                     \
+  const auto QueriedTypeAsString = std::string{QueriedType};                   \
+  const auto Config = getConfig();                                             \
+  std::unique_ptr<clang::ASTUnit> Ast =                                        \
+      clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});          \
+  setupCounters(State, *Ast, QueriedTypeAsString);
+
+#define BENCHMARK_TRANSITIONS                                                  \
+  TransitionCollector TypeSetTransitionData{};                                 \
+  auto Consumer = GetMe{Config, TypeSetTransitionData, Ast->getSema()};        \
+  Consumer.HandleTranslationUnit(Ast->getASTContext());
+
+#define BENCHMARK_GRAPH                                                        \
+  const auto [Graph, Data] =                                                   \
+      createGraph(TypeSetTransitionData, QueriedTypeAsString, Config);
+
+#define BENCHMARK_PATHTRAVERSAL                                                \
+  const auto FoundPaths = pathTraversal(Graph, Data, Config, *SourceVertex);
+
+#define BENCHMARK_GET_SOURCE_VERTEX                                            \
+  const auto SourceVertex =                                                    \
+      getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);           \
+  if (!SourceVertex) [[unlikely]] {                                            \
+    spdlog::error("QueriedType not found");                                    \
+    return;                                                                    \
   }
 
-protected:
-  [[nodiscard]] std::string_view getQueriedType() const {
-    return QueriedType.c_str();
-  }
-  [[nodiscard]] const clang::ASTUnit &getAst() const { return *Ast; }
-  [[nodiscard]] clang::ASTUnit &getAst() { return *Ast; }
+#define BENCHMARK_BODY_TRANSITIONS                                             \
+  BENCHMARK_TRANSITIONS                                                        \
+  benchmark::DoNotOptimize(TypeSetTransitionData.begin());                     \
+  benchmark::ClobberMemory();
 
-private:
-  Config Conf = getDefaultConfig();
-  std::unique_ptr<clang::ASTUnit> Ast =
-      clang::tooling::buildASTFromCodeWithArgs(Code.c_str(), {"-std=c++20"});
-};
+#define BENCHMARK_BODY_GRAPH                                                   \
+  BENCHMARK_GRAPH                                                              \
+  benchmark::DoNotOptimize(Graph);                                             \
+  benchmark::DoNotOptimize(Data.VertexData.data());                            \
+  benchmark::DoNotOptimize(Data.Edges.data());                                 \
+  benchmark::DoNotOptimize(Data.EdgeIndices.data());                           \
+  benchmark::DoNotOptimize(Data.EdgeWeights.data());                           \
+  benchmark::ClobberMemory();
 
-#define GENERATE_BENCHMARKS(Name, Code, QueriedType)                           \
-  using Name =                                                                 \
-      GetMeFixture<BOOST_HANA_STRING(Code), BOOST_HANA_STRING(QueriedType)>;   \
+#define BENCHMARK_BODY_PATHTRAVERSAL                                           \
+  BENCHMARK_PATHTRAVERSAL                                                      \
+  benchmark::DoNotOptimize(FoundPaths.data());                                 \
+  benchmark::ClobberMemory();
+
+#define BENCHMARK_BODY_FULL                                                    \
+  BENCHMARK_BODY_TRANSITIONS                                                   \
+  BENCHMARK_BODY_GRAPH                                                         \
+  BENCHMARK_GET_SOURCE_VERTEX                                                  \
+  BENCHMARK_PATHTRAVERSAL                                                      \
+  BENCHMARK_BODY_PATHTRAVERSAL
+
+#define GENERATE_GENERATED_BENCHMARKS(Name, Generator, Args)                   \
+  using Name = benchmark::Fixture;                                             \
   BENCHMARK_DEFINE_F(Name, full)                                               \
   (benchmark::State & State) {                                                 \
-    const auto QueriedTypeAsString = std::string{getQueriedType()};            \
-    const auto Config = getConfig();                                           \
+    const auto [QueriedType, Code] =                                           \
+        Generator(static_cast<size_t>(State.range(0)));                        \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
     for (auto _ : State) {                                                     \
-      TransitionCollector TypeSetTransitionData{};                             \
-      auto Consumer =                                                          \
-          GetMe{Config, TypeSetTransitionData, getAst().getSema()};            \
-      Consumer.HandleTranslationUnit(getAst().getASTContext());                \
-      benchmark::DoNotOptimize(TypeSetTransitionData.begin());                 \
-      const auto [Graph, Data] =                                               \
-          createGraph(TypeSetTransitionData, QueriedTypeAsString, Config);     \
-      benchmark::DoNotOptimize(Data.VertexData.data());                        \
-      benchmark::DoNotOptimize(Data.Edges.data());                             \
-      benchmark::DoNotOptimize(Data.EdgeIndices.data());                       \
-      benchmark::DoNotOptimize(Data.EdgeWeights.data());                       \
-      const auto SourceVertex =                                                \
-          getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);       \
-      if (!SourceVertex) [[unlikely]] {                                        \
-        spdlog::error("QueriedType not found");                                \
-        return;                                                                \
-      }                                                                        \
-      const auto FoundPaths =                                                  \
-          pathTraversal(Graph, Data, Config, *SourceVertex);                   \
-      benchmark::DoNotOptimize(FoundPaths.data());                             \
-      benchmark::ClobberMemory();                                              \
+      BENCHMARK_BODY_FULL                                                      \
+    }                                                                          \
+    State.SetComplexityN(State.range(0));                                      \
+  }                                                                            \
+  BENCHMARK_REGISTER_F(Name, full) Args;                                       \
+  BENCHMARK_DEFINE_F(Name, transitions)                                        \
+  (benchmark::State & State) {                                                 \
+    const auto [QueriedType, Code] =                                           \
+        Generator(static_cast<size_t>(State.range(0)));                        \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    for (auto _ : State) {                                                     \
+      BENCHMARK_BODY_TRANSITIONS                                               \
+    }                                                                          \
+    State.SetComplexityN(State.range(0));                                      \
+  }                                                                            \
+  BENCHMARK_REGISTER_F(Name, transitions) Args;                                \
+  BENCHMARK_DEFINE_F(Name, graph)                                              \
+  (benchmark::State & State) {                                                 \
+    const auto [QueriedType, Code] =                                           \
+        Generator(static_cast<size_t>(State.range(0)));                        \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    BENCHMARK_TRANSITIONS                                                      \
+    for (auto _ : State) {                                                     \
+      BENCHMARK_BODY_GRAPH                                                     \
+    }                                                                          \
+    State.SetComplexityN(State.range(0));                                      \
+  }                                                                            \
+  BENCHMARK_REGISTER_F(Name, graph) Args;                                      \
+  BENCHMARK_DEFINE_F(Name, pathTraversal)                                      \
+  (benchmark::State & State) {                                                 \
+    const auto [QueriedType, Code] =                                           \
+        Generator(static_cast<size_t>(State.range(0)));                        \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    BENCHMARK_TRANSITIONS                                                      \
+    BENCHMARK_GRAPH                                                            \
+    BENCHMARK_GET_SOURCE_VERTEX                                                \
+    for (auto _ : State) {                                                     \
+      BENCHMARK_BODY_PATHTRAVERSAL                                             \
+    }                                                                          \
+    State.SetComplexityN(State.range(0));                                      \
+  }                                                                            \
+  BENCHMARK_REGISTER_F(Name, pathTraversal) Args;
+
+#define GENERATE_BENCHMARKS(Name, Code, QueriedType)                           \
+  using Name = benchmark::Fixture;                                             \
+  BENCHMARK_DEFINE_F(Name, full)                                               \
+  (benchmark::State & State) {                                                 \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    for (auto _ : State) {                                                     \
+      BENCHMARK_BODY_FULL                                                      \
     }                                                                          \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, full);                                            \
   BENCHMARK_DEFINE_F(Name, transitions)                                        \
   (benchmark::State & State) {                                                 \
-    const auto Config = getConfig();                                           \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
     for (auto _ : State) {                                                     \
-      TransitionCollector TypeSetTransitionData{};                             \
-      auto Consumer =                                                          \
-          GetMe{Config, TypeSetTransitionData, getAst().getSema()};            \
-      Consumer.HandleTranslationUnit(getAst().getASTContext());                \
-      benchmark::DoNotOptimize(TypeSetTransitionData.begin());                 \
-      benchmark::ClobberMemory();                                              \
+      BENCHMARK_BODY_TRANSITIONS                                               \
     }                                                                          \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, transitions);                                     \
   BENCHMARK_DEFINE_F(Name, graph)                                              \
   (benchmark::State & State) {                                                 \
-    const auto QueriedTypeAsString = std::string{getQueriedType()};            \
-    const auto Config = getConfig();                                           \
-    TransitionCollector TypeSetTransitionData{};                               \
-    auto Consumer = GetMe{Config, TypeSetTransitionData, getAst().getSema()};  \
-    Consumer.HandleTranslationUnit(getAst().getASTContext());                  \
-    benchmark::DoNotOptimize(TypeSetTransitionData.begin());                   \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    BENCHMARK_TRANSITIONS                                                      \
     for (auto _ : State) {                                                     \
-      const auto [Graph, Data] =                                               \
-          createGraph(TypeSetTransitionData, QueriedTypeAsString, Config);     \
-      benchmark::DoNotOptimize(Graph);                                         \
-      benchmark::DoNotOptimize(Data.VertexData.data());                        \
-      benchmark::DoNotOptimize(Data.Edges.data());                             \
-      benchmark::DoNotOptimize(Data.EdgeIndices.data());                       \
-      benchmark::DoNotOptimize(Data.EdgeWeights.data());                       \
-      benchmark::ClobberMemory();                                              \
+      BENCHMARK_BODY_GRAPH                                                     \
     }                                                                          \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, graph);                                           \
   BENCHMARK_DEFINE_F(Name, pathTraversal)                                      \
   (benchmark::State & State) {                                                 \
-    const auto QueriedTypeAsString = std::string{getQueriedType()};            \
-    const auto Config = getConfig();                                           \
-    TransitionCollector TypeSetTransitionData{};                               \
-    auto Consumer = GetMe{Config, TypeSetTransitionData, getAst().getSema()};  \
-    Consumer.HandleTranslationUnit(getAst().getASTContext());                  \
-    benchmark::DoNotOptimize(TypeSetTransitionData.begin());                   \
-    const auto [Graph, Data] =                                                 \
-        createGraph(TypeSetTransitionData, QueriedTypeAsString, Config);       \
-    benchmark::DoNotOptimize(Graph);                                           \
-    benchmark::DoNotOptimize(Data.VertexData.data());                          \
-    benchmark::DoNotOptimize(Data.Edges.data());                               \
-    benchmark::DoNotOptimize(Data.EdgeIndices.data());                         \
-    benchmark::DoNotOptimize(Data.EdgeWeights.data());                         \
-    const auto SourceVertex =                                                  \
-        getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);         \
-    if (!SourceVertex) [[unlikely]] {                                          \
-      spdlog::error("QueriedType not found");                                  \
-      return;                                                                  \
-    }                                                                          \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    BENCHMARK_TRANSITIONS                                                      \
+    BENCHMARK_GRAPH                                                            \
+    BENCHMARK_GET_SOURCE_VERTEX                                                \
     for (auto _ : State) {                                                     \
-      const auto FoundPaths =                                                  \
-          pathTraversal(Graph, Data, Config, *SourceVertex);                   \
-      benchmark::DoNotOptimize(FoundPaths.data());                             \
-      benchmark::ClobberMemory();                                              \
+      BENCHMARK_BODY_PATHTRAVERSAL                                             \
     }                                                                          \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, pathTraversal);
