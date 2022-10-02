@@ -343,6 +343,7 @@ findNewRequiredTypeSet(const TypeSet &NewRequiredTypeSet,
 
 static void buildGraph(const TransitionCollector &TypeSetTransitionData,
                        GraphData &Data, const Config &Conf) {
+  const auto QueriedTypes = Data.VertexData;
 
   auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
       Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
@@ -386,6 +387,11 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
            FilteredTypeSetsOfInterest) {
         auto NewRequiredTypeSet =
             merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
+        if (ranges::any_of(QueriedTypes, [&](const TypeSet &QueriedTypeSet) {
+              return isSubset(NewRequiredTypeSet, QueriedTypeSet);
+            })) {
+          continue;
+        }
         const auto [NewRequiredTypeSetExists, NewRequiredTypeSetIter] =
             findNewRequiredTypeSet(NewRequiredTypeSet, TemporaryVertexData,
                                    VertexData);
