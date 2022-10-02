@@ -97,7 +97,6 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   BENCHMARK_BODY_TRANSITIONS                                                   \
   BENCHMARK_BODY_GRAPH                                                         \
   BENCHMARK_GET_SOURCE_VERTEX                                                  \
-  BENCHMARK_PATHTRAVERSAL                                                      \
   BENCHMARK_BODY_PATHTRAVERSAL
 
 #define GENERATE_GENERATED_BENCHMARKS(Name, Generator, Args)                   \
