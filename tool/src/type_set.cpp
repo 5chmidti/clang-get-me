@@ -76,3 +76,17 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
                                       Config Conf) {
   return {{{toTypeSetValueType(VDecl->getType().getTypePtr(), Conf)}}, {}};
 }
+
+bool isSubset(const TypeSet &Superset, const TypeSet &Subset) {
+  if (Subset.size() > Superset.size()) {
+    return false;
+  }
+  auto SupersetIter = Superset.begin();
+  const auto SupersetEnd = Superset.end();
+  for (const auto &SubsetVal : Subset) {
+    for (; SupersetIter != SupersetEnd && *SupersetIter != SubsetVal;
+         ++SupersetIter) {
+    }
+  }
+  return SupersetIter != SupersetEnd;
+}

@@ -5,6 +5,7 @@
 #include <set>
 #include <variant>
 
+#include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/Type.h>
 
@@ -24,7 +25,7 @@ struct ArithmeticType {
 };
 
 using TypeSetValueType = std::variant<const clang::Type *, ArithmeticType>;
-using TypeSet = std::set<TypeSetValueType>;
+using TypeSet = boost::container::flat_set<TypeSetValueType>;
 
 [[nodiscard]] std::pair<TypeSet, TypeSet>
 toTypeSet(const clang::FieldDecl *FDecl, Config Conf);
@@ -39,5 +40,7 @@ toTypeSet(const clang::FunctionDecl *FDecl, Config Conf);
                                                   Config Conf);
 
 [[nodiscard]] const clang::Type *launderType(const clang::Type *Type);
+
+[[nodiscard]] bool isSubset(const TypeSet &Superset, const TypeSet &Subset);
 
 #endif

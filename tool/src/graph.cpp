@@ -252,22 +252,6 @@ static void initializeVertexDataWithQueried(
                     std::back_inserter(Data.VertexData), ToAcquired);
 }
 
-template <typename T>
-[[nodiscard]] static bool isSubset(const std::set<T> &Superset,
-                                   const std::set<T> &Subset) {
-  if (Subset.size() > Superset.size()) {
-    return false;
-  }
-  auto SupersetIter = Superset.begin();
-  const auto SupersetEnd = Superset.end();
-  for (const auto &SubsetVal : Subset) {
-    for (; SupersetIter != SupersetEnd && *SupersetIter != SubsetVal;
-         ++SupersetIter) {
-    }
-  }
-  return SupersetIter != SupersetEnd;
-}
-
 [[nodiscard]] static auto isSubsetPredicateFactory(const TypeSet &Subset) {
   return
       [&Subset](const TypeSet &Superset) { return isSubset(Superset, Subset); };

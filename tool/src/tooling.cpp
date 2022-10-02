@@ -226,20 +226,21 @@ static constexpr auto HasTransitionWithBaseClass = [](const auto &Val) {
 
 [[nodiscard]] static auto
 toNewTransitionFactory(const clang::Type *const Alias) {
-  return [Alias, AliasTS = TypeSet{TypeSetValueType{Alias}}](
-             std::tuple<TransitionType, bool, bool, TypeSet::iterator> Val) {
-    auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
-           RequiredIter] = Val;
-    auto &[Acquired, _, Required] = Transition;
-    if (AllowAcquiredConversion) {
-      Acquired = AliasTS;
-    }
-    if (AllowRequiredConversion) {
-      Required.erase(RequiredIter);
-      Required.emplace(Alias);
-    }
-    return Transition;
-  };
+  return
+      [Alias, AliasTS = TypeSet{TypeSetValueType{Alias}}](
+          std::tuple<TransitionType, bool, bool, TypeSet::const_iterator> Val) {
+        auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
+               RequiredIter] = Val;
+        auto &[Acquired, _, Required] = Transition;
+        if (AllowAcquiredConversion) {
+          Acquired = AliasTS;
+        }
+        if (AllowRequiredConversion) {
+          Required.erase(RequiredIter);
+          Required.emplace(Alias);
+        }
+        return Transition;
+      };
 }
 
 static void filterOverloads(TransitionCollector &Transitions,
@@ -348,20 +349,21 @@ static void filterOverloads(TransitionCollector &Transitions,
 
 template <typename AcquiredClosure, typename RequiredClosure>
   requires std::is_invocable_r_v<bool, AcquiredClosure, TransitionType> &&
-           std::is_invocable_r_v<std::pair<TypeSet::iterator, bool>,
+           std::is_invocable_r_v<std::pair<TypeSet::const_iterator, bool>,
                                  RequiredClosure, TypeSet>
 [[nodiscard]] auto
 toFilterDataFactory(const AcquiredClosure &AllowConversionForAcquired,
                     const RequiredClosure &AllowConversionForRequired) {
-  return [&AllowConversionForAcquired,
-          &AllowConversionForRequired](TransitionType Val)
-             -> std::tuple<TransitionType, bool, bool, TypeSet::iterator> {
-    const auto &[Acquired, Transition, Required] = Val;
-    const auto [RequiredConversionIter, RequiredConvertionAllowed] =
-        AllowConversionForRequired(Required);
-    return {std::move(Val), AllowConversionForAcquired(Val),
-            RequiredConvertionAllowed, RequiredConversionIter};
-  };
+  return
+      [&AllowConversionForAcquired,
+       &AllowConversionForRequired](TransitionType Val)
+          -> std::tuple<TransitionType, bool, bool, TypeSet::const_iterator> {
+        const auto &[Acquired, Transition, Required] = Val;
+        const auto [RequiredConversionIter, RequiredConvertionAllowed] =
+            AllowConversionForRequired(Required);
+        return {std::move(Val), AllowConversionForAcquired(Val),
+                RequiredConvertionAllowed, RequiredConversionIter};
+      };
 }
 
 [[nodiscard]] static TransitionCollector
