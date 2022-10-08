@@ -28,16 +28,16 @@ using TypeSetValueType = std::variant<const clang::Type *, ArithmeticType>;
 using TypeSet = boost::container::flat_set<TypeSetValueType>;
 
 [[nodiscard]] std::pair<TypeSet, TypeSet>
-toTypeSet(const clang::FieldDecl *FDecl, Config Conf);
+toTypeSet(const clang::FieldDecl *FDecl, const Config &Conf);
 
 [[nodiscard]] std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
-                                                    Config Conf);
+                                                    const Config &Conf);
 
 [[nodiscard]] std::pair<TypeSet, TypeSet>
-toTypeSet(const clang::FunctionDecl *FDecl, Config Conf);
+toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
 
 [[nodiscard]] TypeSetValueType toTypeSetValueType(const clang::Type *Type,
-                                                  Config Conf);
+                                                  const Config &Conf);
 
 [[nodiscard]] const clang::Type *launderType(const clang::Type *Type);
 
