@@ -13,7 +13,6 @@
 
 [[nodiscard]] static std::pair<std::string, std::string>
 generateStraightPath(const size_t Length) {
-  ranges::views::iota(static_cast<size_t>(0U), Length);
   return {
       "A0",
       fmt::format("struct A0{{}};\n{}",
@@ -28,7 +27,6 @@ generateStraightPath(const size_t Length) {
 
 [[nodiscard]] static std::pair<std::string, std::string>
 generateForkingPath(const size_t NumStructs) {
-  ranges::views::iota(static_cast<size_t>(0U), NumStructs);
   return {
       "A0",
       fmt::format("struct A0{{}};\n{}",
