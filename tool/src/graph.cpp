@@ -387,7 +387,8 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
            FilteredTypeSetsOfInterest) {
         auto NewRequiredTypeSet =
             merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
-        if (ranges::any_of(QueriedTypes, [&](const TypeSet &QueriedTypeSet) {
+        if (ranges::any_of(QueriedTypes, [&NewRequiredTypeSet](
+                                             const TypeSet &QueriedTypeSet) {
               return isSubset(NewRequiredTypeSet, QueriedTypeSet);
             })) {
           continue;
