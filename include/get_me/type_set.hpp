@@ -1,5 +1,5 @@
-#ifndef get_me_type_set_hpp
-#define get_me_type_set_hpp
+#ifndef get_me_include_get_me_type_set_hpp
+#define get_me_include_get_me_type_set_hpp
 
 #include <compare>
 #include <set>

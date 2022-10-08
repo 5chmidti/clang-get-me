@@ -14,6 +14,8 @@
 #include <range/v3/algorithm/partial_sort.hpp>
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/algorithm/sort.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
@@ -115,7 +117,27 @@ int main(int argc, const char **argv) {
     return 1;
   }
   auto Paths = pathTraversal(Graph, Data, Conf, *SourceVertexDesc);
-  const auto OutputPathCount = 50U;
+  spdlog::info(
+      "path length distribution: {}",
+      Paths |
+          ranges::views::chunk_by([](const PathType &Lhs, const PathType &Rhs) {
+            return Lhs.size() == Rhs.size();
+          }) |
+          ranges::views::transform([](const auto Range) {
+            return std::pair{ranges::begin(Range)->size(), ranges::size(Range)};
+          }));
+  auto PreIndepPathsSize = Paths.size();
+  spdlog::info("generated {} paths", PreIndepPathsSize);
+  // Paths = independentPaths(
+  //     ranges::to_vector(
+  //         Paths | ranges::views::take(static_cast<size_t>(Paths.size() *
+  //         .2))),
+  //     Graph, Data);
+  // if (PreIndepPathsSize != Paths.size()) {
+  //   spdlog::warn("independent paths found duplicate paths: sizes: {} -> {}",
+  //                PreIndepPathsSize, Paths.size());
+  // }
+  const auto OutputPathCount = std::min<size_t>(Paths.size(), 50U);
   ranges::partial_sort(
       Paths, Paths.begin() + OutputPathCount,
       [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {

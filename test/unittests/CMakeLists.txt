@@ -2,7 +2,7 @@ find_package(GTest REQUIRED)
 
 add_library(get_me_test_lib STATIC)
 target_sources(get_me_test_lib PRIVATE get_me_tests.cpp)
-target_link_libraries(get_me_test_lib PUBLIC get_me_lib)
+target_link_libraries(get_me_test_lib PUBLIC get_me_lib support)
 target_link_libraries(get_me_test_lib PUBLIC GTest::GTest)
 
 function(add_get_me_test name)

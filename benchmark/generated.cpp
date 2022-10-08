@@ -1,50 +1,40 @@
-#include <string_view>
-
-#include <benchmark/benchmark.h>
-#include <boost/algorithm/string/replace.hpp>
-#include <fmt/ranges.h>
-#include <range/v3/range/concepts.hpp>
-#include <range/v3/view/concat.hpp>
-#include <range/v3/view/iota.hpp>
-#include <range/v3/view/join.hpp>
-#include <range/v3/view/transform.hpp>
-
 #include "get_me_benchmarks.hpp"
-
-[[nodiscard]] static std::pair<std::string, std::string>
-generateStraightPath(const size_t Length) {
-  return {
-      "A0",
-      fmt::format("struct A0{{}};\n{}",
-                  fmt::join(ranges::views::iota(size_t{1U}, Length) |
-                                ranges::views::transform([](const size_t Iter) {
-                                  return fmt::format(
-                                      "struct A{0} {{}}; A{1} getA{1}(A{0});",
-                                      Iter, Iter - 1);
-                                }),
-                            "\n"))};
-}
-
-[[nodiscard]] static std::pair<std::string, std::string>
-generateForkingPath(const size_t NumStructs) {
-  return {
-      "A0",
-      fmt::format("struct A0{{}};\n{}",
-                  fmt::join(ranges::views::iota(size_t{0U}, NumStructs / 2) |
-                                ranges::views::transform([](const size_t Iter) {
-                                  return fmt::format(
-                                      "struct A{0} {{}}; struct A{1} {{}}; "
-                                      "A{2} getA{2}(A{0}, A{1});",
-                                      (Iter + 1) * 2 - 1, (Iter + 1) * 2, Iter);
-                                }),
-                            "\n"))};
-}
+#include "support/testcase_generation.hpp"
 
 // NOLINTNEXTLINE
 GENERATE_GENERATED_BENCHMARKS(
     straightPath,
-    generateStraightPath, ->Range(1, size_t{1U} << size_t{12U})->Complexity());
+    GenerateStraightPath, ->Range(1, size_t{1U} << size_t{12U})->Complexity());
 
 // NOLINTNEXTLINE
 GENERATE_GENERATED_BENCHMARKS(
-    forkingPath, generateForkingPath, ->DenseRange(1, 10, 2)->Complexity());
+    forkingPath, GenerateForkingPath, ->DenseRange(1, 10, 1)->Complexity());
+
+// NOLINTNEXTLINE
+GENERATE_GENERATED_BENCHMARKS(
+    templatePath,
+    generateFromTemplate("A0", "struct A0 {};",
+                         [](const size_t Iter) -> std::string {
+                           return fmt::format(R"(
+struct D{1} {{
+  A{0} &getA{0}();
+}};
+
+struct C{1} {{
+  C{1}() = delete;
+  static C{1} create();
+}};
+
+struct B{1} {{
+  B{1}(A{0} &, C{1});
+}};
+
+struct A{1}{{ explicit A{1}(B{1}); }};
+
+A{1} getA{1}();
+B{1} getB{1}(int);
+    )",
+                                              Iter, Iter + 1);
+                         }),
+        ->Range(1, size_t{1U} << size_t{10U})
+        ->Complexity());

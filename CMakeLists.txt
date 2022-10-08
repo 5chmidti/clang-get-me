@@ -32,7 +32,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Threads REQUIRED)
 find_package(Clang REQUIRED 14)
-find_package(LLVM REQUIRED 14)
 
 include(cmake/Conan.cmake)
 run_conan()
@@ -46,6 +45,7 @@ target_link_libraries(project_libraries INTERFACE fmt::fmt spdlog::spdlog)
 # allow for static analysis options
 include(cmake/StaticAnalyzers.cmake)
 
+add_subdirectory(lib)
 add_subdirectory(tool)
 enable_testing()
 add_subdirectory(test)

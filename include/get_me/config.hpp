@@ -1,5 +1,5 @@
-#ifndef get_me_config_hpp
-#define get_me_config_hpp
+#ifndef get_me_include_get_me_config_hpp
+#define get_me_include_get_me_config_hpp
 
 #include <cstddef>
 #include <limits>

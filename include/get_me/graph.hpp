@@ -1,5 +1,5 @@
-#ifndef get_me_graph_hpp
-#define get_me_graph_hpp
+#ifndef get_me_include_get_me_graph_hpp
+#define get_me_include_get_me_graph_hpp
 
 #include <map>
 #include <optional>

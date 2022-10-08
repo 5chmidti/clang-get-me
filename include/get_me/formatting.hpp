@@ -1,5 +1,5 @@
-#ifndef get_me_formatting_hpp
-#define get_me_formatting_hpp
+#ifndef get_me_include_get_me_formatting_hpp
+#define get_me_include_get_me_formatting_hpp
 
 #include <string>
 #include <utility>

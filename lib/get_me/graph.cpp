@@ -130,11 +130,6 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
     const auto [Src, Edge] = EdgesStack.top();
     EdgesStack.pop();
 
-    if (ranges::contains(CurrentPath, Edge)) {
-      spdlog::error("skipping visiting edge already in path: {}", Edge);
-      continue;
-    }
-
     if (RequiresRollback(Src)) {
       // visiting an edge whose source is not the target of the previous edge.
       // the current path has to be reverted until the new edge can be added to

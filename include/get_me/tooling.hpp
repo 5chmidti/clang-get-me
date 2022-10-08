@@ -1,5 +1,5 @@
-#ifndef get_me_tooling_hpp
-#define get_me_tooling_hpp
+#ifndef get_me_include_get_me_tooling_hpp
+#define get_me_include_get_me_tooling_hpp
 
 #include <algorithm>
 #include <iterator>
