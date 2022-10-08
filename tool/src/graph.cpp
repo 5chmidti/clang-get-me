@@ -47,17 +47,14 @@
 #include "get_me/type_set.hpp"
 
 [[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
-  return [MaxPathLength = Conf.MaxPathLength.value_or(
-              std::numeric_limits<std::size_t>::max())](
-             const PathType &CurrentPath) {
+  return [MaxPathLength = Conf.MaxPathLength](const PathType &CurrentPath) {
     return MaxPathLength >= CurrentPath.size();
   };
 }
 
 [[nodiscard]] static auto createContinuePathSearchPredicate(
     const Config &Conf, const ranges::sized_range auto &CurrentPaths) {
-  return [&CurrentPaths, MaxPathCount = Conf.MaxPathCount.value_or(
-                             std::numeric_limits<std::size_t>::max())]() {
+  return [&CurrentPaths, MaxPathCount = Conf.MaxPathCount]() {
     return MaxPathCount > ranges::size(CurrentPaths);
   };
 }
@@ -355,10 +352,9 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
 
   Data.VertexData.emplace_back();
 
-  const auto MaxGraphDepth =
-      Conf.MaxGraphDepth.value_or(std::numeric_limits<std::size_t>::max());
   for (bool AddedTransitions = true;
-       AddedTransitions && IterationCount < MaxGraphDepth; ++IterationCount) {
+       AddedTransitions && IterationCount < Conf.MaxGraphDepth;
+       ++IterationCount) {
     vertex_set TemporaryVertexData{};
     edge_set TemporaryEdgeData{};
     vertex_set NewTypeSetsOfInterest{};

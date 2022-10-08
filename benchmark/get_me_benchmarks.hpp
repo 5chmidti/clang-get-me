@@ -11,29 +11,16 @@
 #include "get_me/graph.hpp"
 #include "get_me/tooling.hpp"
 
-constexpr Config getConfig() {
-  return Config{
-      .EnableFilterOverloads = false,
-      .EnablePropagateInheritance = true,
-      .EnablePropagateTypeAlias = true,
-      .EnableTruncateArithmetic = false,
-      .EnableFilterStd = false,
-      .MaxGraphDepth = std::nullopt,
-      .MaxPathLength = std::nullopt,
-      .MinPathCount = std::nullopt,
-      .MaxPathCount = std::nullopt,
-  };
-}
-
 inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
                           const std::string &QueriedTypeAsString) {
+  const auto Conf = Config{};
   TransitionCollector TypeSetTransitionData{};
-  auto Consumer = GetMe{getConfig(), TypeSetTransitionData, Ast.getSema()};
+  auto Consumer = GetMe{Conf, TypeSetTransitionData, Ast.getSema()};
   Consumer.HandleTranslationUnit(Ast.getASTContext());
   State.counters["transitions"] =
       static_cast<double>(TypeSetTransitionData.size());
   const auto [Graph, Data] =
-      createGraph(TypeSetTransitionData, QueriedTypeAsString, getConfig());
+      createGraph(TypeSetTransitionData, QueriedTypeAsString, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   const auto SourceVertex =
@@ -42,29 +29,28 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     spdlog::error("QueriedType not found");
     return;
   }
-  const auto FoundPaths =
-      pathTraversal(Graph, Data, getConfig(), *SourceVertex);
+  const auto FoundPaths = pathTraversal(Graph, Data, Conf, *SourceVertex);
   State.counters["paths"] = static_cast<double>(FoundPaths.size());
 }
 
 #define SETUP_BENCHMARK(Code, QueriedType)                                     \
   const auto QueriedTypeAsString = std::string{QueriedType};                   \
-  const auto Config = getConfig();                                             \
+  const auto Conf = Config{};                                                  \
   std::unique_ptr<clang::ASTUnit> Ast =                                        \
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});          \
   setupCounters(State, *Ast, QueriedTypeAsString);
 
 #define BENCHMARK_TRANSITIONS                                                  \
   TransitionCollector TypeSetTransitionData{};                                 \
-  auto Consumer = GetMe{Config, TypeSetTransitionData, Ast->getSema()};        \
+  auto Consumer = GetMe{Conf, TypeSetTransitionData, Ast->getSema()};          \
   Consumer.HandleTranslationUnit(Ast->getASTContext());
 
 #define BENCHMARK_GRAPH                                                        \
   const auto [Graph, Data] =                                                   \
-      createGraph(TypeSetTransitionData, QueriedTypeAsString, Config);
+      createGraph(TypeSetTransitionData, QueriedTypeAsString, Conf);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
-  const auto FoundPaths = pathTraversal(Graph, Data, Config, *SourceVertex);
+  const auto FoundPaths = pathTraversal(Graph, Data, Conf, *SourceVertex);
 
 #define BENCHMARK_GET_SOURCE_VERTEX                                            \
   const auto SourceVertex =                                                    \
