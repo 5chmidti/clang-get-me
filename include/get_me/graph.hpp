@@ -22,6 +22,7 @@
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
 #include <llvm/ADT/StringRef.h>
+#include <range/v3/view/subrange.hpp>
 
 #include "get_me/type_set.hpp"
 
@@ -75,25 +76,9 @@ struct GraphData {
   std::vector<VertexDataType> VertexData{};
 };
 
-[[nodiscard]] std::ranges::range auto toRange(auto Pair) {
+[[nodiscard]] std::ranges::viewable_range auto toRange(auto Pair) {
   auto [first, second] = Pair;
-  using first_type = decltype(first);
-  using second_type = decltype(second);
-  struct BeginEnd {
-  public:
-    BeginEnd(first_type Begin, second_type End)
-        : BeginIt(std::move(Begin)), EndIt(std::move(End)) {}
-    [[nodiscard]] auto begin() { return BeginIt; }
-    [[nodiscard]] auto end() { return EndIt; }
-    [[nodiscard]] auto begin() const { return BeginIt; }
-    [[nodiscard]] auto end() const { return EndIt; }
-    [[nodiscard]] bool empty() const { return begin() == end(); }
-
-  private:
-    first_type BeginIt;
-    second_type EndIt;
-  };
-  return BeginEnd{std::move(first), std::move(second)};
+  return ranges::subrange{std::move(first), std::move(second)};
 }
 
 [[nodiscard]] std::vector<PathType>
