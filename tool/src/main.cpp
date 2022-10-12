@@ -8,6 +8,7 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Tooling.h>
 #include <fmt/format.h>
+#include <fmt/os.h>
 #include <fmt/ranges.h>
 #include <llvm/Support/Signals.h>
 #include <range/v3/algorithm/find_if.hpp>
@@ -38,6 +39,30 @@ static OptionCategory ToolCategory("get_me");
 static opt<std::string> TypeName("t", desc("Name of the type to get"), Required,
                                  ValueRequired, cat(ToolCategory));
 // NOLINTEND
+
+static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
+  const auto IndexMap = boost::get(boost::edge_index, Graph);
+
+  auto DotFile = fmt::output_file("graph.dot");
+  DotFile.print("digraph D {{\n  layout = \"sfdp\";\n");
+
+  for (const auto &Edge : toRange(boost::edges(Graph))) {
+    const auto SourceNode = boost::source(Edge, Graph);
+    const auto TargetNode = boost::target(Edge, Graph);
+
+    const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
+    const auto TargetVertex = Data.VertexData[TargetNode];
+    const auto SourceVertex = Data.VertexData[SourceNode];
+
+    auto EdgeWeightAsString = toString(EdgeWeight);
+    boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
+    DotFile.print(
+        R"(  "{}" -> "{}"[label="{}"]
+)",
+        SourceVertex, TargetVertex, EdgeWeightAsString);
+  }
+  DotFile.print("}}\n");
+}
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
@@ -88,29 +113,7 @@ int main(int argc, const char **argv) {
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
-  std::ofstream DotFile("graph.dot");
-  std::string Res{};
-  Res += fmt::format("digraph D {{\n  layout = \"sfdp\";\n");
-
-  for (const auto &Edge : toRange(boost::edges(Graph))) {
-    const auto SourceNode = boost::source(Edge, Graph);
-    const auto TargetNode = boost::target(Edge, Graph);
-
-    const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
-    const auto TargetVertex = Data.VertexData[TargetNode];
-    const auto SourceVertex = Data.VertexData[SourceNode];
-
-    auto EdgeWeightAsString = toString(EdgeWeight);
-    boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
-    auto FormattedEdge = fmt::format(
-        R"(  "{}" -> "{}"[label="{}"]
-)",
-        SourceVertex, TargetVertex, EdgeWeightAsString);
-    Res += FormattedEdge;
-  }
-
-  Res += fmt::format("}}");
-  DotFile << Res;
+  dumpToDotFile(Graph, Data);
 
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, QueriedType);
