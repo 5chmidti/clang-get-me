@@ -296,46 +296,59 @@ struct EdgeSetComparator {
 };
 using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
 
-[[nodiscard]] static std::pair<bool, vertex_set::const_iterator>
-findNewRequiredTypeSet(const TypeSet &NewRequiredTypeSet,
-                       const vertex_set &TemporaryVertexData,
-                       const vertex_set &VertexData) {
-  const auto GetExistingOpt = [&NewRequiredTypeSet](const auto &Container)
-      -> std::optional<typename vertex_set::const_iterator> {
-    if (auto Iter = Container.find(NewRequiredTypeSet);
-        Iter != Container.end()) {
-      return Iter;
-    }
-    return std::nullopt;
-  };
-  if (const auto Existing = GetExistingOpt(TemporaryVertexData); Existing) {
-    return {true, Existing.value()};
-  }
-  if (const auto Existing = GetExistingOpt(VertexData)) {
-    return {true, Existing.value()};
-  }
-  return {false, TemporaryVertexData.end()};
-}
-
-[[nodiscard]] static bool transitionToAddAlreadyExistsInContainer(
-    const edge_set &Container, const GraphData::EdgeType &EdgeToAdd,
+[[nodiscard]] static bool edgeWithTransitionExistsInContainer(
+    const edge_set &Edges, const GraphData::EdgeType &EdgeToAdd,
     const TransitionType &Transition,
     const std::vector<GraphData::EdgeWeightType> &EdgeWeights) {
-  const auto LowerBound = Container.lower_bound(EdgeToAdd);
-  const auto UpperBound = Container.upper_bound(EdgeToAdd);
+  const auto LowerBound = Edges.lower_bound(EdgeToAdd);
+  const auto UpperBound = Edges.upper_bound(EdgeToAdd);
   return ranges::contains(
       ranges::subrange(LowerBound, UpperBound) |
           ranges::views::transform(
               [&EdgeWeights](const indexed_edge_type &IndexedEdge) {
-                return std::pair{IndexedEdge.first,
-                                 EdgeWeights[IndexedEdge.second]};
+                return EdgeWeights[IndexedEdge.second];
               }),
-      std::pair{EdgeToAdd, Transition});
+      Transition);
 }
 
-static void buildGraph(const TransitionCollector &TypeSetTransitionData,
+[[nodiscard]] static auto
+constructTransitionAndTargetTypeSetsForTransitionPairFactory(
+    const vertex_set &TypeSetsOfInterest) {
+  return [&TypeSetsOfInterest](const TransitionType &Transition) {
+    const auto &[AcquiredTypeSet, Function, RequiredTypeSet] = Transition;
+    const auto AcquiredTypeSetIsInteresting =
+        [&AcquiredTypeSet](const indexed_vertex_type &Vertex) {
+          return isSubset(Vertex.first, AcquiredTypeSet);
+        };
+    const auto ToTargetTypeSetForTransitionAndOldSourceVertex =
+        [&AcquiredTypeSet,
+         &RequiredTypeSet](const indexed_vertex_type &Vertex) {
+          return indexed_vertex_type{
+              merge(subtract(Vertex.first, AcquiredTypeSet), RequiredTypeSet),
+              // this id is the index of the old Vertex.first TS, not the index
+              // newly created above
+              Vertex.second};
+        };
+    return std::pair{Transition,
+                     TypeSetsOfInterest |
+                         ranges::views::filter(AcquiredTypeSetIsInteresting) |
+                         ranges::views::transform(
+                             ToTargetTypeSetForTransitionAndOldSourceVertex)};
+  };
+}
+
+static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
                        GraphData &Data, const Config &Conf) {
   const auto QueriedTypes = Data.VertexData;
+  // FIXME: do the filtering in tooling
+  const auto TypeSetTransitionData = ranges::to_vector(
+      TypeSetTransitionData2 |
+      ranges::views::filter([&QueriedTypes](const TransitionType &Transition) {
+        return !ranges::any_of(
+            QueriedTypes, [&Transition](const auto &QueriedType) {
+              return isSubset(std::get<2>(Transition), QueriedType);
+            });
+      }));
 
   auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
       Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
@@ -347,94 +360,53 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData,
 
   Data.VertexData.emplace_back();
 
+  vertex_set NewTypeSetsOfInterest{};
+
   for (bool AddedTransitions = true;
        AddedTransitions && IterationCount < Conf.MaxGraphDepth;
        ++IterationCount) {
-    vertex_set TemporaryVertexData{};
-    edge_set TemporaryEdgeData{};
-    vertex_set NewTypeSetsOfInterest{};
     AddedTransitions = false;
-    size_t TransitionCounter = 0U;
-    spdlog::trace("{:=^50}", "");
-    const auto TransitionWithInterestingAcquiredTypeSet =
-        [&TypeSetsOfInterest](const TransitionType &Val) {
-          const auto &Acquired = std::get<0>(Val);
-          return ranges::any_of(TypeSetsOfInterest,
-                                isSubsetPredicateFactory(Acquired),
-                                &indexed_vertex_type::first);
-        };
-
-    for (const auto FilteredTypeSetTransitionData = ranges::to_vector(
-             TypeSetTransitionData |
-             ranges::views::filter(TransitionWithInterestingAcquiredTypeSet));
-         const auto &Transition : FilteredTypeSetTransitionData) {
-      const auto &[AcquiredTypeSet, Function, RequiredTypeSet] = Transition;
-      ++TransitionCounter;
-      for (const auto FilteredTypeSetsOfInterest = ranges::to_vector(
-               TypeSetsOfInterest |
-               ranges::views::filter(isSubsetPredicateFactory(AcquiredTypeSet),
-                                     &indexed_vertex_type::first));
-           const auto &[VertexTypeSet, SourceTypeSetIndex] :
+    for (auto [Transition, FilteredTypeSetsOfInterest] :
+         TypeSetTransitionData |
+             ranges::views::transform(
+                 constructTransitionAndTargetTypeSetsForTransitionPairFactory(
+                     TypeSetsOfInterest))) {
+      for (const auto &[TargetTypeSet, SourceVertexIndex] :
            FilteredTypeSetsOfInterest) {
-        auto NewRequiredTypeSet =
-            merge(subtract(VertexTypeSet, AcquiredTypeSet), RequiredTypeSet);
-        if (ranges::any_of(QueriedTypes, [&NewRequiredTypeSet](
-                                             const TypeSet &QueriedTypeSet) {
-              return isSubset(NewRequiredTypeSet, QueriedTypeSet);
-            })) {
-          continue;
-        }
-        const auto [NewRequiredTypeSetExists, NewRequiredTypeSetIter] =
-            findNewRequiredTypeSet(NewRequiredTypeSet, TemporaryVertexData,
-                                   VertexData);
-
-        if (NewRequiredTypeSetExists) {
-          NewTypeSetsOfInterest.emplace(*NewRequiredTypeSetIter);
-        }
-        const auto NewRequiredTypeSetIndex =
-            NewRequiredTypeSetExists
-                ? NewRequiredTypeSetIter->second
-                : VertexData.size() + TemporaryVertexData.size();
+        const auto TargetVertexIter = VertexData.find(TargetTypeSet);
+        const auto TargetVertexExists = TargetVertexIter != VertexData.end();
+        const auto TargetVertexIndex =
+            TargetVertexExists ? TargetVertexIter->second : VertexData.size();
 
         const auto EdgeToAdd =
-            std::pair{SourceTypeSetIndex, NewRequiredTypeSetIndex};
+            GraphData::EdgeType{SourceVertexIndex, TargetVertexIndex};
 
-        if (NewRequiredTypeSetExists &&
-            (transitionToAddAlreadyExistsInContainer(
-                 TemporaryEdgeData, EdgeToAdd, Transition, Data.EdgeWeights) ||
-             transitionToAddAlreadyExistsInContainer(
-                 EdgesData, EdgeToAdd, Transition, Data.EdgeWeights))) {
+        if (TargetVertexExists &&
+            edgeWithTransitionExistsInContainer(EdgesData, EdgeToAdd,
+                                                Transition, Data.EdgeWeights)) {
           continue;
         }
 
-        if (!NewRequiredTypeSetExists) {
-          NewTypeSetsOfInterest.emplace(NewRequiredTypeSet,
-                                        NewRequiredTypeSetIndex);
-          TemporaryVertexData.emplace(std::move(NewRequiredTypeSet),
-                                      NewRequiredTypeSetIndex);
+        if (TargetVertexExists) {
+          NewTypeSetsOfInterest.emplace(*TargetVertexIter);
+        } else {
+          NewTypeSetsOfInterest.emplace(TargetTypeSet, TargetVertexIndex);
+          VertexData.emplace(TargetTypeSet, TargetVertexIndex);
         }
-        if (const auto [_, EdgeAdded] = TemporaryEdgeData.emplace(
-                EdgeToAdd, EdgesData.size() + TemporaryEdgeData.size());
+        if (const auto [_, EdgeAdded] =
+                EdgesData.emplace(EdgeToAdd, EdgesData.size());
             EdgeAdded) {
           Data.EdgeWeights.push_back(Transition);
           AddedTransitions = true;
         }
       }
-      spdlog::trace("#{} transition #{} (|V| = {}(+{}), |E| = {}(+{})): {}",
-                    IterationCount, TransitionCounter,
-                    VertexData.size() + TemporaryVertexData.size(),
-                    TemporaryVertexData.size(),
-                    EdgesData.size() + TemporaryEdgeData.size(),
-                    TemporaryEdgeData.size(), Transition);
     }
 
-    VertexData.merge(std::move(TemporaryVertexData));
-    TemporaryVertexData.clear();
-
-    EdgesData.merge(std::move(TemporaryEdgeData));
-    TemporaryEdgeData.clear();
+    spdlog::trace("#{} |V| = {}, |E| = {}", IterationCount, VertexData.size(),
+                  EdgesData.size());
 
     TypeSetsOfInterest = std::move(NewTypeSetsOfInterest);
+    NewTypeSetsOfInterest.clear();
   }
   spdlog::trace("{:=^50}", "");
 
