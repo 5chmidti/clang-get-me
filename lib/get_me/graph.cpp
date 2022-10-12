@@ -8,6 +8,7 @@
 #include <limits>
 #include <stack>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include <boost/algorithm/string.hpp>
@@ -38,6 +39,7 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/join.hpp>
+#include <range/v3/view/move.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
@@ -160,46 +162,6 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   return ranges::to_vector(Paths);
 }
 
-std::vector<PathType> independentPaths(const std::vector<PathType> &Paths,
-                                       const GraphType &Graph,
-                                       const GraphData &Data) {
-  assert(std::ranges::is_sorted(Paths, std::less{}, &PathType::size));
-
-  const auto ToEdgeWeight = [IndexMap = get(boost::edge_index, Graph),
-                             EdgeWeights =
-                                 Data.EdgeWeights](const EdgeDescriptor &Edge) {
-    return EdgeWeights[get(IndexMap, Edge)];
-  };
-
-  auto Res = ranges::to_vector(ranges::views::join(
-      Paths |
-      ranges::views::chunk_by([](const PathType &Lhs, const PathType &Rhs) {
-        return Lhs.size() == Rhs.size();
-      }) |
-      ranges::views::transform([&ToEdgeWeight](
-                                   const ranges::forward_range auto Range) {
-        std::vector<PathType> UniquePaths{};
-
-        for (const auto &Path : Range) {
-          if (const auto EquivalentPathContainedInResult = ranges::any_of(
-                  UniquePaths,
-                  [&ToEdgeWeight, &Path](const PathType &ExistingPath) {
-                    return ranges::is_permutation(Path, ExistingPath,
-                                                  ranges::equal_to{},
-                                                  ToEdgeWeight, ToEdgeWeight);
-                  });
-              EquivalentPathContainedInResult) {
-            continue;
-          }
-
-          UniquePaths.push_back(Path);
-        }
-
-        return UniquePaths;
-      })));
-  return Res;
-}
-
 [[nodiscard]] static auto matchesNamePredicateFactory(std::string Name) {
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
     return std::visit(
@@ -311,37 +273,63 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
       Transition);
 }
 
-[[nodiscard]] static auto
-constructTransitionAndTargetTypeSetsForTransitionPairFactory(
-    const vertex_set &TypeSetsOfInterest) {
-  return [&TypeSetsOfInterest](const TransitionType &Transition) {
-    const auto &[AcquiredTypeSet, Function, RequiredTypeSet] = Transition;
-    const auto AcquiredTypeSetIsInteresting =
-        [&AcquiredTypeSet](const indexed_vertex_type &Vertex) {
-          return isSubset(Vertex.first, AcquiredTypeSet);
-        };
-    const auto ToTargetTypeSetForTransitionAndOldSourceVertex =
-        [&AcquiredTypeSet,
-         &RequiredTypeSet](const indexed_vertex_type &Vertex) {
-          return indexed_vertex_type{
-              merge(subtract(Vertex.first, AcquiredTypeSet), RequiredTypeSet),
-              // this id is the index of the old Vertex.first TS, not the index
-              // newly created above
-              Vertex.second};
-        };
-    return std::pair{Transition,
-                     TypeSetsOfInterest |
-                         ranges::views::filter(AcquiredTypeSetIsInteresting) |
-                         ranges::views::transform(
-                             ToTargetTypeSetForTransitionAndOldSourceVertex)};
+[[nodiscard]] static bool setIntersectionIsEmpty(const TypeSet &Lhs,
+                                                 const TypeSet &Rhs) {
+  return ranges::all_of(Lhs, [&Rhs](const TypeSetValueType &LhsElement) {
+    const auto Lower = Rhs.lower_bound(LhsElement);
+    const auto Upper = Rhs.upper_bound(LhsElement);
+    return Lower == Upper;
+  });
+}
+
+[[nodiscard]] static bool independent(const TransitionType &Lhs,
+                                      const TransitionType &Rhs) {
+  return setIntersectionIsEmpty(std::get<0>(Lhs), std::get<2>(Rhs)) &&
+         setIntersectionIsEmpty(std::get<2>(Lhs), std::get<0>(Rhs));
+}
+
+[[nodiscard]] static auto addTransitionToIndependentTransitionsOfEdgeFactory(
+    const TransitionType &Transition) {
+  return [&Transition](auto VertexAndTransitionsPair) {
+    if (auto &[_, IndependentTransitions] = VertexAndTransitionsPair;
+        ranges::all_of(
+            IndependentTransitions,
+            [&Transition](const TransitionType &IndependentTransition) {
+              return independent(IndependentTransition, Transition);
+            })) {
+      IndependentTransitions.push_back(Transition);
+    }
   };
+}
+
+[[nodiscard]] static auto constructVertexAndTransitionsPairVector(
+    const vertex_set &InterestingVertices,
+    const TransitionCollector &Transitions) {
+  auto IndependentTransitionsVec =
+      std::vector<std::vector<TransitionType>>(InterestingVertices.size());
+
+  ranges::for_each(
+      Transitions, [&InterestingVertices, &IndependentTransitionsVec](
+                       const TransitionType &Transition) {
+        ranges::for_each(
+            ranges::views::zip(InterestingVertices, IndependentTransitionsVec) |
+                ranges::views::filter(
+                    [&Transition](const auto &VertexAndTransitionsPair) {
+                      return isSubset(VertexAndTransitionsPair.first.first,
+                                      std::get<0>(Transition));
+                    }),
+            addTransitionToIndependentTransitionsOfEdgeFactory(Transition));
+      });
+
+  return ranges::to_vector(ranges::views::zip(
+      InterestingVertices, ranges::views::move(IndependentTransitionsVec)));
 }
 
 static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
                        GraphData &Data, const Config &Conf) {
   const auto QueriedTypes = Data.VertexData;
   // FIXME: do the filtering in tooling
-  const auto TypeSetTransitionData = ranges::to_vector(
+  const auto TypeSetTransitionData = ranges::to<TransitionCollector>(
       TypeSetTransitionData2 |
       ranges::views::filter([&QueriedTypes](const TransitionType &Transition) {
         return !ranges::any_of(
@@ -356,23 +344,34 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
   edge_set EdgesData{};
 
   size_t IterationCount = 0U;
-  auto TypeSetsOfInterest = VertexData;
+
+  auto InterstingVertices = VertexData;
+  auto NewInterstingVertices = vertex_set{};
 
   Data.VertexData.emplace_back();
 
-  vertex_set NewTypeSetsOfInterest{};
+  const auto ToTransitionAndTargetTypeSetPairForVertex =
+      [](const indexed_vertex_type &IndexedVertex) {
+        return [&IndexedVertex](const TransitionType &Transition) {
+          return std::pair{Transition, merge(subtract(IndexedVertex.first,
+                                                      std::get<0>(Transition)),
+                                             std::get<2>(Transition))};
+        };
+      };
 
   for (bool AddedTransitions = true;
        AddedTransitions && IterationCount < Conf.MaxGraphDepth;
        ++IterationCount) {
     AddedTransitions = false;
-    for (auto [Transition, FilteredTypeSetsOfInterest] :
-         TypeSetTransitionData |
-             ranges::views::transform(
-                 constructTransitionAndTargetTypeSetsForTransitionPairFactory(
-                     TypeSetsOfInterest))) {
-      for (const auto &[TargetTypeSet, SourceVertexIndex] :
-           FilteredTypeSetsOfInterest) {
+    for (auto [IndexedVertex, Transitions] :
+         constructVertexAndTransitionsPairVector(InterstingVertices,
+                                                 TypeSetTransitionData)) {
+      const auto SourceVertexIndex = IndexedVertex.second;
+
+      for (const auto &[Transition, TargetTypeSet] :
+           Transitions |
+               ranges::views::transform(
+                   ToTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
         const auto TargetVertexIter = VertexData.find(TargetTypeSet);
         const auto TargetVertexExists = TargetVertexIter != VertexData.end();
         const auto TargetVertexIndex =
@@ -388,9 +387,9 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
         }
 
         if (TargetVertexExists) {
-          NewTypeSetsOfInterest.emplace(*TargetVertexIter);
+          NewInterstingVertices.emplace(*TargetVertexIter);
         } else {
-          NewTypeSetsOfInterest.emplace(TargetTypeSet, TargetVertexIndex);
+          NewInterstingVertices.emplace(TargetTypeSet, TargetVertexIndex);
           VertexData.emplace(TargetTypeSet, TargetVertexIndex);
         }
         if (const auto [_, EdgeAdded] =
@@ -405,8 +404,8 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
     spdlog::trace("#{} |V| = {}, |E| = {}", IterationCount, VertexData.size(),
                   EdgesData.size());
 
-    TypeSetsOfInterest = std::move(NewTypeSetsOfInterest);
-    NewTypeSetsOfInterest.clear();
+    InterstingVertices = std::move(NewInterstingVertices);
+    NewInterstingVertices.clear();
   }
   spdlog::trace("{:=^50}", "");
 

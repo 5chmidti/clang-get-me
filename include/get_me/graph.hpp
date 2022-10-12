@@ -100,10 +100,6 @@ struct GraphData {
 pathTraversal(const GraphType &Graph, const GraphData &Data, const Config &Conf,
               VertexDescriptor SourceVertex);
 
-[[nodiscard]] std::vector<PathType>
-independentPaths(const std::vector<PathType> &Paths, const GraphType &Graph,
-                 const GraphData &Data);
-
 [[nodiscard]] std::pair<GraphType, GraphData>
 createGraph(const TransitionCollector &TypeSetTransitionData,
             const std::string &TypeName, const Config &Conf);
