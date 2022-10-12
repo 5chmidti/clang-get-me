@@ -9,6 +9,7 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
+#include "get_me/path_traversal.hpp"
 #include "get_me/tooling.hpp"
 
 inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,

@@ -26,6 +26,7 @@
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
+#include "get_me/path_traversal.hpp"
 #include "get_me/tooling.hpp"
 #include "get_me/utility.hpp"
 
@@ -128,15 +129,7 @@ int main(int argc, const char **argv) {
           }));
   auto PreIndepPathsSize = Paths.size();
   spdlog::info("generated {} paths", PreIndepPathsSize);
-  // Paths = independentPaths(
-  //     ranges::to_vector(
-  //         Paths | ranges::views::take(static_cast<size_t>(Paths.size() *
-  //         .2))),
-  //     Graph, Data);
-  // if (PreIndepPathsSize != Paths.size()) {
-  //   spdlog::warn("independent paths found duplicate paths: sizes: {} -> {}",
-  //                PreIndepPathsSize, Paths.size());
-  // }
+
   const auto OutputPathCount = std::min<size_t>(Paths.size(), 50U);
   ranges::partial_sort(
       Paths, Paths.begin() + OutputPathCount,

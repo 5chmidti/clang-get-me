@@ -9,6 +9,7 @@ target_sources(
   get_me_lib
   PRIVATE formatting.cpp
           graph.cpp
+          path_traversal.cpp
           tooling.cpp
           tooling_filters.cpp
           type_set.cpp)

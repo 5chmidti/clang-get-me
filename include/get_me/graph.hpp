@@ -53,7 +53,6 @@ static_assert(
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
 using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
-using PathType = std::vector<EdgeDescriptor>;
 
 using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
 
@@ -80,10 +79,6 @@ struct GraphData {
   auto [first, second] = Pair;
   return ranges::subrange{std::move(first), std::move(second)};
 }
-
-[[nodiscard]] std::vector<PathType>
-pathTraversal(const GraphType &Graph, const GraphData &Data, const Config &Conf,
-              VertexDescriptor SourceVertex);
 
 [[nodiscard]] std::pair<GraphType, GraphData>
 createGraph(const TransitionCollector &TypeSetTransitionData,

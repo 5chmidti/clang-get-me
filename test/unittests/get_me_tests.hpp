@@ -7,6 +7,7 @@
 
 #include <get_me/config.hpp>
 #include <get_me/graph.hpp>
+#include <get_me/path_traversal.hpp>
 #include <gtest/gtest.h>
 
 [[nodiscard]] std::tuple<GraphData, GraphType, std::vector<PathType>>
