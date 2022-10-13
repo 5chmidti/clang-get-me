@@ -96,7 +96,8 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     for (auto _ : State) {                                                     \
       BENCHMARK_BODY_FULL                                                      \
     }                                                                          \
-    State.SetComplexityN(State.range(0));                                      \
+    State.SetComplexityN(                                                      \
+        static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, full) Args;                                       \
   BENCHMARK_DEFINE_F(Name, transitions)                                        \
@@ -107,7 +108,8 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     for (auto _ : State) {                                                     \
       BENCHMARK_BODY_TRANSITIONS                                               \
     }                                                                          \
-    State.SetComplexityN(State.range(0));                                      \
+    State.SetComplexityN(                                                      \
+        static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, transitions) Args;                                \
   BENCHMARK_DEFINE_F(Name, graph)                                              \
@@ -119,7 +121,8 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     for (auto _ : State) {                                                     \
       BENCHMARK_BODY_GRAPH                                                     \
     }                                                                          \
-    State.SetComplexityN(State.range(0));                                      \
+    State.SetComplexityN(                                                      \
+        static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, graph) Args;                                      \
   BENCHMARK_DEFINE_F(Name, pathTraversal)                                      \
@@ -133,7 +136,8 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     for (auto _ : State) {                                                     \
       BENCHMARK_BODY_PATHTRAVERSAL                                             \
     }                                                                          \
-    State.SetComplexityN(State.range(0));                                      \
+    State.SetComplexityN(                                                      \
+        static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
   BENCHMARK_REGISTER_F(Name, pathTraversal) Args;
 
