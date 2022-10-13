@@ -1,14 +1,18 @@
 #include "get_me/path_traversal.hpp"
 
+#include <functional>
 #include <stack>
 
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/permutation.hpp>
+#include <range/v3/algorithm/sort.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
+
+#include "get_me/graph.hpp"
 
 [[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
   return [MaxPathLength = Conf.MaxPathLength](const PathType &CurrentPath) {
@@ -65,20 +69,24 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
         };
         return !ranges::any_of(CurrentPath, HasTargetEdge);
       };
-  const auto AddOutEdgesOfVertexToStack =
-      [&Graph, &AddToStackFactory,
-       &CurrentPathContainsTargetOfEdge](const VertexDescriptor Vertex) {
-        const auto Vec = ranges::to_vector(toRange(out_edges(Vertex, Graph)));
-        auto OutEdgesRange =
-            ranges::views::filter(Vec, CurrentPathContainsTargetOfEdge);
-        if (OutEdgesRange.empty()) {
-          return false;
-        }
+  const auto AddOutEdgesOfVertexToStack = [&Graph, &Data, &AddToStackFactory,
+                                           &CurrentPathContainsTargetOfEdge](
+                                              const VertexDescriptor Vertex) {
+    auto OutEdgesRange = ranges::to_vector(ranges::views::filter(
+        toRange(out_edges(Vertex, Graph)), CurrentPathContainsTargetOfEdge));
+    if (OutEdgesRange.empty()) {
+      return false;
+    }
+    const auto ToTypeSetSize = [IndexMap = boost::get(boost::edge_index, Graph),
+                                &Data, &Graph](const EdgeDescriptor Edge) {
+      const auto TargetVertex = boost::target(Edge, Graph);
+      return Data.VertexData[TargetVertex].size();
+    };
+    ranges::sort(OutEdgesRange, std::greater{}, ToTypeSetSize);
+    ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
 
-        ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
-
-        return true;
-      };
+    return true;
+  };
 
   const auto IsValidPath = createIsValidPathPredicate(Conf);
   const auto ContinuePathSearch =
