@@ -357,10 +357,12 @@ toFilterDataFactory(const AcquiredClosure &AllowConversionForAcquired,
       [&AllowConversionForAcquired,
        &AllowConversionForRequired](TransitionType Transition)
           -> std::tuple<TransitionType, bool, bool, TypeSet::const_iterator> {
-        const auto [RequiredConversionIter, RequiredConvertionAllowed] =
+        const auto [RequiredConversionIter, RequiredConversionAllowed] =
             AllowConversionForRequired(required(Transition));
-        return {std::move(Transition), AllowConversionForAcquired(Transition),
-                RequiredConvertionAllowed, RequiredConversionIter};
+        const auto AcquiredConsersionAllowed =
+            AllowConversionForAcquired(Transition);
+        return {std::move(Transition), AcquiredConsersionAllowed,
+                RequiredConversionAllowed, RequiredConversionIter};
       };
 }
 
