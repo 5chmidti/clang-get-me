@@ -64,9 +64,6 @@
 static void initializeVertexDataWithQueried(
     const TransitionCollector &TypeSetTransitionData, GraphData &Data,
     const std::string &TypeName) {
-  const auto ToAcquired = [](const TransitionType &Val) {
-    return std::get<0>(Val);
-  };
   const auto MatchesQueriedName = matchesNamePredicateFactory(TypeName);
   ranges::transform(ranges::views::filter(
                         TypeSetTransitionData,
@@ -74,8 +71,8 @@ static void initializeVertexDataWithQueried(
                           return ranges::any_of(Acquired, MatchesQueriedName) &&
                                  !ranges::contains(Data.VertexData, Acquired);
                         },
-                        ToAcquired),
-                    std::back_inserter(Data.VertexData), ToAcquired);
+                        acquired),
+                    std::back_inserter(Data.VertexData), acquired);
 }
 
 [[nodiscard]] static auto isSubsetPredicateFactory(const TypeSet &Subset) {
@@ -156,8 +153,8 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
 
 [[nodiscard]] static bool independent(const TransitionType &Lhs,
                                       const TransitionType &Rhs) {
-  return setIntersectionIsEmpty(std::get<0>(Lhs), std::get<2>(Rhs)) &&
-         setIntersectionIsEmpty(std::get<2>(Lhs), std::get<0>(Rhs));
+  return setIntersectionIsEmpty(acquired(Lhs), required(Rhs)) &&
+         setIntersectionIsEmpty(required(Lhs), acquired(Rhs));
 }
 
 [[nodiscard]] static auto addTransitionToIndependentTransitionsOfEdgeFactory(
@@ -188,7 +185,7 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
                 ranges::views::filter(
                     [&Transition](const auto &VertexAndTransitionsPair) {
                       return isSubset(VertexAndTransitionsPair.first.first,
-                                      std::get<0>(Transition));
+                                      acquired(Transition));
                     }),
             addTransitionToIndependentTransitionsOfEdgeFactory(Transition));
       });
@@ -206,7 +203,7 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
       ranges::views::filter([&QueriedTypes](const TransitionType &Transition) {
         return !ranges::any_of(
             QueriedTypes, [&Transition](const auto &QueriedType) {
-              return isSubset(std::get<2>(Transition), QueriedType);
+              return isSubset(required(Transition), QueriedType);
             });
       }));
 
@@ -226,8 +223,8 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
       [](const indexed_vertex_type &IndexedVertex) {
         return [&IndexedVertex](const TransitionType &Transition) {
           return std::pair{Transition, merge(subtract(IndexedVertex.first,
-                                                      std::get<0>(Transition)),
-                                             std::get<2>(Transition))};
+                                                      acquired(Transition)),
+                                             required(Transition))};
         };
       };
 
@@ -334,4 +331,16 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   }
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));
+}
+
+const TypeSet &acquired(const TransitionType &Transition) {
+  return std::get<0>(Transition);
+}
+
+const TransitionDataType &transition(const TransitionType &Transition) {
+  return std::get<1>(Transition);
+}
+
+const TypeSet &required(const TransitionType &Transition) {
+  return std::get<2>(Transition);
 }

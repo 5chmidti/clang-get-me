@@ -56,6 +56,11 @@ using VertexDescriptor =
 
 using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
 
+[[nodiscard]] const TypeSet &acquired(const TransitionType &Transition);
+[[nodiscard]] const TransitionDataType &
+transition(const TransitionType &Transition);
+[[nodiscard]] const TypeSet &required(const TransitionType &Transition);
+
 using TransitionCollector = std::set<TransitionType>;
 
 struct GraphData {

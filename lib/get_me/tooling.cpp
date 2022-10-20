@@ -306,12 +306,11 @@ static void filterOverloads(TransitionCollector &Transitions,
   // FIXME: sorting just to make sure the overloads with longer parameter lists
   // are removed, figure out a better way. The algo also depends on this order
   // to determine if it is an overload
-  ranges::sort(Data, Comparator,
-               [](const TransitionType &Val) { return std::get<1>(Val); });
+  ranges::sort(Data, Comparator, transition);
   const auto IsOverload = [&GetParameters](const TransitionType &LhsTuple,
                                            const TransitionType &RhsTuple) {
-    const auto &Lhs = std::get<1>(LhsTuple);
-    const auto &Rhs = std::get<1>(RhsTuple);
+    const auto &Lhs = transition(LhsTuple);
+    const auto &Rhs = transition(RhsTuple);
     if (Lhs.index() != Rhs.index()) {
       return false;
     }
@@ -356,12 +355,11 @@ toFilterDataFactory(const AcquiredClosure &AllowConversionForAcquired,
                     const RequiredClosure &AllowConversionForRequired) {
   return
       [&AllowConversionForAcquired,
-       &AllowConversionForRequired](TransitionType Val)
+       &AllowConversionForRequired](TransitionType Transition)
           -> std::tuple<TransitionType, bool, bool, TypeSet::const_iterator> {
-        const auto &[Acquired, Transition, Required] = Val;
         const auto [RequiredConversionIter, RequiredConvertionAllowed] =
-            AllowConversionForRequired(Required);
-        return {std::move(Val), AllowConversionForAcquired(Val),
+            AllowConversionForRequired(required(Transition));
+        return {std::move(Transition), AllowConversionForAcquired(Transition),
                 RequiredConvertionAllowed, RequiredConversionIter};
       };
 }
@@ -413,7 +411,7 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
           Transitions, DerivedType,
           [&BaseType](const TransitionType &Val) {
             if (const clang::CXXRecordDecl *const RecordForConstructor =
-                    getRecordDeclOfConstructorOrNull(std::get<1>(Val))) {
+                    getRecordDeclOfConstructorOrNull(transition(Val))) {
               return RecordForConstructor->getTypeForDecl() == BaseType;
             }
             return false;
@@ -428,7 +426,7 @@ propagateInheritanceFactory(TransitionCollector &Transitions) {
       auto NewTransitionsForBase = computePropagatedTransitions(
           Transitions, BaseType,
           [DerivedType](const TransitionType &Val) {
-            return std::get<0>(Val) == TypeSet{TypeSetValueType{DerivedType}};
+            return acquired(Val) == TypeSet{TypeSetValueType{DerivedType}};
           },
           [](const TypeSet &Required) {
             return std::pair{Required.end(), false};
@@ -454,7 +452,7 @@ propagateTypeAliasFactory(TransitionCollector &Transitions,
               Transitions, NewType,
               [ExistingType = TypeSet{TypeSetValueType{ExistingType}}](
                   const TransitionType &Val) {
-                return std::get<0>(Val) == ExistingType;
+                return acquired(Val) == ExistingType;
               },
               [ExistingType =
                    TypeSetValueType{ExistingType}](const TypeSet &Required) {
