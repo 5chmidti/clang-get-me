@@ -197,14 +197,17 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
                        GraphData &Data, const Config &Conf) {
   const auto QueriedTypes = Data.VertexData;
   // FIXME: do the filtering in tooling
-  const auto TypeSetTransitionData = ranges::to<TransitionCollector>(
+  const auto DoesNotRequireQueriedType =
+      [&QueriedTypes](const TypeSet &Required) {
+        const auto IsSubsetOfRequired = [&Required](const auto &QueriedType) {
+          return isSubset(Required, QueriedType);
+        };
+        return !ranges::any_of(QueriedTypes, IsSubsetOfRequired);
+      };
+  const auto TypeSetTransitionData =
       TypeSetTransitionData2 |
-      ranges::views::filter([&QueriedTypes](const TransitionType &Transition) {
-        return !ranges::any_of(
-            QueriedTypes, [&Transition](const auto &QueriedType) {
-              return isSubset(required(Transition), QueriedType);
-            });
-      }));
+      ranges::views::filter(DoesNotRequireQueriedType, required) |
+      ranges::to<TransitionCollector>;
 
   auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
       Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
