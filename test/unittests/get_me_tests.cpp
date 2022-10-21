@@ -20,6 +20,7 @@
 #include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
@@ -54,7 +55,7 @@ void test(std::string_view Code, std::string_view QueriedType,
       pathTraversal(Graph, Data, CurrentConfig, *SourceVertex);
 
   const auto FoundPathsAsString =
-      ranges::to<std::set>(toString(FoundPaths, Graph, Data));
+      toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
   const auto ToString = []<typename T>(const T &Val) -> std::string {
     if constexpr (std::is_same_v<T, std::string>) {
       return Val;
@@ -62,19 +63,15 @@ void test(std::string_view Code, std::string_view QueriedType,
     return std::string{Val};
   };
   const auto ToSetDifference = [&ToString](const auto &Lhs, const auto &Rhs) {
-    std::set<std::string> Res{};
-    ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()), std::less{},
-                           ToString, ToString);
-    return Res;
+    return ranges::views::set_difference(Lhs, Rhs, std::less{}, ToString,
+                                         ToString) |
+           ranges::to<std::set>;
   };
 
   EXPECT_TRUE(ranges::equal(FoundPathsAsString, ExpectedPaths)) << fmt::format(
       "Expected: {}\nFound: {}\nNot found: {}\nNot expected: {}", ExpectedPaths,
-      FoundPathsAsString,
-      ToSetDifference(ExpectedPaths | ranges::views::transform(ToString),
-                      FoundPathsAsString),
-      ToSetDifference(FoundPathsAsString,
-                      ExpectedPaths | ranges::views::transform(ToString)));
+      FoundPathsAsString, ToSetDifference(ExpectedPaths, FoundPathsAsString),
+      ToSetDifference(FoundPathsAsString, ExpectedPaths));
 }
 
 GetMeTest::GetMeTest() {

@@ -3,6 +3,7 @@
 #include <functional>
 #include <stack>
 
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -60,31 +61,32 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   ranges::for_each(toRange(out_edges(SourceVertex, Graph)),
                    AddToStackFactory(SourceVertex));
 
-  const auto CurrentPathContainsTargetOfEdge =
-      [&CurrentPath, &Graph](const EdgeDescriptor Edge) {
-        const auto HasTargetEdge = [&Graph, TargetVertex = target(Edge, Graph)](
-                                       const EdgeDescriptor &EdgeInPath) {
-          return source(EdgeInPath, Graph) == TargetVertex ||
-                 target(EdgeInPath, Graph) == TargetVertex;
-        };
-        return !ranges::any_of(CurrentPath, HasTargetEdge);
-      };
-  const auto AddOutEdgesOfVertexToStack = [&Graph, &Data, &AddToStackFactory,
-                                           &CurrentPathContainsTargetOfEdge](
+  const auto CurrentPathContainsVertex = [&CurrentPath,
+                                          &Graph](const size_t Vertex) {
+    const auto HasTargetEdge = [&Graph,
+                                Vertex](const EdgeDescriptor &EdgeInPath) {
+      return source(EdgeInPath, Graph) == Vertex ||
+             target(EdgeInPath, Graph) == Vertex;
+    };
+    return !ranges::any_of(CurrentPath, HasTargetEdge);
+  };
+  const auto ToTypeSetSize = [&Data](const EdgeDescriptor Edge) {
+    return Data.VertexData[Edge.m_target].size();
+  };
+  const auto AddOutEdgesOfVertexToStack = [&Graph, &AddToStackFactory,
+                                           &CurrentPathContainsVertex,
+                                           &ToTypeSetSize](
                                               const VertexDescriptor Vertex) {
-    auto OutEdgesRange = ranges::to_vector(ranges::views::filter(
-        toRange(out_edges(Vertex, Graph)), CurrentPathContainsTargetOfEdge));
-    if (OutEdgesRange.empty()) {
+    auto FilteredOutEdges = toRange(out_edges(Vertex, Graph)) |
+                            ranges::views::filter(CurrentPathContainsVertex,
+                                                  &EdgeDescriptor::m_target) |
+                            ranges::to_vector;
+    if (ranges::empty(FilteredOutEdges)) {
       return false;
     }
-    const auto ToTypeSetSize = [IndexMap = boost::get(boost::edge_index, Graph),
-                                &Data, &Graph](const EdgeDescriptor Edge) {
-      const auto TargetVertex = boost::target(Edge, Graph);
-      return Data.VertexData[TargetVertex].size();
-    };
-    ranges::sort(OutEdgesRange, std::greater{}, ToTypeSetSize);
-    ranges::for_each(OutEdgesRange, AddToStackFactory(Vertex));
-
+    ranges::for_each(std::move(FilteredOutEdges) |
+                         ranges::actions::sort(std::greater{}, ToTypeSetSize),
+                     AddToStackFactory(Vertex));
     return true;
   };
 
@@ -107,11 +109,9 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
       // the current path has to be reverted until the new edge can be added to
       // the path
       // remove edges that were added after the path got to src
-      const auto GetEdgeSource = [&Graph](const EdgeDescriptor &Val) {
-        return source(Val, Graph);
-      };
-      CurrentPath.erase(ranges::find(CurrentPath, Src, GetEdgeSource),
-                        CurrentPath.end());
+      CurrentPath.erase(
+          ranges::find(CurrentPath, Src, &EdgeDescriptor::m_source),
+          CurrentPath.end());
     }
     PrevTarget = target(Edge, Graph);
 

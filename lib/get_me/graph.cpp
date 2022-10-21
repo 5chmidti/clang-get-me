@@ -2,6 +2,7 @@
 
 #include <iterator>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include <boost/algorithm/string.hpp>
@@ -12,6 +13,8 @@
 #include <clang/AST/DeclCXX.h>
 #include <fmt/chrono.h>
 #include <llvm/Support/Casting.h>
+#include <range/v3/action/sort.hpp>
+#include <range/v3/action/transform.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
@@ -26,6 +29,7 @@
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/ref.hpp>
+#include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
@@ -82,9 +86,7 @@ static void initializeVertexDataWithQueried(
 }
 
 [[nodiscard]] static TypeSet subtract(const TypeSet &Lhs, const TypeSet &Rhs) {
-  TypeSet Res{};
-  ranges::set_difference(Lhs, Rhs, std::inserter(Res, Res.end()), std::less{});
-  return Res;
+  return ranges::views::set_difference(Lhs, Rhs) | ranges::to<TypeSet>;
 }
 
 using indexed_vertex_type = std::pair<TypeSet, size_t>;
@@ -127,10 +129,9 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
     const edge_set &Edges, const GraphData::EdgeType &EdgeToAdd,
     const TransitionType &Transition,
     const std::vector<GraphData::EdgeWeightType> &EdgeWeights) {
-  const auto LowerBound = Edges.lower_bound(EdgeToAdd);
-  const auto UpperBound = Edges.upper_bound(EdgeToAdd);
   return ranges::contains(
-      ranges::subrange(LowerBound, UpperBound) |
+      ranges::subrange(Edges.lower_bound(EdgeToAdd),
+                       Edges.upper_bound(EdgeToAdd)) |
           ranges::views::transform(
               [&EdgeWeights](const indexed_edge_type &IndexedEdge) {
                 return EdgeWeights[IndexedEdge.second];
@@ -141,9 +142,7 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
 [[nodiscard]] static bool setIntersectionIsEmpty(const TypeSet &Lhs,
                                                  const TypeSet &Rhs) {
   return ranges::all_of(Lhs, [&Rhs](const TypeSetValueType &LhsElement) {
-    const auto Lower = Rhs.lower_bound(LhsElement);
-    const auto Upper = Rhs.upper_bound(LhsElement);
-    return Lower == Upper;
+    return Rhs.lower_bound(LhsElement) == Rhs.upper_bound(LhsElement);
   });
 }
 
@@ -280,24 +279,19 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
   }
   spdlog::trace("{:=^50}", "");
 
-  const auto GetSortedIndexedData =
-      []<ranges::range RangeType>(const RangeType &Range) {
-        auto DataToSort = ranges::to_vector(Range);
-        ranges::sort(DataToSort, std::less{},
-                     &ranges::range_value_t<RangeType>::second);
-        return DataToSort;
+  const auto GetDataSortedByIndex =
+      []<ranges::range RangeType>(RangeType Range) {
+        auto Sorted = std::move(Range) | ranges::to_vector |
+                      ranges::actions::sort(std::less{}, Element<1>);
+        return Sorted | ranges::views::move |
+               ranges::views::transform(Element<0>) | ranges::to_vector;
       };
 
-  auto SortedVertexData = GetSortedIndexedData(VertexData);
-  Data.VertexData = ranges::to_vector(
-      SortedVertexData | ranges::views::transform(&indexed_vertex_type::first));
-
-  auto SortedEdgeData = GetSortedIndexedData(EdgesData);
-  Data.Edges = ranges::to_vector(
-      SortedEdgeData | ranges::views::transform(&indexed_edge_type::first));
-
-  Data.EdgeIndices = ranges::to_vector(
-      ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()));
+  Data.VertexData = GetDataSortedByIndex(std::move(VertexData));
+  Data.Edges = GetDataSortedByIndex(std::move(EdgesData));
+  Data.EdgeIndices =
+      ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()) |
+      ranges::to_vector;
 }
 
 std::pair<GraphType, GraphData>

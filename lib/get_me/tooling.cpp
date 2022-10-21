@@ -20,6 +20,8 @@
 #include <fmt/ranges.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
+#include <range/v3/action/sort.hpp>
+#include <range/v3/action/unique.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -29,7 +31,9 @@
 #include <range/v3/algorithm/unique.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/all.hpp>
+#include <range/v3/view/cache1.hpp>
 #include <range/v3/view/filter.hpp>
+#include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
@@ -245,9 +249,6 @@ toNewTransitionFactory(const clang::Type *const Alias) {
 
 static void filterOverloads(TransitionCollector &Transitions,
                             size_t OverloadFilterParameterCountThreshold = 0) {
-  std::vector<TransitionCollector::value_type> Data(
-      std::make_move_iterator(Transitions.begin()),
-      std::make_move_iterator(Transitions.end()));
   const auto GetParameters = [](const TransitionDataType &Val) {
     return std::visit(
         Overloaded{[](const clang::FunctionDecl *const CurrentDecl)
@@ -302,11 +303,6 @@ static void filterOverloads(TransitionCollector &Transitions,
         }
         return false;
       };
-  // sort data, this sorts overloads by their number of parameters
-  // FIXME: sorting just to make sure the overloads with longer parameter lists
-  // are removed, figure out a better way. The algo also depends on this order
-  // to determine if it is an overload
-  ranges::sort(Data, Comparator, transition);
   const auto IsOverload = [&GetParameters](const TransitionType &LhsTuple,
                                            const TransitionType &RhsTuple) {
     const auto &Lhs = transition(LhsTuple);
@@ -341,9 +337,14 @@ static void filterOverloads(TransitionCollector &Transitions,
                          Projection, Projection);
     return MismatchResult.in1 == LhsParams.value().end();
   };
-  Data.erase(ranges::unique(Data, IsOverload), Data.end());
-  Transitions = TransitionCollector(std::make_move_iterator(Data.begin()),
-                                    std::make_move_iterator(Data.end()));
+
+  // FIXME: sorting just to make sure the overloads with longer parameter lists
+  // are removed, figure out a better way. The algo also depends on this order
+  // to determine if it is an overload
+  Transitions = Transitions | ranges::views::move | ranges::to_vector |
+                ranges::actions::sort(Comparator, transition) |
+                ranges::actions::unique(IsOverload) |
+                ranges::to<TransitionCollector>;
 }
 
 template <typename AcquiredClosure, typename RequiredClosure>
@@ -371,16 +372,19 @@ computePropagatedTransitions(const TransitionCollector &Transitions,
                              const clang::Type *const NewType,
                              const auto &AllowConversionForAcquired,
                              const auto &AllowConversionForRequired) {
-  return ranges::to<TransitionCollector>(
-      Transitions |
-      ranges::views::transform(toFilterDataFactory(
-          AllowConversionForAcquired, AllowConversionForRequired)) |
-      ranges::views::filter(HasTransitionWithBaseClass) |
-      ranges::views::transform(toNewTransitionFactory(NewType)) |
-      // FIXME: figure out how to not need this filter
-      ranges::views::filter([&Transitions](const TransitionType &Transition) {
-        return !ranges::contains(Transitions, Transition);
-      }));
+  return Transitions |
+         ranges::views::transform(toFilterDataFactory(
+             AllowConversionForAcquired, AllowConversionForRequired)) |
+         ranges::views::cache1 |
+         ranges::views::filter(HasTransitionWithBaseClass) |
+         ranges::views::transform(toNewTransitionFactory(NewType)) |
+         ranges::views::cache1 |
+         // FIXME: figure out how to not need this filter
+         ranges::views::filter(
+             [&Transitions](const TransitionType &Transition) {
+               return !ranges::contains(Transitions, Transition);
+             }) |
+         ranges::to<TransitionCollector>;
 }
 
 [[nodiscard]] static const clang::CXXRecordDecl *
