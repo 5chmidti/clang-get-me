@@ -3,7 +3,7 @@ option(ENABLE_USER_LINKER "Enable a specific linker if available" ON)
 include(CheckCXXCompilerFlag)
 
 set(USER_LINKER_OPTION
-    "lld"
+    "mold"
     CACHE STRING "Linker to be used")
 set(USER_LINKER_OPTION_VALUES
     "lld"
