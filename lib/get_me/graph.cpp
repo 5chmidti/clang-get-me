@@ -25,6 +25,7 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/move.hpp>
+#include <range/v3/view/ref.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
@@ -73,11 +74,6 @@ static void initializeVertexDataWithQueried(
                         },
                         acquired),
                     std::back_inserter(Data.VertexData), acquired);
-}
-
-[[nodiscard]] static auto isSubsetPredicateFactory(const TypeSet &Subset) {
-  return
-      [&Subset](const TypeSet &Superset) { return isSubset(Superset, Subset); };
 }
 
 [[nodiscard]] static TypeSet merge(TypeSet Lhs, TypeSet Rhs) {
@@ -157,20 +153,6 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
          setIntersectionIsEmpty(required(Lhs), acquired(Rhs));
 }
 
-[[nodiscard]] static auto addTransitionToIndependentTransitionsOfEdgeFactory(
-    const TransitionType &Transition) {
-  return [&Transition](auto VertexAndTransitionsPair) {
-    if (auto &[_, IndependentTransitions] = VertexAndTransitionsPair;
-        ranges::all_of(
-            IndependentTransitions,
-            [&Transition](const TransitionType &IndependentTransition) {
-              return independent(IndependentTransition, Transition);
-            })) {
-      IndependentTransitions.push_back(Transition);
-    }
-  };
-}
-
 [[nodiscard]] static auto constructVertexAndTransitionsPairVector(
     const vertex_set &InterestingVertices,
     const TransitionCollector &Transitions) {
@@ -180,18 +162,35 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
   ranges::for_each(
       Transitions, [&InterestingVertices, &IndependentTransitionsVec](
                        const TransitionType &Transition) {
+        const auto AcquiredIsSubset =
+            [Acquired = acquired(Transition)](const auto &IndexedVertex) {
+              return isSubset(IndexedVertex.first, Acquired);
+            };
+        const auto IndependentOfTransition =
+            [&Transition](const TransitionType &IndependentTransition) {
+              return independent(IndependentTransition, Transition);
+            };
+        const auto AllAreIndependentOfTransition =
+            [&IndependentOfTransition](
+                const std::vector<TransitionType> &IndependentTransitions) {
+              return ranges::all_of(IndependentTransitions,
+                                    IndependentOfTransition);
+            };
+        const auto AddToIndependentTransitionsOfEdge =
+            [&Transition](std::vector<TransitionType> &IndependentTransitions) {
+              IndependentTransitions.push_back(Transition);
+            };
         ranges::for_each(
             ranges::views::zip(InterestingVertices, IndependentTransitionsVec) |
-                ranges::views::filter(
-                    [&Transition](const auto &VertexAndTransitionsPair) {
-                      return isSubset(VertexAndTransitionsPair.first.first,
-                                      acquired(Transition));
-                    }),
-            addTransitionToIndependentTransitionsOfEdgeFactory(Transition));
+                ranges::views::filter(AcquiredIsSubset, Element<0>) |
+                ranges::views::transform(Element<1>) |
+                ranges::views::filter(AllAreIndependentOfTransition),
+            AddToIndependentTransitionsOfEdge);
       });
 
-  return ranges::to_vector(ranges::views::zip(
-      InterestingVertices, ranges::views::move(IndependentTransitionsVec)));
+  return ranges::views::zip(InterestingVertices,
+                            ranges::views::move(IndependentTransitionsVec)) |
+         ranges::to_vector;
 }
 
 static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
