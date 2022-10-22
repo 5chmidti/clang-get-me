@@ -76,15 +76,6 @@ static void initializeVertexDataWithQueried(
                     std::back_inserter(Data.VertexData), acquired);
 }
 
-[[nodiscard]] static TypeSet merge(TypeSet Lhs, TypeSet Rhs) {
-  Lhs.merge(std::move(Rhs));
-  return Lhs;
-}
-
-[[nodiscard]] static TypeSet subtract(const TypeSet &Lhs, const TypeSet &Rhs) {
-  return ranges::views::set_difference(Lhs, Rhs) | ranges::to<TypeSet>;
-}
-
 using indexed_vertex_type = std::pair<TypeSet, size_t>;
 struct VertexSetComparator {
   using is_transparent = void;
@@ -219,9 +210,12 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
   const auto ToTransitionAndTargetTypeSetPairForVertex =
       [](const indexed_vertex_type &IndexedVertex) {
         return [&IndexedVertex](const TransitionType &Transition) {
-          return std::pair{Transition, merge(subtract(IndexedVertex.first,
-                                                      acquired(Transition)),
-                                             required(Transition))};
+          return std::pair{Transition,
+                           ranges::views::set_union(
+                               ranges::views::set_difference(
+                                   IndexedVertex.first, acquired(Transition)),
+                               required(Transition)) |
+                               ranges::to<TypeSet>};
         };
       };
 
