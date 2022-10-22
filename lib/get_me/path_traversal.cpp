@@ -71,15 +71,13 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   ranges::for_each(toRange(out_edges(SourceVertex, Graph)),
                    AddToStackFactory(SourceVertex));
 
-  const auto CurrentPathContainsVertex = [&CurrentPath,
-                                          &Graph](const size_t Vertex) {
-    const auto HasTargetEdge = [&Graph,
-                                Vertex](const EdgeDescriptor &EdgeInPath) {
-      return source(EdgeInPath, Graph) == Vertex ||
-             target(EdgeInPath, Graph) == Vertex;
-    };
-    return !ranges::any_of(CurrentPath, HasTargetEdge);
-  };
+  const auto CurrentPathContainsVertex =
+      [&CurrentPath](const VertexDescriptor Vertex) {
+        const auto HasTargetEdge = [Vertex](const EdgeDescriptor &EdgeInPath) {
+          return EdgeInPath.m_source == Vertex || EdgeInPath.m_target == Vertex;
+        };
+        return !ranges::any_of(CurrentPath, HasTargetEdge);
+      };
   const auto ToTypeSetSize = [&Data](const EdgeDescriptor Edge) {
     return Data.VertexData[Edge.m_target].size();
   };

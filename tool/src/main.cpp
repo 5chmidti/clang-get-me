@@ -77,8 +77,8 @@ static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
   DotFile.print("digraph D {{\n  layout = \"sfdp\";\n");
 
   for (const auto &Edge : toRange(boost::edges(Graph))) {
-    const auto SourceNode = boost::source(Edge, Graph);
-    const auto TargetNode = boost::target(Edge, Graph);
+    const auto SourceNode = Edge.m_source;
+    const auto TargetNode = Edge.m_target;
 
     const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
     const auto TargetVertex = Data.VertexData[TargetNode];
@@ -164,18 +164,18 @@ int main(int argc, const char **argv) {
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
   const auto OutputPathCount = std::min<size_t>(Paths.size(), 50U);
-  ranges::partial_sort(
-      Paths, Paths.begin() + OutputPathCount,
-      [&Data, &Graph](const PathType &Lhs, const PathType &Rhs) {
-        if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
-          return std::is_lt(Comp);
-        }
-        if (Lhs.empty()) {
-          return true;
-        }
-        return Data.VertexData[target(Lhs.back(), Graph)].size() <
-               Data.VertexData[target(Rhs.back(), Graph)].size();
-      });
+  ranges::partial_sort(Paths, Paths.begin() + OutputPathCount,
+                       [&Data](const PathType &Lhs, const PathType &Rhs) {
+                         if (const auto Comp = Lhs.size() <=> Rhs.size();
+                             std::is_neq(Comp)) {
+                           return std::is_lt(Comp);
+                         }
+                         if (Lhs.empty()) {
+                           return true;
+                         }
+                         return Data.VertexData[Lhs.back().m_target].size() <
+                                Data.VertexData[Rhs.back().m_target].size();
+                       });
 
   for (const auto [Path, Number] : views::zip(
            Paths | ranges::views::take(OutputPathCount), views::iota(0U))) {
@@ -187,6 +187,6 @@ int main(int argc, const char **argv) {
                         Data.EdgeWeights[boost::get(IndexMap, Edge)]);
                   }),
                   ", "),
-        Data.VertexData[boost::target(Path.back(), Graph)]);
+        Data.VertexData[Path.back().m_target]);
   }
 }
