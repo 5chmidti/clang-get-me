@@ -164,18 +164,20 @@ int main(int argc, const char **argv) {
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
   const auto OutputPathCount = std::min<size_t>(Paths.size(), 50U);
-  ranges::partial_sort(Paths, Paths.begin() + OutputPathCount,
-                       [&Data](const PathType &Lhs, const PathType &Rhs) {
-                         if (const auto Comp = Lhs.size() <=> Rhs.size();
-                             std::is_neq(Comp)) {
-                           return std::is_lt(Comp);
-                         }
-                         if (Lhs.empty()) {
-                           return true;
-                         }
-                         return Data.VertexData[Lhs.back().m_target].size() <
-                                Data.VertexData[Rhs.back().m_target].size();
-                       });
+  ranges::partial_sort(
+      Paths,
+      Paths.begin() +
+          static_cast<std::vector<PathType>::difference_type>(OutputPathCount),
+      [&Data](const PathType &Lhs, const PathType &Rhs) {
+        if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
+          return std::is_lt(Comp);
+        }
+        if (Lhs.empty()) {
+          return true;
+        }
+        return Data.VertexData[Lhs.back().m_target].size() <
+               Data.VertexData[Rhs.back().m_target].size();
+      });
 
   for (const auto [Path, Number] : views::zip(
            Paths | ranges::views::take(OutputPathCount), views::iota(0U))) {
