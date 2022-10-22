@@ -324,15 +324,3 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));
 }
-
-const TypeSet &acquired(const TransitionType &Transition) {
-  return std::get<0>(Transition);
-}
-
-const TransitionDataType &transition(const TransitionType &Transition) {
-  return std::get<1>(Transition);
-}
-
-const TypeSet &required(const TransitionType &Transition) {
-  return std::get<2>(Transition);
-}

@@ -21,6 +21,7 @@
 #include <boost/pending/property.hpp>
 #include <range/v3/view/subrange.hpp>
 
+#include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 
 namespace clang {
@@ -31,18 +32,6 @@ class VarDecl;
 } // namespace clang
 
 struct Config;
-
-struct DefaultedConstructor {
-  const clang::CXXRecordDecl *Record;
-
-  [[nodiscard]] friend auto operator<=>(const DefaultedConstructor &,
-                                        const DefaultedConstructor &) = default;
-};
-
-using TransitionDataType =
-    std::variant<std::monostate, const clang::FunctionDecl *,
-                 const clang::FieldDecl *, const clang::VarDecl *,
-                 DefaultedConstructor>;
 
 using GraphType =
     boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,
@@ -57,15 +46,6 @@ static_assert(
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
 using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
-
-using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
-
-[[nodiscard]] const TypeSet &acquired(const TransitionType &Transition);
-[[nodiscard]] const TransitionDataType &
-transition(const TransitionType &Transition);
-[[nodiscard]] const TypeSet &required(const TransitionType &Transition);
-
-using TransitionCollector = std::set<TransitionType>;
 
 struct GraphData {
   using EdgeWeightType = TransitionType;
