@@ -32,4 +32,10 @@ transition(const TransitionType &Transition) {
 
 using TransitionCollector = std::set<TransitionType>;
 
+[[nodiscard]] inline bool independent(const TransitionType &Lhs,
+                                      const TransitionType &Rhs) {
+  return setIntersectionIsEmpty(acquired(Lhs), required(Rhs)) &&
+         setIntersectionIsEmpty(required(Lhs), acquired(Rhs));
+}
+
 #endif

@@ -10,6 +10,7 @@
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/Type.h>
+#include <range/v3/algorithm/all_of.hpp>
 
 #include "get_me/config.hpp"
 
@@ -53,5 +54,12 @@ toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
 [[nodiscard]] const clang::Type *launderType(const clang::Type *Type);
 
 [[nodiscard]] bool isSubset(const TypeSet &Superset, const TypeSet &Subset);
+
+[[nodiscard]] inline bool setIntersectionIsEmpty(const TypeSet &Lhs,
+                                                 const TypeSet &Rhs) {
+  return ranges::all_of(Lhs, [&Rhs](const TypeSetValueType &LhsElement) {
+    return Rhs.lower_bound(LhsElement) == Rhs.upper_bound(LhsElement);
+  });
+}
 
 #endif

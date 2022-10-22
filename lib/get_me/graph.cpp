@@ -126,19 +126,6 @@ using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
       Transition);
 }
 
-[[nodiscard]] static bool setIntersectionIsEmpty(const TypeSet &Lhs,
-                                                 const TypeSet &Rhs) {
-  return ranges::all_of(Lhs, [&Rhs](const TypeSetValueType &LhsElement) {
-    return Rhs.lower_bound(LhsElement) == Rhs.upper_bound(LhsElement);
-  });
-}
-
-[[nodiscard]] static bool independent(const TransitionType &Lhs,
-                                      const TransitionType &Rhs) {
-  return setIntersectionIsEmpty(acquired(Lhs), required(Rhs)) &&
-         setIntersectionIsEmpty(required(Lhs), acquired(Rhs));
-}
-
 [[nodiscard]] static auto constructVertexAndTransitionsPairVector(
     const vertex_set &InterestingVertices,
     const TransitionCollector &Transitions) {
