@@ -16,10 +16,6 @@
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/move/utility_core.hpp>
-#include <boost/pending/property.hpp>
-#include <range/v3/view/subrange.hpp>
 
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -63,11 +59,6 @@ struct GraphData {
   // vertices
   std::vector<VertexDataType> VertexData{};
 };
-
-[[nodiscard]] std::ranges::viewable_range auto toRange(auto Pair) {
-  auto [first, second] = Pair;
-  return ranges::subrange{std::move(first), std::move(second)};
-}
 
 [[nodiscard]] std::pair<GraphType, GraphData>
 createGraph(const TransitionCollector &TypeSetTransitionData,
