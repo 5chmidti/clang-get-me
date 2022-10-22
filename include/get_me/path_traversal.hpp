@@ -5,6 +5,8 @@
 
 #include "get_me/graph.hpp"
 
+struct Config;
+
 using PathType = std::vector<EdgeDescriptor>;
 
 [[nodiscard]] std::vector<PathType>

@@ -2,7 +2,9 @@
 #define get_me_include_get_me_type_set_hpp
 
 #include <compare>
+#include <functional>
 #include <set>
+#include <utility>
 #include <variant>
 
 #include <boost/container/flat_set.hpp>
@@ -10,6 +12,15 @@
 #include <clang/AST/Type.h>
 
 #include "get_me/config.hpp"
+
+namespace clang {
+class FieldDecl;
+class FunctionDecl;
+class Type;
+class VarDecl;
+} // namespace clang
+
+struct Config;
 
 struct ArithmeticType {
   const clang::Type *Value{};

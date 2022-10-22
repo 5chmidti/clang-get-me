@@ -1,8 +1,17 @@
 #include "get_me/tooling_filters.hpp"
 
+#include <array>
+
 #include <clang/AST/CanonicalType.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
+#include <clang/Basic/Specifiers.h>
+#include <fmt/core.h>
+#include <llvm/Support/Casting.h>
+#include <range/v3/algorithm/contains.hpp>
+#include <spdlog/spdlog.h>
+
+#include "get_me/config.hpp"
 
 bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
                                std::string_view Name) {

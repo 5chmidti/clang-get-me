@@ -16,8 +16,10 @@
 #include "get_me/graph.hpp"
 
 namespace clang {
-struct FunctionDecl;
-struct FieldDecl;
+class FunctionDecl;
+class FieldDecl;
+class ASTContext;
+class Sema;
 } // namespace clang
 
 // FIXME: add support for current context (i.e. current function)

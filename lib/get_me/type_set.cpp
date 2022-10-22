@@ -1,13 +1,15 @@
 #include "get_me/type_set.hpp"
 
-#include <clang/AST/ASTContext.h>
+#include <iterator>
+
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/view/transform.hpp>
 
-#include "get_me/formatting.hpp"
+#include "get_me/config.hpp"
 
 TypeSetValueType toTypeSetValueType(const clang::Type *const Type,
                                     const Config &Conf) {

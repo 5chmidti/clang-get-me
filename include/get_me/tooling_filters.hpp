@@ -1,6 +1,7 @@
 #ifndef get_me_include_get_me_tooling_filters_hpp
 #define get_me_include_get_me_tooling_filters_hpp
 
+#include <string>
 #include <string_view>
 
 #include <clang/AST/Decl.h>
@@ -11,6 +12,13 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
+
+namespace clang {
+class CXXMethodDecl;
+class CXXRecordDecl;
+} // namespace clang
+
+struct Config;
 
 [[nodiscard]] bool hasTypeNameContainingName(const clang::ValueDecl *VDecl,
                                              std::string_view Name);

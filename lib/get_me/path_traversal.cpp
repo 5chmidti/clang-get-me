@@ -1,18 +1,27 @@
 #include "get_me/path_traversal.hpp"
 
+#include <algorithm>
+#include <compare>
+#include <cstddef>
 #include <functional>
+#include <initializer_list>
+#include <list>
+#include <memory>
+#include <set>
 #include <stack>
+#include <type_traits>
+#include <utility>
+#include <variant>
 
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/permutation.hpp>
-#include <range/v3/algorithm/sort.hpp>
-#include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 
+#include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 
 [[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {

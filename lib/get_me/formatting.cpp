@@ -1,10 +1,13 @@
 #include "get_me/formatting.hpp"
 
+#include <algorithm>
 #include <variant>
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/DeclarationName.h>
 #include <clang/AST/Type.h>
+#include <clang/Basic/LLVM.h>
 #include <fmt/format.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/range/conversion.hpp>

@@ -1,32 +1,36 @@
 #ifndef get_me_include_get_me_graph_hpp
 #define get_me_include_get_me_graph_hpp
 
-#include <map>
+#include <compare>
+#include <cstddef>
 #include <optional>
 #include <set>
-#include <span>
 #include <string>
-#include <string_view>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include <boost/algorithm/string/predicate.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
+#include <boost/iterator/iterator_facade.hpp>
+#include <boost/move/utility_core.hpp>
 #include <boost/pending/property.hpp>
-#include <clang/AST/Decl.h>
-#include <clang/AST/DeclCXX.h>
-#include <clang/AST/Type.h>
-#include <llvm/ADT/StringRef.h>
 #include <range/v3/view/subrange.hpp>
 
 #include "get_me/type_set.hpp"
 
-using namespace std::string_view_literals;
+namespace clang {
+class CXXRecordDecl;
+class FieldDecl;
+class FunctionDecl;
+class VarDecl;
+} // namespace clang
+
+struct Config;
 
 struct DefaultedConstructor {
   const clang::CXXRecordDecl *Record;

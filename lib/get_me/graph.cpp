@@ -1,43 +1,39 @@
 #include "get_me/graph.hpp"
 
+#include <deque>
+#include <exception>
+#include <functional>
 #include <iterator>
 #include <string>
 #include <type_traits>
 #include <utility>
 
-#include <boost/algorithm/string.hpp>
-#include <boost/graph/detail/adjacency_list.hpp>
-#include <boost/graph/detail/edge.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/property_map/property_map.hpp>
-#include <clang/AST/DeclCXX.h>
-#include <fmt/chrono.h>
-#include <llvm/Support/Casting.h>
+#include <boost/algorithm/string/erase.hpp>
+#include <boost/algorithm/string/trim.hpp>
+#include <boost/container/flat_set.hpp>
+#include <clang/AST/Type.h>
+#include <fmt/core.h>
 #include <range/v3/action/sort.hpp>
-#include <range/v3/action/transform.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/algorithm/set_algorithm.hpp>
-#include <range/v3/algorithm/sort.hpp>
 #include <range/v3/algorithm/transform.hpp>
-#include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/move.hpp>
-#include <range/v3/view/ref.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
 
+#include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
-#include "get_me/path_traversal.hpp"
 #include "get_me/type_set.hpp"
+#include "get_me/utility.hpp"
 
 [[nodiscard]] static auto matchesNamePredicateFactory(std::string Name) {
   return [Name = std::move(Name)](const TypeSetValueType &Val) {
