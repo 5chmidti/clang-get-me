@@ -14,7 +14,7 @@
 prepare(std::string_view Code, std::string_view QueriedType);
 
 void test(std::string_view Code, std::string_view QueriedType,
-          const std::set<std::string_view> &ExpectedPaths,
+          const std::set<std::string> &ExpectedPaths,
           const Config &CurrentConfig = getDefaultConfig(),
           std::source_location Loc = std::source_location::current());
 

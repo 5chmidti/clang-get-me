@@ -26,7 +26,7 @@
 #include <spdlog/spdlog.h>
 
 void test(std::string_view Code, std::string_view QueriedType,
-          const std::set<std::string_view> &ExpectedPaths,
+          const std::set<std::string> &ExpectedPaths,
           const Config &CurrentConfig, std::source_location Loc) {
   const testing::ScopedTrace Trace(Loc.file_name(),
                                    static_cast<int>(Loc.line()), "Test source");
