@@ -21,3 +21,5 @@ function(add_get_me_test name)
 endfunction()
 
 add_get_me_test(basic_tests SOURCES basic_tests.cpp)
+add_get_me_test(type_alias_tests SOURCES type_alias_tests.cpp)
+add_get_me_test(inheritance_tests SOURCES inheritance_tests.cpp)

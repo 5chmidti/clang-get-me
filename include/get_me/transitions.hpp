@@ -3,17 +3,9 @@
 
 #include "get_me/type_set.hpp"
 
-struct DefaultedConstructor {
-  const clang::CXXRecordDecl *Record;
-
-  [[nodiscard]] friend auto operator<=>(const DefaultedConstructor &,
-                                        const DefaultedConstructor &) = default;
-};
-
 using TransitionDataType =
-    std::variant<std::monostate, const clang::FunctionDecl *,
-                 const clang::FieldDecl *, const clang::VarDecl *,
-                 DefaultedConstructor>;
+    std::variant<const clang::FunctionDecl *, const clang::FieldDecl *,
+                 const clang::VarDecl *>;
 
 using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
 

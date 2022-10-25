@@ -25,6 +25,30 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
+#define VERIFY(EXPECT_OUTCOME, FoundPathsAsString, ExpectedPaths)              \
+  {                                                                            \
+    const auto ToString = []<typename T>(const T &Val) -> std::string {        \
+      if constexpr (std::is_same_v<T, std::string>) {                          \
+        return Val;                                                            \
+      }                                                                        \
+      return std::string{Val};                                                 \
+    };                                                                         \
+                                                                               \
+    const auto ToSetDifference = [&ToString](const auto &Lhs,                  \
+                                             const auto &Rhs) {                \
+      return ranges::views::set_difference(Lhs, Rhs, std::less{}, ToString,    \
+                                           ToString) |                         \
+             ranges::to<std::set>;                                             \
+    };                                                                         \
+                                                                               \
+    EXPECT_OUTCOME(ranges::equal(FoundPathsAsString, ExpectedPaths))           \
+        << fmt::format("Expected:\t{}\nFound:\t\t{}\nNot found:\t{}\nNot "     \
+                       "expected:\t{}",                                        \
+                       ExpectedPaths, FoundPathsAsString,                      \
+                       ToSetDifference(ExpectedPaths, FoundPathsAsString),     \
+                       ToSetDifference(FoundPathsAsString, ExpectedPaths));    \
+  }
+
 void test(std::string_view Code, std::string_view QueriedType,
           const std::set<std::string> &ExpectedPaths,
           const Config &CurrentConfig, std::source_location Loc) {
@@ -56,22 +80,43 @@ void test(std::string_view Code, std::string_view QueriedType,
 
   const auto FoundPathsAsString =
       toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
-  const auto ToString = []<typename T>(const T &Val) -> std::string {
-    if constexpr (std::is_same_v<T, std::string>) {
-      return Val;
-    }
-    return std::string{Val};
-  };
-  const auto ToSetDifference = [&ToString](const auto &Lhs, const auto &Rhs) {
-    return ranges::views::set_difference(Lhs, Rhs, std::less{}, ToString,
-                                         ToString) |
-           ranges::to<std::set>;
-  };
 
-  EXPECT_TRUE(ranges::equal(FoundPathsAsString, ExpectedPaths)) << fmt::format(
-      "Expected: {}\nFound: {}\nNot found: {}\nNot expected: {}", ExpectedPaths,
-      FoundPathsAsString, ToSetDifference(ExpectedPaths, FoundPathsAsString),
-      ToSetDifference(FoundPathsAsString, ExpectedPaths));
+  VERIFY(EXPECT_TRUE, FoundPathsAsString, ExpectedPaths)
+}
+
+void test_failure(std::string_view Code, std::string_view QueriedType,
+                  const std::set<std::string> &ExpectedPaths,
+                  const Config &CurrentConfig, std::source_location Loc) {
+  const testing::ScopedTrace Trace(Loc.file_name(),
+                                   static_cast<int>(Loc.line()), "Test source");
+  spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
+                                        Loc.function_name(), Loc.line()));
+
+  const auto AST =
+      clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
+
+  TransitionCollector TypeSetTransitionData{};
+  auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData, AST->getSema()};
+  Consumer.HandleTranslationUnit(AST->getASTContext());
+  const auto QueriedTypeAsString = std::string{QueriedType};
+  const auto [Graph, Data] =
+      createGraph(TypeSetTransitionData, QueriedTypeAsString, CurrentConfig);
+  const auto SourceVertex =
+      getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
+  const auto VertexDataSize = Data.VertexData.size();
+  ASSERT_TRUE(SourceVertex.has_value());
+  if (!SourceVertex.has_value()) {
+    return;
+  }
+  // adjusted for empty set
+  ASSERT_LT(SourceVertex, VertexDataSize - 1);
+  const auto FoundPaths =
+      pathTraversal(Graph, Data, CurrentConfig, *SourceVertex);
+
+  const auto FoundPathsAsString =
+      toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
+
+  VERIFY(EXPECT_FALSE, FoundPathsAsString, ExpectedPaths)
 }
 
 GetMeTest::GetMeTest() {

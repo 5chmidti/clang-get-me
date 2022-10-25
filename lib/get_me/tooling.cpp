@@ -15,6 +15,12 @@
 
 #include <boost/container/flat_set.hpp>
 #include <boost/container/vector.hpp>
+#include <boost/graph/depth_first_search.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/graph/named_function_params.hpp>
+#include <boost/graph/properties.hpp>
+#include <boost/graph/visitors.hpp>
+#include <boost/pending/property.hpp>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclBase.h>
@@ -30,11 +36,15 @@
 #include <clang/AST/Type.h>
 #include <clang/Sema/Sema.h>
 #include <fmt/core.h>
+#include <fmt/ranges.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/action/action.hpp>
+#include <range/v3/action/insert.hpp>
+#include <range/v3/action/remove.hpp>
+#include <range/v3/action/reverse.hpp>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/action/unique.hpp>
 #include <range/v3/algorithm/contains.hpp>
@@ -42,45 +52,28 @@
 #include <range/v3/algorithm/mismatch.hpp>
 #include <range/v3/algorithm/transform.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/traits.hpp>
 #include <range/v3/view/all.hpp>
 #include <range/v3/view/cache1.hpp>
+#include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
+#include <range/v3/view/iota.hpp>
+#include <range/v3/view/join.hpp>
 #include <range/v3/view/move.hpp>
+#include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
+#include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
+#include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
+#include "get_me/indexed_graph_sets.hpp"
 #include "get_me/tooling_filters.hpp"
+#include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
-
-namespace ranges {
-template <>
-inline constexpr bool
-    // NOLINTNEXTLINE(readability-identifier-naming)
-    enable_borrowed_range<typename clang::CXXRecordDecl::base_class_range> =
-        true;
-template <>
-inline constexpr bool
-    // NOLINTNEXTLINE(readability-identifier-naming)
-    enable_borrowed_range<
-        typename clang::CXXRecordDecl::base_class_const_range> = true;
-
-template <>
-inline constexpr bool
-    // NOLINTNEXTLINE(readability-identifier-naming)
-    enable_borrowed_range<typename clang::CXXRecordDecl::method_range> = true;
-
-template <>
-inline constexpr bool
-    // NOLINTNEXTLINE(readability-identifier-naming)
-    enable_borrowed_range<typename clang::CXXRecordDecl::ctor_range> = true;
-} // namespace ranges
-
-static_assert(ranges::viewable_range<
-              typename clang::CXXRecordDecl::base_class_const_range>);
 
 template <typename T>
 [[nodiscard]] static TransitionType toTransitionType(const T *const Transition,
@@ -215,6 +208,10 @@ public:
     if (NDecl->isTemplateDecl()) {
       return true;
     }
+    // FIXME: use this to explicitly create the type
+    assert(NDecl->getASTContext()
+               .getTypedefType(NDecl, NDecl->getUnderlyingType())
+               .getTypePtr());
     if (NDecl->getTypeForDecl() == nullptr ||
         NDecl->getUnderlyingType().getTypePtr() == nullptr) {
       return true;
@@ -233,31 +230,6 @@ private:
   std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls;
   clang::Sema &Sema;
 };
-
-static constexpr auto HasTransitionWithBaseClass = [](const auto &Val) {
-  const auto &[Transition, HasBaseInAcquired, HasBaseInRequired, RequiredIter] =
-      Val;
-  return HasBaseInAcquired || HasBaseInRequired;
-};
-
-[[nodiscard]] static auto
-toNewTransitionFactory(const clang::Type *const Alias) {
-  return
-      [Alias, AliasTS = TypeSet{TypeSetValueType{Alias}}](
-          std::tuple<TransitionType, bool, bool, TypeSet::const_iterator> Val) {
-        auto &[Transition, AllowAcquiredConversion, AllowRequiredConversion,
-               RequiredIter] = Val;
-        auto &[Acquired, _, Required] = Transition;
-        if (AllowAcquiredConversion) {
-          Acquired = AliasTS;
-        }
-        if (AllowRequiredConversion) {
-          Required.erase(RequiredIter);
-          Required.emplace(Alias);
-        }
-        return Transition;
-      };
-}
 
 static void filterOverloads(TransitionCollector &Transitions,
                             size_t OverloadFilterParameterCountThreshold = 0) {
@@ -359,131 +331,6 @@ static void filterOverloads(TransitionCollector &Transitions,
                 ranges::to<TransitionCollector>;
 }
 
-template <typename AcquiredClosure, typename RequiredClosure>
-  requires std::is_invocable_r_v<bool, AcquiredClosure, TransitionType> &&
-           std::is_invocable_r_v<std::pair<TypeSet::const_iterator, bool>,
-                                 RequiredClosure, TypeSet>
-[[nodiscard]] auto
-toFilterDataFactory(const AcquiredClosure &AllowConversionForAcquired,
-                    const RequiredClosure &AllowConversionForRequired) {
-  return
-      [&AllowConversionForAcquired,
-       &AllowConversionForRequired](TransitionType Transition)
-          -> std::tuple<TransitionType, bool, bool, TypeSet::const_iterator> {
-        const auto [RequiredConversionIter, RequiredConversionAllowed] =
-            AllowConversionForRequired(required(Transition));
-        const auto AcquiredConsersionAllowed =
-            AllowConversionForAcquired(Transition);
-        return {std::move(Transition), AcquiredConsersionAllowed,
-                RequiredConversionAllowed, RequiredConversionIter};
-      };
-}
-
-[[nodiscard]] static TransitionCollector
-computePropagatedTransitions(const TransitionCollector &Transitions,
-                             const clang::Type *const NewType,
-                             const auto &AllowConversionForAcquired,
-                             const auto &AllowConversionForRequired) {
-  return Transitions |
-         ranges::views::transform(toFilterDataFactory(
-             AllowConversionForAcquired, AllowConversionForRequired)) |
-         ranges::views::cache1 |
-         ranges::views::filter(HasTransitionWithBaseClass) |
-         ranges::views::transform(toNewTransitionFactory(NewType)) |
-         ranges::views::cache1 |
-         // FIXME: figure out how to not need this filter
-         ranges::views::filter(
-             [&Transitions](const TransitionType &Transition) {
-               return !ranges::contains(Transitions, Transition);
-             }) |
-         ranges::to<TransitionCollector>;
-}
-
-[[nodiscard]] static const clang::CXXRecordDecl *
-getRecordDeclOfConstructorOrNull(const TransitionDataType &Transition) {
-  return std::visit(
-      Overloaded{
-          [](const clang::FunctionDecl *const FDecl)
-              -> const clang::CXXRecordDecl * {
-            if (const auto *const Constructor =
-                    llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
-              return Constructor->getParent();
-            }
-            return nullptr;
-          },
-          [](const DefaultedConstructor *DefaultConstructor) {
-            return DefaultConstructor->Record;
-          },
-          [](auto &&) -> const clang::CXXRecordDecl * { return nullptr; }},
-      Transition);
-}
-
-[[nodiscard]] static auto
-propagateInheritanceFactory(TransitionCollector &Transitions) {
-  return [&Transitions](const clang::CXXRecordDecl *const RDecl) {
-    const auto *const DerivedType = RDecl->getTypeForDecl();
-    for (const auto &Base : RDecl->bases()) {
-      const auto *const BaseType = launderType(Base.getType().getTypePtr());
-      // propagate base -> derived
-      auto NewTransitionsForDerived = computePropagatedTransitions(
-          Transitions, DerivedType,
-          [&BaseType](const TransitionType &Val) {
-            if (const clang::CXXRecordDecl *const RecordForConstructor =
-                    getRecordDeclOfConstructorOrNull(transition(Val))) {
-              return RecordForConstructor->getTypeForDecl() == BaseType;
-            }
-            return false;
-          },
-          [BaseType](const TypeSet &Required) {
-            const auto Iter = Required.find(BaseType);
-            return std::pair{Iter, Iter != Required.end()};
-          });
-      Transitions.merge(std::move(NewTransitionsForDerived));
-
-      // propagate derived -> base
-      auto NewTransitionsForBase = computePropagatedTransitions(
-          Transitions, BaseType,
-          [DerivedType](const TransitionType &Val) {
-            return acquired(Val) == TypeSet{TypeSetValueType{DerivedType}};
-          },
-          [](const TypeSet &Required) {
-            return std::pair{Required.end(), false};
-          });
-      Transitions.merge(std::move(NewTransitionsForBase));
-    }
-    spdlog::trace("propagate inheritance: |Transitions| = {}",
-                  Transitions.size());
-  };
-}
-
-[[nodiscard]] static auto
-propagateTypeAliasFactory(TransitionCollector &Transitions,
-                          const Config & /*Conf*/) {
-  return [&Transitions](const clang::TypedefNameDecl *const NDecl) {
-    const auto *const AliasType = launderType(NDecl->getTypeForDecl());
-    const auto *const BaseType =
-        launderType(NDecl->getUnderlyingType().getTypePtr());
-    const auto AddAliasTransitionsForType =
-        [&Transitions](const clang::Type *const ExistingType,
-                       const clang::Type *const NewType) {
-          auto NewTransitions = computePropagatedTransitions(
-              Transitions, NewType,
-              [ExistingType = TypeSet{TypeSetValueType{ExistingType}}](
-                  const TransitionType &Val) {
-                return acquired(Val) == ExistingType;
-              },
-              [ExistingType =
-                   TypeSetValueType{ExistingType}](const TypeSet &Required) {
-                const auto Iter = Required.find(ExistingType);
-                return std::pair{Iter, Iter != Required.end()};
-              });
-          Transitions.merge(std::move(NewTransitions));
-        };
-    AddAliasTransitionsForType(BaseType, AliasType);
-    AddAliasTransitionsForType(AliasType, BaseType);
-  };
-}
-
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
   std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
@@ -495,11 +342,12 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
     filterOverloads(Transitions_);
   }
 
-  if (Conf_.EnablePropagateInheritance) {
-    ranges::for_each(CXXRecords, propagateInheritanceFactory(Transitions_));
-  }
-  if (Conf_.EnablePropagateTypeAlias) {
-    ranges::for_each(TypedefNameDecls,
-                     propagateTypeAliasFactory(Transitions_, Conf_));
-  }
+  const auto PreSize = Transitions_.size();
+  // FIXME: use config
+  propagateTransitionsOfDirectTypeDependencies(Transitions_, CXXRecords,
+                                               TypedefNameDecls);
+  const auto PostSize = Transitions_.size();
+  // spdlog::info("Transitions: {}", Transitions_);
+  // spdlog::info("propagateTransitionsOfDirectTypeDependencies: {} -> {}",
+  //              PreSize, PostSize);
 }

@@ -13,7 +13,6 @@
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Type.h>
 #include <fmt/core.h>
-#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
@@ -23,7 +22,6 @@
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
-#include <range/v3/view/move.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
@@ -32,6 +30,7 @@
 
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
+#include "get_me/indexed_graph_sets.hpp"
 #include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
@@ -76,58 +75,23 @@ static void initializeVertexDataWithQueried(
                     std::back_inserter(Data.VertexData), acquired);
 }
 
-using indexed_vertex_type = std::pair<TypeSet, size_t>;
-struct VertexSetComparator {
-  using is_transparent = void;
-  [[nodiscard]] bool operator()(const indexed_vertex_type &Lhs,
-                                const indexed_vertex_type &Rhs) const {
-    return Lhs.first < Rhs.first;
-  }
-  [[nodiscard]] bool operator()(const indexed_vertex_type &Lhs,
-                                const TypeSet &Rhs) const {
-    return Lhs.first < Rhs;
-  }
-  [[nodiscard]] bool operator()(const TypeSet &Lhs,
-                                const indexed_vertex_type &Rhs) const {
-    return Lhs < Rhs.first;
-  }
-};
-using vertex_set = std::set<indexed_vertex_type, VertexSetComparator>;
-
-using indexed_edge_type = std::pair<GraphData::EdgeType, size_t>;
-struct EdgeSetComparator {
-  using is_transparent = void;
-  [[nodiscard]] bool operator()(const indexed_edge_type &Lhs,
-                                const indexed_edge_type &Rhs) const {
-    return Lhs < Rhs;
-  }
-  [[nodiscard]] bool operator()(const indexed_edge_type &Lhs,
-                                const GraphData::EdgeType &Rhs) const {
-    return Lhs.first < Rhs;
-  }
-  [[nodiscard]] bool operator()(const GraphData::EdgeType &Lhs,
-                                const indexed_edge_type &Rhs) const {
-    return Lhs < Rhs.first;
-  }
-};
-using edge_set = std::set<indexed_edge_type, EdgeSetComparator>;
-
 [[nodiscard]] static bool edgeWithTransitionExistsInContainer(
-    const edge_set &Edges, const GraphData::EdgeType &EdgeToAdd,
-    const TransitionType &Transition,
+    const indexed_set<GraphData::EdgeType> &Edges,
+    const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
     const std::vector<GraphData::EdgeWeightType> &EdgeWeights) {
   return ranges::contains(
       ranges::subrange(Edges.lower_bound(EdgeToAdd),
                        Edges.upper_bound(EdgeToAdd)) |
           ranges::views::transform(
-              [&EdgeWeights](const indexed_edge_type &IndexedEdge) {
+              [&EdgeWeights](
+                  const indexed_value_type<GraphData::EdgeType> &IndexedEdge) {
                 return EdgeWeights[IndexedEdge.second];
               }),
       Transition);
 }
 
 [[nodiscard]] static auto constructVertexAndTransitionsPairVector(
-    const vertex_set &InterestingVertices,
+    const indexed_set<TypeSet> &InterestingVertices,
     const TransitionCollector &Transitions) {
   auto IndependentTransitionsVec =
       std::vector<std::vector<TransitionType>>(InterestingVertices.size());
@@ -182,20 +146,20 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
       ranges::views::filter(DoesNotRequireQueriedType, required) |
       ranges::to<TransitionCollector>;
 
-  auto VertexData = ranges::to<vertex_set>(ranges::views::zip(
+  auto VertexData = ranges::to<indexed_set<TypeSet>>(ranges::views::zip(
       Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
 
-  edge_set EdgesData{};
+  indexed_set<GraphData::EdgeType> EdgesData{};
 
   size_t IterationCount = 0U;
 
   auto InterstingVertices = VertexData;
-  auto NewInterstingVertices = vertex_set{};
+  auto NewInterstingVertices = indexed_set<TypeSet>{};
 
   Data.VertexData.emplace_back();
 
   const auto ToTransitionAndTargetTypeSetPairForVertex =
-      [](const indexed_vertex_type &IndexedVertex) {
+      [](const indexed_value_type<TypeSet> &IndexedVertex) {
         return [&IndexedVertex](const TransitionType &Transition) {
           return std::pair{Transition,
                            ranges::views::set_union(
@@ -256,16 +220,8 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
   }
   spdlog::trace("{:=^50}", "");
 
-  const auto GetDataSortedByIndex =
-      []<ranges::range RangeType>(RangeType Range) {
-        auto Sorted = std::move(Range) | ranges::to_vector |
-                      ranges::actions::sort(std::less{}, Element<1>);
-        return Sorted | ranges::views::move |
-               ranges::views::transform(Element<0>) | ranges::to_vector;
-      };
-
-  Data.VertexData = GetDataSortedByIndex(std::move(VertexData));
-  Data.Edges = GetDataSortedByIndex(std::move(EdgesData));
+  Data.VertexData = getIndexedSetSortedByIndex(std::move(VertexData));
+  Data.Edges = getIndexedSetSortedByIndex(std::move(EdgesData));
   Data.EdgeIndices =
       ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()) |
       ranges::to_vector;

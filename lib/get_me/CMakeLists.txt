@@ -7,7 +7,8 @@ find_package(range-v3 REQUIRED)
 add_library(get_me_lib STATIC)
 target_sources(
   get_me_lib
-  PRIVATE formatting.cpp
+  PRIVATE direct_type_dependency_propagation.cpp
+          formatting.cpp
           graph.cpp
           path_traversal.cpp
           tooling.cpp

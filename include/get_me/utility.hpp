@@ -4,8 +4,41 @@
 #include <concepts>
 #include <utility>
 
+#include <clang/AST/DeclCXX.h>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/subrange.hpp>
+
+namespace ranges {
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<typename clang::CXXRecordDecl::base_class_range> =
+        true;
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<
+        typename clang::CXXRecordDecl::base_class_const_range> = true;
+
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<typename clang::CXXRecordDecl::method_range> = true;
+
+template <>
+inline constexpr bool
+    // NOLINTNEXTLINE(readability-identifier-naming)
+    enable_borrowed_range<typename clang::CXXRecordDecl::ctor_range> = true;
+} // namespace ranges
+
+static_assert(
+    ranges::viewable_range<typename clang::CXXRecordDecl::base_class_range>);
+static_assert(ranges::viewable_range<
+              typename clang::CXXRecordDecl::base_class_const_range>);
+static_assert(
+    ranges::viewable_range<typename clang::CXXRecordDecl::method_range>);
+static_assert(
+    ranges::viewable_range<typename clang::CXXRecordDecl::ctor_range>);
 
 template <class... Ts> struct Overloaded : public Ts... {
   using Ts::operator()...;

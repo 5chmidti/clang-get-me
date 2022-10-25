@@ -33,9 +33,6 @@ std::string getTransitionName(const TransitionDataType &Data) {
             }
             return DDecl->getNameAsString();
           },
-          [](const DefaultedConstructor &Val) {
-            return Val.Record->getNameAsString();
-          },
           [](const std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
@@ -57,9 +54,6 @@ std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
                  },
                  [](const VarDecl *const VDecl) {
                    return VDecl->getType().getAsString();
-                 },
-                 [](const DefaultedConstructor &Val) {
-                   return Val.Record->getNameAsString();
                  },
                  [](std::monostate) -> std::string { return "monostate"; }},
       Data);
@@ -95,9 +89,6 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
             return FDecl->getParent()->getNameAsString();
           },
           [](const VarDecl *const /*VDecl*/) -> std::string { return ""; },
-          [](const DefaultedConstructor & /*Val*/) -> std::string {
-            return "";
-          },
           [](const std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
@@ -129,4 +120,7 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
 
 std::string toString(const clang::Type *const Type) {
   return clang::QualType(Type, 0).getAsString();
+}
+std::string toString(const clang::NamedDecl *NDecl) {
+  return NDecl->getNameAsString();
 }

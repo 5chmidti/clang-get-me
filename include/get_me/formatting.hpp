@@ -30,6 +30,7 @@ getTransitionRequiredTypeNames(const TransitionDataType &Data);
 
 [[nodiscard]] std::string toString(const TransitionType &Transition);
 [[nodiscard]] std::string toString(const clang::Type *Type);
+[[nodiscard]] std::string toString(const clang::NamedDecl *NDecl);
 
 template <> struct fmt::formatter<EdgeDescriptor> {
   template <typename FormatContext>
