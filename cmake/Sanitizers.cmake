@@ -99,7 +99,7 @@ if(NOT WIN32 AND ENABLE_COVERAGE)
       COMMAND
         ${LCOV} --directory ${CMAKE_BINARY_DIR} --capture --output-file
         ${CMAKE_BINARY_DIR}/coverage.info --exclude "/usr/include/*" --exclude
-        "*.conan*"
+        "*.conan*" --exclude "*/llvm-project/*"
       VERBATIM
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
       BYPRODUCTS ${CMAKE_BINARY_DIR}/coverage.info)
@@ -111,8 +111,8 @@ if(NOT WIN32 AND ENABLE_COVERAGE)
        "-NOTFOUND")
       add_custom_target(
         coverage-report
-        COMMAND ${GENHTML} --demangle-cpp -o coverage
-                ${CMAKE_BINARY_DIR}/coverage.info
+        COMMAND ${GENHTML} --demangle-cpp -o coverage --prefix
+                ${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR}/coverage.info
         DEPENDS coverage-collect
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
       set(COVERAGE_REPORT_AVAILABLE ON)
