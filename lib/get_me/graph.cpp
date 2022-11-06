@@ -103,15 +103,11 @@ static void initializeVertexDataWithQueried(
             [Acquired = acquired(Transition)](const auto &IndexedVertex) {
               return isSubset(IndexedVertex.first, Acquired);
             };
-        const auto IndependentOfTransition =
-            [&Transition](const TransitionType &IndependentTransition) {
-              return independent(IndependentTransition, Transition);
-            };
         const auto AllAreIndependentOfTransition =
-            [&IndependentOfTransition](
+            [&Transition](
                 const std::vector<TransitionType> &IndependentTransitions) {
               return ranges::all_of(IndependentTransitions,
-                                    IndependentOfTransition);
+                                    independentOf(Transition));
             };
         const auto AddToIndependentTransitionsOfEdge =
             [&Transition](std::vector<TransitionType> &IndependentTransitions) {
@@ -128,6 +124,18 @@ static void initializeVertexDataWithQueried(
   return ranges::views::zip(InterestingVertices,
                             ranges::views::move(IndependentTransitionsVec)) |
          ranges::to_vector;
+}
+
+[[nodiscard]] static auto toTransitionAndTargetTypeSetPairForVertex(
+    const indexed_value_type<TypeSet> &IndexedVertex) {
+  return [&IndexedVertex](const TransitionType &Transition) {
+    return std::pair{
+        Transition,
+        ranges::views::set_union(ranges::views::set_difference(
+                                     IndexedVertex.first, acquired(Transition)),
+                                 required(Transition)) |
+            ranges::to<TypeSet>};
+  };
 }
 
 static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
@@ -158,18 +166,6 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
 
   Data.VertexData.emplace_back();
 
-  const auto ToTransitionAndTargetTypeSetPairForVertex =
-      [](const indexed_value_type<TypeSet> &IndexedVertex) {
-        return [&IndexedVertex](const TransitionType &Transition) {
-          return std::pair{Transition,
-                           ranges::views::set_union(
-                               ranges::views::set_difference(
-                                   IndexedVertex.first, acquired(Transition)),
-                               required(Transition)) |
-                               ranges::to<TypeSet>};
-        };
-      };
-
   for (bool AddedTransitions = true;
        AddedTransitions && IterationCount < Conf.MaxGraphDepth;
        ++IterationCount) {
@@ -182,7 +178,7 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
       for (const auto &[Transition, TargetTypeSet] :
            Transitions |
                ranges::views::transform(
-                   ToTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
+                   toTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
         const auto TargetVertexIter = VertexData.find(TargetTypeSet);
         const auto TargetVertexExists = TargetVertexIter != VertexData.end();
         const auto TargetVertexIndex =

@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <compare>
+#include <cstddef>
 #include <deque>
 #include <exception>
 #include <memory>
@@ -53,7 +54,6 @@
 #include <range/v3/view/zip_with.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
-#include <stddef.h>
 
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
@@ -123,7 +123,7 @@ int main(int argc, const char **argv) {
       .EnablePropagateTypeAlias = true,
       .EnableTruncateArithmetic = true,
       .EnableFilterStd = true,
-      .MaxGraphDepth = 6,
+      .MaxGraphDepth = 10,
       .MaxPathCount = 10000,
   };
   for (const auto &AST : ASTs) {
@@ -163,7 +163,7 @@ int main(int argc, const char **argv) {
   auto PreIndepPathsSize = Paths.size();
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
-  const auto OutputPathCount = std::min<size_t>(Paths.size(), 50U);
+  const auto OutputPathCount = std::min<size_t>(Paths.size(), 25U);
   ranges::partial_sort(
       Paths,
       Paths.begin() +

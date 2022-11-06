@@ -231,23 +231,25 @@ private:
   clang::Sema &Sema;
 };
 
+[[nodiscard]] static auto getParametersOpt(const TransitionDataType &Val) {
+  return std::visit(
+      Overloaded{
+          [](const clang::FunctionDecl *const CurrentDecl)
+              -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
+            return CurrentDecl->parameters();
+          },
+          [](auto &&) -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
+            return {};
+          }},
+      Val);
+};
+
 static void filterOverloads(TransitionCollector &Transitions,
                             size_t OverloadFilterParameterCountThreshold = 0) {
-  const auto GetParameters = [](const TransitionDataType &Val) {
-    return std::visit(
-        Overloaded{[](const clang::FunctionDecl *const CurrentDecl)
-                       -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-                     return CurrentDecl->parameters();
-                   },
-                   [](auto &&)
-                       -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-                     return {};
-                   }},
-        Val);
-  };
+
   const auto Comparator =
-      [&GetParameters, OverloadFilterParameterCountThreshold](
-          const TransitionDataType &Lhs, const TransitionDataType &Rhs) {
+      [OverloadFilterParameterCountThreshold](const TransitionDataType &Lhs,
+                                              const TransitionDataType &Rhs) {
         if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
             std::is_neq(IndexComparison)) {
           return std::is_lt(IndexComparison);
@@ -257,11 +259,11 @@ static void filterOverloads(TransitionCollector &Transitions,
             std::is_neq(NameComparison)) {
           return std::is_lt(NameComparison);
         }
-        const auto LhsParams = GetParameters(Lhs);
+        const auto LhsParams = getParametersOpt(Lhs);
         if (!LhsParams) {
           return true;
         }
-        const auto RhsParams = GetParameters(Rhs);
+        const auto RhsParams = getParametersOpt(Rhs);
         if (!RhsParams) {
           return false;
         }
@@ -287,8 +289,8 @@ static void filterOverloads(TransitionCollector &Transitions,
         }
         return false;
       };
-  const auto IsOverload = [&GetParameters](const TransitionType &LhsTuple,
-                                           const TransitionType &RhsTuple) {
+  const auto IsOverload = [](const TransitionType &LhsTuple,
+                             const TransitionType &RhsTuple) {
     const auto &Lhs = transition(LhsTuple);
     const auto &Rhs = transition(RhsTuple);
     if (Lhs.index() != Rhs.index()) {
@@ -297,11 +299,11 @@ static void filterOverloads(TransitionCollector &Transitions,
     if (getTransitionName(Lhs) != getTransitionName(Rhs)) {
       return false;
     }
-    const auto LhsParams = GetParameters(Lhs);
+    const auto LhsParams = getParametersOpt(Lhs);
     if (!LhsParams) {
       return false;
     }
-    const auto RhsParams = GetParameters(Rhs);
+    const auto RhsParams = getParametersOpt(Rhs);
     if (!RhsParams) {
       return false;
     }
@@ -325,7 +327,7 @@ static void filterOverloads(TransitionCollector &Transitions,
   // FIXME: sorting just to make sure the overloads with longer parameter lists
   // are removed, figure out a better way. The algo also depends on this order
   // to determine if it is an overload
-  Transitions = Transitions | ranges::views::move | ranges::to_vector |
+  Transitions = std::move(Transitions) | ranges::to_vector |
                 ranges::actions::sort(Comparator, transition) |
                 ranges::actions::unique(IsOverload) |
                 ranges::to<TransitionCollector>;

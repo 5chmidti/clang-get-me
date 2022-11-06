@@ -25,6 +25,7 @@
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define VERIFY(EXPECT_OUTCOME, FoundPathsAsString, ExpectedPaths)              \
   {                                                                            \
     const auto ToString = []<typename T>(const T &Val) -> std::string {        \

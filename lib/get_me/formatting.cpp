@@ -19,22 +19,23 @@
 using namespace clang;
 
 std::string getTransitionName(const TransitionDataType &Data) {
-  return std::visit(
-      Overloaded{
-          [](const DeclaratorDecl *DDecl) {
-            if (!DDecl->getDeclName().isIdentifier()) {
-              if (const auto *const Constructor =
-                      llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
-                return Constructor->getParent()->getNameAsString();
-              }
-              return fmt::format("non-identifier {}({})",
-                                 DDecl->getDeclKindName(),
-                                 static_cast<const void *>(DDecl));
-            }
-            return DDecl->getNameAsString();
-          },
-          [](const std::monostate) -> std::string { return "monostate"; }},
-      Data);
+  const auto DeclaratorDeclToString = [](const DeclaratorDecl *DDecl) {
+    if (!DDecl->getDeclName().isIdentifier()) {
+      if (const auto *const Constructor =
+              llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
+        return Constructor->getParent()->getNameAsString();
+      }
+      return fmt::format("non-identifier {}({})", DDecl->getDeclKindName(),
+                         static_cast<const void *>(DDecl));
+    }
+    return DDecl->getNameAsString();
+  };
+
+  return std::visit(Overloaded{DeclaratorDeclToString,
+                               [](const std::monostate) -> std::string {
+                                 return "monostate";
+                               }},
+                    Data);
 }
 
 static const auto FunctionDeclToStringForAcquired =

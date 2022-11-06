@@ -30,4 +30,10 @@ using TransitionCollector = std::set<TransitionType>;
          setIntersectionIsEmpty(required(Lhs), acquired(Rhs));
 }
 
+[[nodiscard]] inline auto independentOf(const TransitionType &Transition) {
+  return [&Transition](const TransitionType &OtherTransition) {
+    return independent(Transition, OtherTransition);
+  };
+}
+
 #endif

@@ -49,13 +49,13 @@ std::vector<PathType> pathTraversal(const GraphType &Graph,
   PathType CurrentPath{};
   const auto IsPermutation = [&Graph, &Data](const PathType &Lhs,
                                              const PathType &Rhs) {
+    if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
+      return std::is_lt(Comp);
+    }
     const auto IndexMap = get(boost::edge_index, Graph);
     const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
       return Data.EdgeWeights[get(IndexMap, Edge)];
     };
-    if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
-      return std::is_lt(Comp);
-    }
     return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{}, ToEdgeWeight,
                                    ToEdgeWeight);
   };

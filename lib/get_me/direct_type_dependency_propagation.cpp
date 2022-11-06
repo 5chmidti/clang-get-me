@@ -17,6 +17,7 @@
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/set_algorithm.hpp>
+#include <range/v3/view/unique.hpp>
 #include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
 
@@ -202,12 +203,10 @@ template <typename T> [[nodiscard]] auto invokePropagator(T &&Propagator) {
 }
 
 [[nodiscard]] static auto getVerticesWithNoInEdges(const DTDDataType &Data) {
-  const auto VerticesWithInEdges =
-      Data.Edges | ranges::views::transform(Element<1>) | ranges::to<std::set>;
-  const auto AllVertices =
-      ranges::views::iota(0U, Data.VertexData.size()) | ranges::to<std::set>;
-  return AllVertices | ranges::views::set_difference(VerticesWithInEdges) |
-         ranges::to<std::set>;
+  return ranges::views::iota(0U, Data.VertexData.size()) |
+         ranges::views::set_difference(Data.Edges |
+                                       ranges::views::transform(Element<1>) |
+                                       ranges::views::unique);
 }
 
 [[nodiscard]] static bool
@@ -386,9 +385,8 @@ private:
   [[nodiscard]] auto getOutEdges() const {
     return ranges::views::iota(0U, Data.VertexData.size()) |
            ranges::views::transform([this](const VertexDescriptor Vertex) {
-             return toRange(out_edges(Vertex, Graph)) | ranges::to_vector;
-           }) |
-           ranges::to_vector;
+             return toRange(out_edges(Vertex, Graph));
+           });
   }
 
 public:
