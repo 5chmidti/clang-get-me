@@ -240,40 +240,49 @@ overridesMethod(const TypeSetValueType &Type,
 }
 
 [[nodiscard]] static bool
+isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
+               const clang::CXXRecordDecl *const Derived) {
+
+  const auto IsOveriddenCtor =
+      [Ctor](const clang::CXXConstructorDecl *const DerivedCtor) {
+        const auto NumParams = DerivedCtor->getNumParams();
+        return NumParams == Ctor->getNumParams() &&
+               ranges::all_of(
+                   ranges::views::iota(0U, NumParams),
+                   [Ctor, DerivedCtor](const auto ParameterIndex) {
+                     const auto DerivedParam =
+                         DerivedCtor->getParamDecl(ParameterIndex);
+                     const auto BaseParam = Ctor->getParamDecl(ParameterIndex);
+                     return DerivedParam->getType() == BaseParam->getType();
+                   });
+      };
+  return !ranges::any_of(Derived->ctors(), IsOveriddenCtor);
+}
+
+[[nodiscard]] static bool
 overridesConstructor(const TypeSetValueType &Type,
                      const clang::CXXMethodDecl *const Ctor) {
   return std::visit(
-      Overloaded{
-          [Ctor](const clang::Type *const Type) {
-            const auto *const NewTypeAsRecordType =
-                llvm::dyn_cast<clang::RecordType>(Type);
-            if (NewTypeAsRecordType == nullptr) {
-              return false;
-            }
-            const auto *const Derived =
-                NewTypeAsRecordType->getAsCXXRecordDecl();
+      Overloaded{[Ctor](const clang::Type *const Type) {
+                   const auto *const NewTypeAsRecordType =
+                       llvm::dyn_cast<clang::RecordType>(Type);
+                   if (NewTypeAsRecordType == nullptr) {
+                     return false;
+                   }
+                   const auto *const Derived =
+                       NewTypeAsRecordType->getAsCXXRecordDecl();
 
-            if (Derived == nullptr) {
-              return false;
-            }
+                   if (Derived == nullptr) {
+                     return false;
+                   }
 
-            const auto IsOveriddenCtor =
-                [Ctor](const clang::CXXConstructorDecl *const DerivedCtor) {
-                  const auto NumParams = DerivedCtor->getNumParams();
-                  return NumParams == Ctor->getNumParams() &&
-                         ranges::all_of(ranges::views::iota(0U, NumParams),
-                                        [Ctor, DerivedCtor](const auto Index) {
-                                          const auto DerivedParam =
-                                              DerivedCtor->getParamDecl(Index);
-                                          const auto BaseParam =
-                                              Ctor->getParamDecl(Index);
-                                          return DerivedParam->getType() ==
-                                                 BaseParam->getType();
-                                        });
-                };
-            return !ranges::any_of(Derived->ctors(), IsOveriddenCtor);
-          },
-          [](auto &&) { return false; }},
+                   if (!Derived->isDerivedFrom(Ctor->getParent())) {
+                     return false;
+                   }
+
+                   return isOverriddenBy(Ctor, Derived);
+                 },
+                 [](auto &&) { return false; }},
       Type);
 }
 
