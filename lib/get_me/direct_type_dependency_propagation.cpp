@@ -315,67 +315,64 @@ private:
     };
   }
 
+  [[nodiscard]] auto generatePropagatedTransitionsForAcquired(
+      const TypeSetValueType &OldType, const TypeSetValueType &NewType) const {
+    const auto PropagateAcquired =
+        [&OldType](const TransitionType &Transition) {
+          return acquired(Transition).contains(OldType);
+        };
+    // FIXME: apply iterating optimization if possible
+    return Transitions | propagateAcquiredImpl(NewType, PropagateAcquired);
+  }
+
+  [[nodiscard]] auto getPropagatedTransitionsForInheritedMethodsForAcquired(
+      const TypeSetValueType &OldType, const TypeSetValueType &NewType) {
+    const auto PropagateAcquired = [&OldType, &NewType](
+                                       const TransitionType &Transition) {
+      const auto TransitionIsFromRecord = std::visit(
+          Overloaded{[](const clang::FieldDecl *const) { return false; },
+                     [&NewType](const clang::FunctionDecl *const FDecl) {
+                       const auto *const Method =
+                           llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
+                       if (Method == nullptr) {
+                         return false;
+                       }
+                       if (const auto *const Ctor =
+                               llvm::dyn_cast<clang::CXXConstructorDecl>(
+                                   Method);
+                           Ctor != nullptr) {
+                         return overridesConstructor(NewType, Ctor);
+                       }
+
+                       return overridesMethod(NewType, Method);
+                     },
+                     [](const auto *const) { return false; }},
+          transition(Transition));
+
+      return acquired(Transition).contains(OldType) && TransitionIsFromRecord;
+    };
+    return Transitions | propagateAcquiredImpl(NewType, PropagateAcquired);
+  };
+
   [[nodiscard]] auto propagateAcquired() {
     return [this, ToEdgeType = toEdgeTypeFactory()](
                const DTDEdgeDescriptor &Edge) -> TransitionCollector {
       const auto &SourceType = Data.VertexData[Edge.m_source];
       const auto &TargetType = Data.VertexData[Edge.m_target];
 
-      const auto GeneratePropagatedTransitions =
-          [this](const TypeSetValueType &OldType,
-                 const TypeSetValueType &NewType) {
-            const auto PropagateAcquired =
-                [&OldType](const TransitionType &Transition) {
-                  return acquired(Transition).contains(OldType);
-                };
-            // FIXME: apply iterating optimization if possible
-            return Transitions |
-                   propagateAcquiredImpl(NewType, PropagateAcquired);
-          };
-      const auto GeneratePropagatedTransitionsForInheritedMethods =
-          [this](const TypeSetValueType &OldType,
-                 const TypeSetValueType &NewType) {
-            const auto PropagateAcquired =
-                [&OldType, &NewType](const TransitionType &Transition) {
-                  const auto TransitionIsFromRecord = std::visit(
-                      Overloaded{
-                          [](const clang::FieldDecl *const) { return false; },
-                          [&NewType](const clang::FunctionDecl *const FDecl) {
-                            const auto *const Method =
-                                llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
-                            if (Method == nullptr) {
-                              return false;
-                            }
-                            if (const auto *const Ctor =
-                                    llvm::dyn_cast<clang::CXXConstructorDecl>(
-                                        Method);
-                                Ctor != nullptr) {
-                              return overridesConstructor(NewType, Ctor);
-                            }
-
-                            return overridesMethod(NewType, Method);
-                          },
-                          [](const auto *const) { return false; }},
-                      transition(Transition));
-
-                  return acquired(Transition).contains(OldType) &&
-                         TransitionIsFromRecord;
-                };
-            return Transitions |
-                   propagateAcquiredImpl(NewType, PropagateAcquired);
-          };
-
       switch (const auto EdgeType = ToEdgeType(Edge); EdgeType) {
       case DTDEdgeType::Inheritance:
         return ranges::views::concat(
-                   GeneratePropagatedTransitionsForInheritedMethods(SourceType,
-                                                                    TargetType),
-                   GeneratePropagatedTransitions(TargetType, SourceType)) |
+                   getPropagatedTransitionsForInheritedMethodsForAcquired(
+                       SourceType, TargetType),
+                   generatePropagatedTransitionsForAcquired(TargetType,
+                                                            SourceType)) |
                ranges::to<TransitionCollector>;
       case DTDEdgeType::Typedef:
-        return ranges::views::concat(
-                   GeneratePropagatedTransitions(SourceType, TargetType),
-                   GeneratePropagatedTransitions(TargetType, SourceType)) |
+        return ranges::views::concat(generatePropagatedTransitionsForAcquired(
+                                         SourceType, TargetType),
+                                     generatePropagatedTransitionsForAcquired(
+                                         TargetType, SourceType)) |
                ranges::to<TransitionCollector>;
       }
       return {};
