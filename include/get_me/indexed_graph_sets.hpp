@@ -10,7 +10,10 @@
 #include "get_me/utility.hpp"
 
 template <typename ValueType>
-using indexed_value_type = std::pair<ValueType, size_t>;
+using indexed_value_type = std::pair<size_t, ValueType>;
+
+constexpr auto Value = Element<1>;
+constexpr auto Index = Element<0>;
 
 template <typename ValueType> struct IndexedSetComparator {
   using is_transparent = void;
@@ -18,18 +21,22 @@ template <typename ValueType> struct IndexedSetComparator {
   [[nodiscard]] bool
   operator()(const indexed_value_type<ValueType> &Lhs,
              const indexed_value_type<ValueType> &Rhs) const {
-    return Lhs < Rhs;
+    if (Value(Lhs) < Value(Rhs)) {
+      return true;
+    }
+    return Index(Lhs) < Index(Rhs);
   }
   [[nodiscard]] bool operator()(const indexed_value_type<ValueType> &Lhs,
                                 const ValueType &Rhs) const {
-    return Lhs.first < Rhs;
+    return Value(Lhs) < Rhs;
   }
   [[nodiscard]] bool
   operator()(const ValueType &Lhs,
              const indexed_value_type<ValueType> &Rhs) const {
-    return Lhs < Rhs.first;
+    return Lhs < Value(Rhs);
   }
 };
+
 template <typename ValueType>
 using indexed_set =
     std::set<indexed_value_type<ValueType>, IndexedSetComparator<ValueType>>;
@@ -37,8 +44,8 @@ using indexed_set =
 template <ranges::range RangeType>
 [[nodiscard]] auto getIndexedSetSortedByIndex(RangeType &&Range) {
   auto Sorted = std::forward<RangeType>(Range) | ranges::to_vector |
-                ranges::actions::sort(std::less{}, Element<1>);
-  return Sorted | ranges::views::move | ranges::views::transform(Element<0>) |
+                ranges::actions::sort(std::less{}, Index);
+  return Sorted | ranges::views::move | ranges::views::transform(Value) |
          ranges::to_vector;
 }
 

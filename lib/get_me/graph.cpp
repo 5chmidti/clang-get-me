@@ -20,6 +20,7 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/transform.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/set_algorithm.hpp>
@@ -85,7 +86,7 @@ static void initializeVertexDataWithQueried(
           ranges::views::transform(
               [&EdgeWeights](
                   const indexed_value_type<GraphData::EdgeType> &IndexedEdge) {
-                return EdgeWeights[IndexedEdge.second];
+                return EdgeWeights[Index(IndexedEdge)];
               }),
       Transition);
 }
@@ -101,7 +102,7 @@ static void initializeVertexDataWithQueried(
                        const TransitionType &Transition) {
         const auto AcquiredIsSubset =
             [Acquired = acquired(Transition)](const auto &IndexedVertex) {
-              return isSubset(IndexedVertex.first, Acquired);
+              return isSubset(Value(IndexedVertex), Acquired);
             };
         const auto AllAreIndependentOfTransition =
             [&Transition](
@@ -129,12 +130,12 @@ static void initializeVertexDataWithQueried(
 [[nodiscard]] static auto toTransitionAndTargetTypeSetPairForVertex(
     const indexed_value_type<TypeSet> &IndexedVertex) {
   return [&IndexedVertex](const TransitionType &Transition) {
-    return std::pair{
-        Transition,
-        ranges::views::set_union(ranges::views::set_difference(
-                                     IndexedVertex.first, acquired(Transition)),
-                                 required(Transition)) |
-            ranges::to<TypeSet>};
+    return std::pair{Transition,
+                     ranges::views::set_union(
+                         ranges::views::set_difference(Value(IndexedVertex),
+                                                       acquired(Transition)),
+                         required(Transition)) |
+                         ranges::to<TypeSet>};
   };
 }
 
@@ -154,8 +155,8 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
       ranges::views::filter(DoesNotRequireQueriedType, required) |
       ranges::to<TransitionCollector>;
 
-  auto VertexData = ranges::to<indexed_set<TypeSet>>(ranges::views::zip(
-      Data.VertexData, ranges::views::iota(static_cast<size_t>(0U))));
+  auto VertexData = Data.VertexData | ranges::views::enumerate |
+                    ranges::to<indexed_set<TypeSet>>;
 
   indexed_set<GraphData::EdgeType> EdgesData{};
 
@@ -173,8 +174,6 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
     for (auto [IndexedVertex, Transitions] :
          constructVertexAndTransitionsPairVector(InterstingVertices,
                                                  TypeSetTransitionData)) {
-      const auto SourceVertexIndex = IndexedVertex.second;
-
       for (const auto &[Transition, TargetTypeSet] :
            Transitions |
                ranges::views::transform(
@@ -182,10 +181,10 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
         const auto TargetVertexIter = VertexData.find(TargetTypeSet);
         const auto TargetVertexExists = TargetVertexIter != VertexData.end();
         const auto TargetVertexIndex =
-            TargetVertexExists ? TargetVertexIter->second : VertexData.size();
+            TargetVertexExists ? Index(*TargetVertexIter) : VertexData.size();
 
         const auto EdgeToAdd =
-            GraphData::EdgeType{SourceVertexIndex, TargetVertexIndex};
+            GraphData::EdgeType{Index(IndexedVertex), TargetVertexIndex};
 
         if (TargetVertexExists &&
             edgeWithTransitionExistsInContainer(EdgesData, EdgeToAdd,
@@ -196,11 +195,11 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
         if (TargetVertexExists) {
           NewInterstingVertices.emplace(*TargetVertexIter);
         } else {
-          NewInterstingVertices.emplace(TargetTypeSet, TargetVertexIndex);
-          VertexData.emplace(TargetTypeSet, TargetVertexIndex);
+          NewInterstingVertices.emplace(TargetVertexIndex, TargetTypeSet);
+          VertexData.emplace(TargetVertexIndex, TargetTypeSet);
         }
         if (const auto [_, EdgeAdded] =
-                EdgesData.emplace(EdgeToAdd, EdgesData.size());
+                EdgesData.emplace(EdgesData.size(), EdgeToAdd);
             EdgeAdded) {
           Data.EdgeWeights.push_back(Transition);
           AddedTransitions = true;

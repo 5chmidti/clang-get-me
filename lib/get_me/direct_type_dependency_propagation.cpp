@@ -54,9 +54,9 @@ public:
     const auto BaseTypeIter = Vertices.find(Type);
     const auto BaseTypeExists = BaseTypeIter != Vertices.end();
     const auto BaseVertexIndex =
-        BaseTypeExists ? BaseTypeIter->second : Vertices.size();
+        BaseTypeExists ? Index(*BaseTypeIter) : Vertices.size();
     if (!BaseTypeExists) {
-      Vertices.emplace(Type, BaseVertexIndex);
+      Vertices.emplace(BaseVertexIndex, Type);
     }
     return {BaseTypeExists, BaseVertexIndex};
   }
@@ -76,7 +76,7 @@ public:
           if (Edges.contains(EdgeToAdd)) {
             return;
           }
-          Edges.emplace(EdgeToAdd, Edges.size());
+          Edges.emplace(Edges.size(), EdgeToAdd);
           EdgeTypes.push_back(DTDEdgeType::Inheritance);
           visitCXXRecordDecl(QType->getAsCXXRecordDecl(), BaseVertexIndex);
         });
@@ -89,9 +89,9 @@ public:
     const auto EdgeToAdd = DTDDataType::EdgeType{addType(AliasType).second,
                                                  addType(BaseType).second};
     const auto EdgesIter = Edges.lower_bound(EdgeToAdd);
-    if (const auto ContainsEdgeToAdd = EdgesIter->first == EdgeToAdd;
+    if (const auto ContainsEdgeToAdd = Value(*EdgesIter) == EdgeToAdd;
         !ContainsEdgeToAdd) {
-      Edges.emplace_hint(EdgesIter, EdgeToAdd, Edges.size());
+      Edges.emplace_hint(EdgesIter, Edges.size(), EdgeToAdd);
       EdgeTypes.push_back(DTDEdgeType::Typedef);
     }
   };
