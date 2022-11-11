@@ -45,12 +45,12 @@
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
+#include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/iota.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/view.hpp>
-#include <range/v3/view/zip.hpp>
 #include <range/v3/view/zip_with.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
@@ -62,7 +62,6 @@
 #include "get_me/tooling.hpp"
 
 // NOLINTBEGIN
-using namespace ranges;
 using namespace llvm::cl;
 
 static OptionCategory ToolCategory("get_me");
@@ -158,12 +157,12 @@ int main(int argc, const char **argv) {
             return Lhs.size() == Rhs.size();
           }) |
           ranges::views::transform([](const auto Range) {
-            return std::pair{ranges::begin(Range)->size(), ranges::size(Range)};
+            return std::pair{ranges::size(Range), ranges::begin(Range)->size()};
           }));
   auto PreIndepPathsSize = Paths.size();
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
-  const auto OutputPathCount = std::min<size_t>(Paths.size(), 25U);
+  const auto OutputPathCount = std::min<size_t>(Paths.size(), 10U);
   ranges::partial_sort(
       Paths,
       Paths.begin() +
@@ -179,16 +178,16 @@ int main(int argc, const char **argv) {
                Data.VertexData[Rhs.back().m_target].size();
       });
 
-  for (const auto [Path, Number] : views::zip(
-           Paths | ranges::views::take(OutputPathCount), views::iota(0U))) {
+  for (const auto &[Number, Path] :
+       ranges::views::enumerate(Paths | ranges::views::take(OutputPathCount))) {
     spdlog::info(
         "path #{}: {} -> remaining: {}", Number,
-        fmt::join(Path | views::transform([&Data, &IndexMap](
-                                              const EdgeDescriptor &Edge) {
-                    return toString(
-                        Data.EdgeWeights[boost::get(IndexMap, Edge)]);
-                  }),
-                  ", "),
+        fmt::join(
+            Path | ranges::views::transform([&Data, &IndexMap](
+                                                const EdgeDescriptor &Edge) {
+              return toString(Data.EdgeWeights[boost::get(IndexMap, Edge)]);
+            }),
+            ", "),
         Data.VertexData[Path.back().m_target]);
   }
 }
