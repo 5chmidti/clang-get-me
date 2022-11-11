@@ -132,10 +132,10 @@ int main(int argc, const char **argv) {
   }
 
   const auto &QueriedType = TypeName.getValue();
+  const auto Query = QueryType{std::move(TypeSetTransitionData), QueriedType};
 
   // workaround for lmdba captures in clang
-  const auto GraphAndData =
-      createGraph(TypeSetTransitionData, QueriedType, Conf);
+  const auto GraphAndData = createGraph(Query, Conf);
   const auto &Graph = GraphAndData.first;
   const auto &Data = GraphAndData.second;
   const auto IndexMap = boost::get(boost::edge_index, Graph);
@@ -146,7 +146,7 @@ int main(int argc, const char **argv) {
   dumpToDotFile(Graph, Data);
 
   const auto SourceVertexDesc =
-      getSourceVertexMatchingQueriedType(Data, QueriedType);
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   if (!SourceVertexDesc) {
     return 1;
   }

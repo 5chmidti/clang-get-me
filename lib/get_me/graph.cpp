@@ -35,47 +35,6 @@
 #include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
-[[nodiscard]] static auto matchesNamePredicateFactory(std::string Name) {
-  return [Name = std::move(Name)](const TypeSetValueType &Val) {
-    return std::visit(
-        Overloaded{
-            [&Name](const clang::Type *const Type) {
-              const auto QType = clang::QualType(Type, 0);
-              const auto TypeAsString = [&QType]() {
-                auto QTypeAsString = QType.getAsString();
-                boost::erase_all(QTypeAsString, "struct");
-                boost::erase_all(QTypeAsString, "class");
-                boost::trim(QTypeAsString);
-                return QTypeAsString;
-              }();
-              const auto EquivalentName = TypeAsString == Name;
-              if (!EquivalentName &&
-                  (TypeAsString.find(Name) != std::string::npos)) {
-                spdlog::trace(
-                    "matchesName(QualType): no match for close match: {} vs {}",
-                    TypeAsString, Name);
-              }
-              return EquivalentName;
-            },
-            [](const ArithmeticType &) { return false; }},
-        Val);
-  };
-}
-
-static void initializeVertexDataWithQueried(
-    const TransitionCollector &TypeSetTransitionData, GraphData &Data,
-    const std::string &TypeName) {
-  const auto MatchesQueriedName = matchesNamePredicateFactory(TypeName);
-  ranges::transform(ranges::views::filter(
-                        TypeSetTransitionData,
-                        [&Data, &MatchesQueriedName](const TypeSet &Acquired) {
-                          return ranges::any_of(Acquired, MatchesQueriedName) &&
-                                 !ranges::contains(Data.VertexData, Acquired);
-                        },
-                        acquired),
-                    std::back_inserter(Data.VertexData), acquired);
-}
-
 [[nodiscard]] static bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,
     const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
@@ -139,21 +98,9 @@ static void initializeVertexDataWithQueried(
   };
 }
 
-static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
-                       GraphData &Data, const Config &Conf) {
-  const auto QueriedTypes = Data.VertexData;
-  // FIXME: do the filtering in tooling
-  const auto DoesNotRequireQueriedType =
-      [&QueriedTypes](const TypeSet &Required) {
-        const auto IsSubsetOfRequired = [&Required](const auto &QueriedType) {
-          return isSubset(Required, QueriedType);
-        };
-        return !ranges::any_of(QueriedTypes, IsSubsetOfRequired);
-      };
-  const auto TypeSetTransitionData =
-      TypeSetTransitionData2 |
-      ranges::views::filter(DoesNotRequireQueriedType, required) |
-      ranges::to<TransitionCollector>;
+static void buildGraph(const QueryType &Query, GraphData &Data,
+                       const Config &Conf) {
+  const auto TransitionsForQuery = Query.getTransitionsForQuery();
 
   auto VertexData = Data.VertexData | ranges::views::enumerate |
                     ranges::to<indexed_set<TypeSet>>;
@@ -173,7 +120,7 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
     AddedTransitions = false;
     for (auto [IndexedVertex, Transitions] :
          constructVertexAndTransitionsPairVector(InterstingVertices,
-                                                 TypeSetTransitionData)) {
+                                                 TransitionsForQuery)) {
       for (const auto &[Transition, TargetTypeSet] :
            Transitions |
                ranges::views::transform(
@@ -222,15 +169,14 @@ static void buildGraph(const TransitionCollector &TypeSetTransitionData2,
       ranges::to_vector;
 }
 
-std::pair<GraphType, GraphData>
-createGraph(const TransitionCollector &TypeSetTransitionData,
-            const std::string &TypeName, const Config &Conf) {
+std::pair<GraphType, GraphData> createGraph(const QueryType &Query,
+                                            const Config &Conf) {
   GraphData Data{};
-  initializeVertexDataWithQueried(TypeSetTransitionData, Data, TypeName);
+  Data.VertexData.push_back(Query.getQueriedType());
 
   spdlog::trace("initial GraphData.VertexData: {}", Data.VertexData);
 
-  buildGraph(TypeSetTransitionData, Data, Conf);
+  buildGraph(Query, Data, Conf);
 
   return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                     Data.EdgeIndices.data(), Data.EdgeIndices.size()),
@@ -239,18 +185,12 @@ createGraph(const TransitionCollector &TypeSetTransitionData,
 
 std::optional<VertexDescriptor>
 getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const std::string &TypeName) {
-  // FIXME: improve queried type matching:
-  // - allow matching mutiple to get around QualType vs NamedDecl problem
-  // FIXME: only getting the 'A' type, not the & qualified
-  const auto SourceVertex =
-      ranges::find_if(Data.VertexData, [&TypeName](const TypeSet &TSet) {
-        return TSet.end() !=
-               ranges::find_if(TSet, matchesNamePredicateFactory(TypeName));
-      });
+                                   const TypeSet &QueriedType) {
+  const auto SourceVertex = ranges::find(Data.VertexData, QueriedType);
 
   if (SourceVertex == Data.VertexData.end()) {
-    spdlog::error("found no type matching {} in {}", TypeName, Data.VertexData);
+    spdlog::error("found no type matching {} in {}", QueriedType,
+                  Data.VertexData);
     return std::nullopt;
   }
   return static_cast<VertexDescriptor>(

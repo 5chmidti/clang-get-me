@@ -64,11 +64,11 @@ void test(std::string_view Code, std::string_view QueriedType,
   TransitionCollector TypeSetTransitionData{};
   auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
-  const auto QueriedTypeAsString = std::string{QueriedType};
-  const auto [Graph, Data] =
-      createGraph(TypeSetTransitionData, QueriedTypeAsString, CurrentConfig);
+  const auto Query =
+      QueryType{std::move(TypeSetTransitionData), std::string{QueriedType}};
+  const auto [Graph, Data] = createGraph(Query, CurrentConfig);
   const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   const auto VertexDataSize = Data.VertexData.size();
   ASSERT_TRUE(SourceVertex.has_value());
   if (!SourceVertex.has_value()) {
@@ -99,11 +99,11 @@ void test_failure(std::string_view Code, std::string_view QueriedType,
   TransitionCollector TypeSetTransitionData{};
   auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
-  const auto QueriedTypeAsString = std::string{QueriedType};
-  const auto [Graph, Data] =
-      createGraph(TypeSetTransitionData, QueriedTypeAsString, CurrentConfig);
+  const auto Query =
+      QueryType{std::move(TypeSetTransitionData), std::string{QueriedType}};
+  const auto [Graph, Data] = createGraph(Query, CurrentConfig);
   const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   const auto VertexDataSize = Data.VertexData.size();
   ASSERT_TRUE(SourceVertex.has_value());
   if (!SourceVertex.has_value()) {

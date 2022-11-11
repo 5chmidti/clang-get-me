@@ -17,6 +17,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 
+#include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 
@@ -61,14 +62,13 @@ struct GraphData {
 };
 
 [[nodiscard]] std::pair<GraphType, GraphData>
-createGraph(const TransitionCollector &TypeSetTransitionData,
-            const std::string &TypeName, const Config &Conf);
+createGraph(const QueryType &Query, const Config &Conf);
 
 [[nodiscard]] TransitionCollector
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
 [[nodiscard]] std::optional<VertexDescriptor>
 getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const std::string &TypeName);
+                                   const TypeSet &QueriedType);
 
 #endif

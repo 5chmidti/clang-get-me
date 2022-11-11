@@ -10,6 +10,7 @@
 
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
+#include "get_me/query.hpp"
 #include "get_me/tooling.hpp"
 
 inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
@@ -20,12 +21,13 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   Consumer.HandleTranslationUnit(Ast.getASTContext());
   State.counters["transitions"] =
       static_cast<double>(TypeSetTransitionData.size());
-  const auto [Graph, Data] =
-      createGraph(TypeSetTransitionData, QueriedTypeAsString, Conf);
+  const auto Query =
+      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString};
+  const auto [Graph, Data] = createGraph(Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   if (!SourceVertex) {
     spdlog::error("QueriedType not found");
     return;
@@ -44,18 +46,18 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 #define BENCHMARK_TRANSITIONS                                                  \
   TransitionCollector TypeSetTransitionData{};                                 \
   auto Consumer = GetMe{Conf, TypeSetTransitionData, Ast->getSema()};          \
-  Consumer.HandleTranslationUnit(Ast->getASTContext());
+  Consumer.HandleTranslationUnit(Ast->getASTContext());                        \
+  const auto Query =                                                           \
+      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString};
 
-#define BENCHMARK_GRAPH                                                        \
-  const auto [Graph, Data] =                                                   \
-      createGraph(TypeSetTransitionData, QueriedTypeAsString, Conf);
+#define BENCHMARK_GRAPH const auto [Graph, Data] = createGraph(Query, Conf);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
   const auto FoundPaths = pathTraversal(Graph, Data, Conf, *SourceVertex);
 
 #define BENCHMARK_GET_SOURCE_VERTEX                                            \
   const auto SourceVertex =                                                    \
-      getSourceVertexMatchingQueriedType(Data, QueriedTypeAsString);           \
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());        \
   if (!SourceVertex) [[unlikely]] {                                            \
     spdlog::error("QueriedType not found");                                    \
     return;                                                                    \
