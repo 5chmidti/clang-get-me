@@ -275,13 +275,9 @@ static void filterOverloads(TransitionCollector &Transitions,
           return false;
         }
 
-        const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
-          return PVarDecl->getType();
-        };
-
         if (const auto MismatchResult =
                 ranges::mismatch(LhsParams.value(), RhsParams.value(),
-                                 std::equal_to{}, Projection, Projection);
+                                 std::equal_to{}, ToQualType, ToQualType);
             MismatchResult.in1 == LhsParams.value().end()) {
           return static_cast<size_t>(
                      std::distance(LhsParams->begin(), MismatchResult.in1)) <

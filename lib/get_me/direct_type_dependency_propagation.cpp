@@ -4,11 +4,13 @@
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
+#include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <range/v3/action/reverse.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
+#include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/view/cache1.hpp>
 #include <range/v3/view/concat.hpp>
@@ -242,19 +244,11 @@ overridesMethod(const TypeSetValueType &Type,
 [[nodiscard]] static bool
 isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
                const clang::CXXRecordDecl *const Derived) {
-
   const auto IsOveriddenCtor =
       [Ctor](const clang::CXXConstructorDecl *const DerivedCtor) {
-        const auto NumParams = DerivedCtor->getNumParams();
-        return NumParams == Ctor->getNumParams() &&
-               ranges::all_of(
-                   ranges::views::iota(0U, NumParams),
-                   [Ctor, DerivedCtor](const auto ParameterIndex) {
-                     const auto DerivedParam =
-                         DerivedCtor->getParamDecl(ParameterIndex);
-                     const auto BaseParam = Ctor->getParamDecl(ParameterIndex);
-                     return DerivedParam->getType() == BaseParam->getType();
-                   });
+        return DerivedCtor->getNumParams() == Ctor->getNumParams() &&
+               ranges::equal(Ctor->parameters(), DerivedCtor->parameters(),
+                             std::less{}, ToQualType, ToQualType);
       };
   return !ranges::any_of(Derived->ctors(), IsOveriddenCtor);
 }

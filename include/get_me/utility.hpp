@@ -4,6 +4,7 @@
 #include <concepts>
 #include <utility>
 
+#include <clang/AST/Decl.h>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/subrange.hpp>
 
@@ -39,5 +40,9 @@ inline constexpr auto Element = []<typename T>(T &&Tuple) -> decltype(auto) {
   auto [first, second] = Pair;
   return ranges::subrange{std::move(first), std::move(second)};
 }
+
+inline constexpr auto ToQualType = [](const clang::ValueDecl *const VDecl) {
+  return VDecl->getType();
+};
 
 #endif
