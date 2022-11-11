@@ -16,10 +16,10 @@
 
 class QueryType {
 public:
-  QueryType(TransitionCollector Transitions, std::string Query)
-      : Transitions{std::move(Transitions)},
-        QueriedTypeAsString{std::move(Query)}, QueriedType{
-                                                   getQueriedTypeForInput()} {}
+  QueryType(TransitionCollector Transitions, std::string Query, Config Conf)
+      : Transitions{std::move(Transitions)}, QueriedTypeAsString{std::move(
+                                                 Query)},
+        QueriedType{getQueriedTypeForInput()}, Conf{std::move(Conf)} {}
 
   [[nodiscard]] TransitionCollector getTransitionsForQuery() const {
     const auto QueriedTypeIsSubset = [this](const auto &Required) {
@@ -41,6 +41,7 @@ public:
     return QueriedTypeAsString;
   }
   [[nodiscard]] const TypeSet &getQueriedType() const { return QueriedType; }
+  [[nodiscard]] const Config &getConfig() const { return Conf; }
 
 private:
   [[nodiscard]] auto matchesQueriedTypeName() const {
@@ -96,6 +97,7 @@ private:
   TransitionCollector Transitions{};
   std::string QueriedTypeAsString{};
   TypeSet QueriedType{};
+  Config Conf{};
 };
 
 #endif

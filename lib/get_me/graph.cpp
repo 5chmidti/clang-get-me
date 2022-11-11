@@ -98,89 +98,96 @@
   };
 }
 
-static void buildGraph(const QueryType &Query, GraphData &Data,
-                       const Config &Conf) {
-  const auto TransitionsForQuery = Query.getTransitionsForQuery();
+void GraphBuilder::build() {
+  while (CurrentState.IterationIndex < Query.getConfig().MaxGraphDepth &&
+         buildStep()) {
+    // complete build
+  }
+}
 
-  auto VertexData = Data.VertexData | ranges::views::enumerate |
-                    ranges::to<indexed_set<TypeSet>>;
+bool GraphBuilder::buildStep() {
+  return buildStepFor(CurrentState.InterestingVertices);
+}
 
-  indexed_set<GraphData::EdgeType> EdgesData{};
+bool GraphBuilder::buildStepFor(VertexDescriptor Vertex) {
+  return buildStepFor(
+      VertexData |
+      ranges::views::filter(
+          [Vertex](const size_t VertexIndex) { return VertexIndex == Vertex; },
+          Index) |
+      ranges::to<indexed_set<TypeSet>>);
+}
 
-  size_t IterationCount = 0U;
+bool GraphBuilder::buildStepFor(const TypeSet &InterestingVertex) {
+  return buildStepFor(VertexData |
+                      ranges::views::filter(
+                          [&InterestingVertex](const auto &Vertex) {
+                            return Vertex == InterestingVertex;
+                          },
+                          Value) |
+                      ranges::to<indexed_set<TypeSet>>);
+}
 
-  auto InterstingVertices = VertexData;
-  auto NewInterstingVertices = indexed_set<TypeSet>{};
+bool GraphBuilder::buildStepFor(
+    const indexed_set<TypeSet> &InterestingVertices) {
+  auto AddedTransitions = false;
+  StepState NewState{.IterationIndex = CurrentState.IterationIndex + 1};
+  for (auto [IndexedVertex, Transitions] :
+       constructVertexAndTransitionsPairVector(InterestingVertices,
+                                               TransitionsForQuery)) {
+    for (const auto &[Transition, TargetTypeSet] :
+         Transitions |
+             ranges::views::transform(
+                 toTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
+      const auto TargetVertexIter = VertexData.find(TargetTypeSet);
+      const auto TargetVertexExists = TargetVertexIter != VertexData.end();
+      const auto TargetVertexIndex =
+          TargetVertexExists ? Index(*TargetVertexIter) : VertexData.size();
 
-  Data.VertexData.emplace_back();
+      const auto EdgeToAdd =
+          GraphData::EdgeType{Index(IndexedVertex), TargetVertexIndex};
 
-  for (bool AddedTransitions = true;
-       AddedTransitions && IterationCount < Conf.MaxGraphDepth;
-       ++IterationCount) {
-    AddedTransitions = false;
-    for (auto [IndexedVertex, Transitions] :
-         constructVertexAndTransitionsPairVector(InterstingVertices,
-                                                 TransitionsForQuery)) {
-      for (const auto &[Transition, TargetTypeSet] :
-           Transitions |
-               ranges::views::transform(
-                   toTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
-        const auto TargetVertexIter = VertexData.find(TargetTypeSet);
-        const auto TargetVertexExists = TargetVertexIter != VertexData.end();
-        const auto TargetVertexIndex =
-            TargetVertexExists ? Index(*TargetVertexIter) : VertexData.size();
+      if (TargetVertexExists &&
+          edgeWithTransitionExistsInContainer(EdgesData, EdgeToAdd, Transition,
+                                              EdgeWeights)) {
+        continue;
+      }
 
-        const auto EdgeToAdd =
-            GraphData::EdgeType{Index(IndexedVertex), TargetVertexIndex};
-
-        if (TargetVertexExists &&
-            edgeWithTransitionExistsInContainer(EdgesData, EdgeToAdd,
-                                                Transition, Data.EdgeWeights)) {
-          continue;
-        }
-
-        if (TargetVertexExists) {
-          NewInterstingVertices.emplace(*TargetVertexIter);
-        } else {
-          NewInterstingVertices.emplace(TargetVertexIndex, TargetTypeSet);
-          VertexData.emplace(TargetVertexIndex, TargetTypeSet);
-        }
-        if (const auto [_, EdgeAdded] =
-                EdgesData.emplace(EdgesData.size(), EdgeToAdd);
-            EdgeAdded) {
-          Data.EdgeWeights.push_back(Transition);
-          AddedTransitions = true;
-        }
+      if (TargetVertexExists) {
+        NewState.InterestingVertices.emplace(*TargetVertexIter);
+      } else {
+        NewState.InterestingVertices.emplace(TargetVertexIndex, TargetTypeSet);
+        VertexData.emplace(TargetVertexIndex, TargetTypeSet);
+      }
+      if (const auto [_, EdgeAdded] =
+              EdgesData.emplace(EdgesData.size(), EdgeToAdd);
+          EdgeAdded) {
+        EdgeWeights.push_back(Transition);
+        AddedTransitions = true;
       }
     }
-
-    spdlog::trace("#{} |V| = {}, |E| = {}", IterationCount, VertexData.size(),
-                  EdgesData.size());
-
-    InterstingVertices = std::move(NewInterstingVertices);
-    NewInterstingVertices.clear();
   }
-  spdlog::trace("{:=^50}", "");
+  CurrentState = std::move(NewState);
+  return AddedTransitions;
+}
 
+std::pair<GraphType, GraphData> GraphBuilder::commit() {
+  GraphData Data{};
   Data.VertexData = getIndexedSetSortedByIndex(std::move(VertexData));
   Data.Edges = getIndexedSetSortedByIndex(std::move(EdgesData));
   Data.EdgeIndices =
       ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()) |
       ranges::to_vector;
-}
-
-std::pair<GraphType, GraphData> createGraph(const QueryType &Query,
-                                            const Config &Conf) {
-  GraphData Data{};
-  Data.VertexData.push_back(Query.getQueriedType());
-
-  spdlog::trace("initial GraphData.VertexData: {}", Data.VertexData);
-
-  buildGraph(Query, Data, Conf);
-
+  Data.EdgeWeights = std::move(EdgeWeights);
   return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                     Data.EdgeIndices.data(), Data.EdgeIndices.size()),
-          Data};
+          std::move(Data)};
+}
+
+std::pair<GraphType, GraphData> createGraph(const QueryType &Query) {
+  auto Builder = GraphBuilder{Query};
+  Builder.build();
+  return Builder.commit();
 }
 
 std::optional<VertexDescriptor>

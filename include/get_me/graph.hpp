@@ -17,6 +17,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 
+#include "get_me/indexed_graph_sets.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -61,8 +62,40 @@ struct GraphData {
   std::vector<VertexDataType> VertexData{};
 };
 
+class GraphBuilder {
+public:
+  explicit GraphBuilder(QueryType Query)
+      : Query(std::move(Query)),
+        TransitionsForQuery{this->Query.getTransitionsForQuery()},
+        VertexData{{0U, this->Query.getQueriedType()}}, CurrentState{
+                                                            0U, VertexData} {}
+
+  void build();
+  [[nodiscard]] bool buildStep();
+  [[nodiscard]] bool buildStepFor(VertexDescriptor Vertex);
+  [[nodiscard]] bool buildStepFor(const TypeSet &InterestingVertex);
+  [[nodiscard]] bool
+  buildStepFor(const indexed_set<TypeSet> &InterestingVertices);
+
+  [[nodiscard]] std::pair<GraphType, GraphData> commit();
+
+private:
+  struct StepState {
+    size_t IterationIndex{};
+    indexed_set<TypeSet> InterestingVertices{};
+  };
+
+  QueryType Query;
+  TransitionCollector TransitionsForQuery{};
+  indexed_set<TypeSet> VertexData{};
+  indexed_set<GraphData::EdgeType> EdgesData{};
+  std::vector<GraphData::EdgeWeightType> EdgeWeights{};
+
+  StepState CurrentState{};
+};
+
 [[nodiscard]] std::pair<GraphType, GraphData>
-createGraph(const QueryType &Query, const Config &Conf);
+createGraph(const QueryType &Query);
 
 [[nodiscard]] TransitionCollector
 getTypeSetTransitionData(const TransitionCollector &Collector);

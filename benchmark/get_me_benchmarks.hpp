@@ -22,8 +22,8 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   State.counters["transitions"] =
       static_cast<double>(TypeSetTransitionData.size());
   const auto Query =
-      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString};
-  const auto [Graph, Data] = createGraph(Query, Conf);
+      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString, Conf};
+  const auto [Graph, Data] = createGraph(Query);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   const auto SourceVertex =
@@ -48,9 +48,9 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   auto Consumer = GetMe{Conf, TypeSetTransitionData, Ast->getSema()};          \
   Consumer.HandleTranslationUnit(Ast->getASTContext());                        \
   const auto Query =                                                           \
-      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString};
+      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString, Conf};
 
-#define BENCHMARK_GRAPH const auto [Graph, Data] = createGraph(Query, Conf);
+#define BENCHMARK_GRAPH const auto [Graph, Data] = createGraph(Query);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
   const auto FoundPaths = pathTraversal(Graph, Data, Conf, *SourceVertex);

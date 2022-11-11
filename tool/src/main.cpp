@@ -131,10 +131,11 @@ int main(int argc, const char **argv) {
   }
 
   const auto &QueriedType = TypeName.getValue();
-  const auto Query = QueryType{std::move(TypeSetTransitionData), QueriedType};
+  const auto Query =
+      QueryType{std::move(TypeSetTransitionData), QueriedType, Conf};
 
   // workaround for lmdba captures in clang
-  const auto GraphAndData = createGraph(Query, Conf);
+  const auto GraphAndData = createGraph(Query);
   const auto &Graph = GraphAndData.first;
   const auto &Data = GraphAndData.second;
   const auto IndexMap = boost::get(boost::edge_index, Graph);
