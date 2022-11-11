@@ -194,15 +194,13 @@ template <typename T> [[nodiscard]] auto invokePropagator(T &&Propagator) {
          ranges::views::filter([](const auto &TransitionAndPropagationStatus) {
            return std::get<1>(TransitionAndPropagationStatus);
          }) |
-         ranges::views::transform(
-             [TargetType](
-                 const auto &TransitionAndPropagationStatus) -> TransitionType {
-               const auto &Transition =
-                   std::get<0>(TransitionAndPropagationStatus);
-               return {{TypeSet{TargetType}},
-                       transition(Transition),
-                       required(Transition)};
-             });
+         ranges::views::transform([TargetType](
+                                      const auto
+                                          &TransitionAndPropagationStatus)
+                                      -> TransitionType {
+           const auto &Transition = std::get<0>(TransitionAndPropagationStatus);
+           return {TargetType, transition(Transition), required(Transition)};
+         });
 }
 
 [[nodiscard]] static auto getVerticesWithNoInEdges(const DTDDataType &Data) {
@@ -323,7 +321,7 @@ private:
       const TypeSetValueType &OldType, const TypeSetValueType &NewType) const {
     const auto PropagateAcquired =
         [&OldType](const TransitionType &Transition) {
-          return acquired(Transition).contains(OldType);
+          return acquired(Transition) == OldType;
         };
     // FIXME: apply iterating optimization if possible
     return Transitions_ | propagateAcquiredImpl(NewType, PropagateAcquired);
@@ -331,30 +329,30 @@ private:
 
   [[nodiscard]] auto getPropagatedTransitionsForInheritedMethodsForAcquired(
       const TypeSetValueType &OldType, const TypeSetValueType &NewType) {
-    const auto PropagateAcquired = [&OldType, &NewType](
-                                       const TransitionType &Transition) {
-      const auto TransitionIsFromRecord = std::visit(
-          Overloaded{[](const clang::FieldDecl *const) { return false; },
-                     [&NewType](const clang::FunctionDecl *const FDecl) {
-                       const auto *const Method =
-                           llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
-                       if (Method == nullptr) {
-                         return false;
-                       }
-                       if (const auto *const Ctor =
-                               llvm::dyn_cast<clang::CXXConstructorDecl>(
-                                   Method);
-                           Ctor != nullptr) {
-                         return overridesConstructor(NewType, Ctor);
-                       }
+    const auto PropagateAcquired =
+        [&OldType, &NewType](const TransitionType &Transition) {
+          const auto TransitionIsFromRecord = std::visit(
+              Overloaded{[](const clang::FieldDecl *const) { return false; },
+                         [&NewType](const clang::FunctionDecl *const FDecl) {
+                           const auto *const Method =
+                               llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
+                           if (Method == nullptr) {
+                             return false;
+                           }
+                           if (const auto *const Ctor =
+                                   llvm::dyn_cast<clang::CXXConstructorDecl>(
+                                       Method);
+                               Ctor != nullptr) {
+                             return overridesConstructor(NewType, Ctor);
+                           }
 
-                       return overridesMethod(NewType, Method);
-                     },
-                     [](const auto *const) { return false; }},
-          transition(Transition));
+                           return overridesMethod(NewType, Method);
+                         },
+                         [](const auto *const) { return false; }},
+              transition(Transition));
 
-      return acquired(Transition).contains(OldType) && TransitionIsFromRecord;
-    };
+          return acquired(Transition) == OldType && TransitionIsFromRecord;
+        };
     return Transitions_ | propagateAcquiredImpl(NewType, PropagateAcquired);
   };
 

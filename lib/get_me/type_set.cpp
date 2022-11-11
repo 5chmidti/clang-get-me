@@ -34,8 +34,8 @@ const clang::Type *launderType(const clang::Type *Type) {
   return Type;
 }
 
-std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
-                                      const Config &Conf) {
+std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
+                                               const Config &Conf) {
   const auto AcquiredType = [FDecl, Conf]() {
     if (const auto *const Constructor =
             llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
@@ -68,14 +68,14 @@ std::pair<TypeSet, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
   return {{AcquiredType}, RequiredTypes};
 }
 
-std::pair<TypeSet, TypeSet> toTypeSet(const clang::FieldDecl *FDecl,
-                                      const Config &Conf) {
+std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FieldDecl *FDecl,
+                                               const Config &Conf) {
   return {{{toTypeSetValueType(FDecl->getType().getTypePtr(), Conf)}},
           {{toTypeSetValueType(FDecl->getParent()->getTypeForDecl(), Conf)}}};
 }
 
-std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
-                                      const Config &Conf) {
+std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
+                                               const Config &Conf) {
   return {{{toTypeSetValueType(VDecl->getType().getTypePtr(), Conf)}}, {}};
 }
 

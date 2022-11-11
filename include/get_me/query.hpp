@@ -12,6 +12,7 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/transitions.hpp"
+#include "get_me/type_set.hpp"
 #include "get_me/utility.hpp"
 
 class QueryType {
@@ -45,35 +46,32 @@ public:
   [[nodiscard]] const Config &getConfig() const { return Conf_; }
 
 private:
-  [[nodiscard]] auto matchesQueriedTypeName() const {
-    return [this](const TypeSetValueType &Val) {
-      return std::visit(
-          Overloaded{[this](const clang::Type *const Type) {
-                       const auto QType = clang::QualType(Type, 0);
-                       const auto TypeAsString = [&QType]() {
-                         auto QTypeAsString = QType.getAsString();
-                         boost::erase_all(QTypeAsString, "struct");
-                         boost::erase_all(QTypeAsString, "class");
-                         boost::trim(QTypeAsString);
-                         return QTypeAsString;
-                       }();
-                       const auto EquivalentName =
-                           TypeAsString == QueriedTypeAsString_;
-                       if (!EquivalentName &&
-                           (TypeAsString.find(QueriedTypeAsString_) !=
-                            std::string::npos)) {
-                         spdlog::trace("matchesName(QualType): no match for "
-                                       "close match: {} vs {}",
-                                       TypeAsString, QueriedTypeAsString_);
-                       }
-                       return EquivalentName;
-                     },
-                     [](const ArithmeticType &) { return false; }},
-          Val);
-    };
+  [[nodiscard]] auto matchesQueriedTypeName(const TypeSetValueType &Val) const {
+    return std::visit(
+        Overloaded{
+            [this](const clang::Type *const Type) {
+              const auto QType = clang::QualType(Type, 0);
+              const auto TypeAsString = [&QType]() {
+                auto QTypeAsString = QType.getAsString();
+                boost::erase_all(QTypeAsString, "struct");
+                boost::erase_all(QTypeAsString, "class");
+                boost::trim(QTypeAsString);
+                return QTypeAsString;
+              }();
+              const auto EquivalentName = TypeAsString == QueriedTypeAsString_;
+              if (!EquivalentName && (TypeAsString.find(QueriedTypeAsString_) !=
+                                      std::string::npos)) {
+                spdlog::trace("matchesName(QualType): no match for "
+                              "close match: {} vs {}",
+                              TypeAsString, QueriedTypeAsString_);
+              }
+              return EquivalentName;
+            },
+            [](const ArithmeticType &) { return false; }},
+        Val);
   }
 
-  [[nodiscard]] TypeSet getQueriedTypeForInput() {
+  [[nodiscard]] TypeSetValueType getQueriedTypeForInput() {
     if (Transitions_.empty()) {
       spdlog::error(
           "QueryType::getQueriedTypeForInput(): Transitions are empty");
@@ -81,8 +79,8 @@ private:
     }
     const auto FilteredTypes =
         Transitions_ | ranges::views::transform(acquired) |
-        ranges::views::filter([this](const TypeSet &Acquired) {
-          return ranges::any_of(Acquired, matchesQueriedTypeName());
+        ranges::views::filter([this](const TypeSetValueType &Acquired) {
+          return matchesQueriedTypeName(Acquired);
         }) |
         ranges::to_vector;
 

@@ -7,9 +7,11 @@ using TransitionDataType =
     std::variant<const clang::FunctionDecl *, const clang::FieldDecl *,
                  const clang::VarDecl *>;
 
-using TransitionType = std::tuple<TypeSet, TransitionDataType, TypeSet>;
+using TransitionType =
+    std::tuple<TypeSetValueType, TransitionDataType, TypeSet>;
 
-[[nodiscard]] inline const TypeSet &acquired(const TransitionType &Transition) {
+[[nodiscard]] inline const TypeSetValueType &
+acquired(const TransitionType &Transition) {
   return std::get<0>(Transition);
 }
 
@@ -26,8 +28,8 @@ using TransitionCollector = std::set<TransitionType>;
 
 [[nodiscard]] inline bool independent(const TransitionType &Lhs,
                                       const TransitionType &Rhs) {
-  return setIntersectionIsEmpty(acquired(Lhs), required(Rhs)) &&
-         setIntersectionIsEmpty(required(Lhs), acquired(Rhs));
+  return !required(Rhs).contains(acquired(Lhs)) &&
+         !required(Lhs).contains(acquired(Rhs));
 }
 
 [[nodiscard]] inline auto independentOf(const TransitionType &Transition) {

@@ -10,7 +10,7 @@ TEST_F(GetMeTest, inheritance) {
   )",
        "B",
        {
-           "({struct B}, B B(), {})",
+           "(struct B, B B(), {})",
        });
 
   test(R"(
@@ -21,9 +21,9 @@ TEST_F(GetMeTest, inheritance) {
   )",
        "A",
        {
-           "({struct A}, A A(), {})",
-           "({struct A}, B B(), {})",
-           "({struct A}, A getA(), {})",
+           "(struct A, A A(), {})",
+           "(struct A, B B(), {})",
+           "(struct A, A getA(), {})",
        });
 
   test(R"(
@@ -34,7 +34,7 @@ TEST_F(GetMeTest, inheritance) {
   )",
        "B",
        {
-           "({struct B}, B B(), {})",
+           "(struct B, B B(), {})",
        });
 
   testFailure(
@@ -47,9 +47,9 @@ TEST_F(GetMeTest, inheritance) {
   )",
       "C",
       {
-          "({struct C}, C C(), {})",
-          "({struct C}, C getC(A), {struct A}), ({struct A}, A A(), {})",
-          "({struct C}, C getC(A), {struct B}), ({struct B}, B B(), {})",
+          "(struct C, C C(), {})",
+          "(struct C, C getC(A), {struct A}), (struct A, A A(), {})",
+          "(struct C, C getC(A), {struct B}), (struct B, B B(), {})",
       });
 }
 
@@ -70,19 +70,19 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
   )",
       "C",
       {
-          "({struct C}, C C(), {})",
-          "({struct C}, C funcA(A), {struct A}), ({struct A}, A A(), {})",
-          "({struct C}, C funcA(A), {struct A}), ({struct A}, B B(), {})",
-          "({struct C}, C funcA(A), {struct B}), ({struct B}, B B(), {})",
-          "({struct C}, C funcB(B), {struct B}), ({struct B}, B B(), {})",
-          "({struct C}, C funcA(A), {struct A}), ({struct A}, A funcA(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcA(A), {struct A}), ({struct A}, B funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcA(A), {struct B}), ({struct B}, B funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcB(B), {struct B}), ({struct B}, B funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
+          "(struct C, C C(), {})",
+          "(struct C, C funcA(A), {struct A}), (struct A, A A(), {})",
+          "(struct C, C funcA(A), {struct A}), (struct A, B B(), {})",
+          "(struct C, C funcA(A), {struct B}), (struct B, B B(), {})",
+          "(struct C, C funcB(B), {struct B}), (struct B, B B(), {})",
+          "(struct C, C funcA(A), {struct A}), (struct A, A funcA(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcA(A), {struct A}), (struct A, B funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcA(A), {struct B}), (struct B, B funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcB(B), {struct B}), (struct B, B funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
       });
 
   testFailure(
@@ -100,19 +100,19 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
   )",
       "C",
       {
-          "({struct C}, C C(), {})",
-          "({struct C}, C funcA(A&), {struct A}), ({struct A}, A A(), {})",
-          "({struct C}, C funcA(A&), {struct A}), ({struct A}, B B(), {})",
-          "({struct C}, C funcA(A&), {struct B}), ({struct B}, B B(), {})",
-          "({struct C}, C funcB(B&), {struct B}), ({struct B}, B B(), {})",
-          "({struct C}, C funcA(A&), {struct A}), ({struct A}, A& funcA(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcA(A&), {struct A}), ({struct A}, B& funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcA(A&), {struct B}), ({struct B}, B& funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcB(B&), {struct B}), ({struct B}, B& funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
+          "(struct C, C C(), {})",
+          "(struct C, C funcA(A&), {struct A}), (struct A, A A(), {})",
+          "(struct C, C funcA(A&), {struct A}), (struct A, B B(), {})",
+          "(struct C, C funcA(A&), {struct B}), (struct B, B B(), {})",
+          "(struct C, C funcB(B&), {struct B}), (struct B, B B(), {})",
+          "(struct C, C funcA(A&), {struct A}), (struct A, A& funcA(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcA(A&), {struct A}), (struct A, B& funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcA(A&), {struct B}), (struct B, B& funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcB(B&), {struct B}), (struct B, B& funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
       });
 
   testFailure(
@@ -130,19 +130,19 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
   )",
       "C",
       {
-          "({struct C}, C C(), {})",
-          "({struct C}, C funcA(A*), {struct A}), ({struct A}, A A(), {})",
-          "({struct C}, C funcA(A*), {struct A}), ({struct A}, B B(), {})",
-          "({struct C}, C funcA(A*), {struct B}), ({struct B}, B B(), {})",
-          "({struct C}, C funcB(B*), {struct B}), ({struct B}, B B(), {})",
-          "({struct C}, C funcA(A*), {struct A}), ({struct A}, A funcA(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcA(A), {struct A}), ({struct A}, B* funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcA(A), {struct B}), ({struct B}, B* funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
-          "({struct C}, C funcB(B), {struct B}), ({struct B}, B* funcB(D), "
-          "{struct D}), ({struct D}, D D(), {})",
+          "(struct C, C C(), {})",
+          "(struct C, C funcA(A*), {struct A}), (struct A, A A(), {})",
+          "(struct C, C funcA(A*), {struct A}), (struct A, B B(), {})",
+          "(struct C, C funcA(A*), {struct B}), (struct B, B B(), {})",
+          "(struct C, C funcB(B*), {struct B}), (struct B, B B(), {})",
+          "(struct C, C funcA(A*), {struct A}), (struct A, A funcA(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcA(A), {struct A}), (struct A, B* funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcA(A), {struct B}), (struct B, B* funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
+          "(struct C, C funcB(B), {struct B}), (struct B, B* funcB(D), "
+          "{struct D}), (struct D, D D(), {})",
       });
 }
 
@@ -157,8 +157,8 @@ TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
   )",
       "B",
       {
-          "({struct B}, B B(), {})",
-          "({struct B}, B funcB(B), {struct B}), ({struct B}, B B(), {})",
+          "(struct B, B B(), {})",
+          "(struct B, B funcB(B), {struct B}), (struct B, B B(), {})",
       });
 
   testFailure(
@@ -171,8 +171,8 @@ TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
   )",
       "B",
       {
-          "({struct B}, B B(), {})",
-          "({struct B}, B& funcBRef(B&), {struct B}), ({struct B}, B B(), {})",
+          "(struct B, B B(), {})",
+          "(struct B, B& funcBRef(B&), {struct B}), (struct B, B B(), {})",
       });
 
   testFailure(
@@ -185,7 +185,7 @@ TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
   )",
       "B",
       {
-          "({struct B}, B B(), {})",
-          "({struct B}, B* funcBPtr(B*), {struct B}), ({struct B}, B B(), {})",
+          "(struct B, B B(), {})",
+          "(struct B, B* funcBPtr(B*), {struct B}), (struct B, B B(), {})",
       });
 }

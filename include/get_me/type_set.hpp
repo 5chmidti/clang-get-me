@@ -39,13 +39,13 @@ struct ArithmeticType {
 using TypeSetValueType = std::variant<const clang::Type *, ArithmeticType>;
 using TypeSet = boost::container::flat_set<TypeSetValueType>;
 
-[[nodiscard]] std::pair<TypeSet, TypeSet>
+[[nodiscard]] std::pair<TypeSetValueType, TypeSet>
 toTypeSet(const clang::FieldDecl *FDecl, const Config &Conf);
 
-[[nodiscard]] std::pair<TypeSet, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
-                                                    const Config &Conf);
+[[nodiscard]] std::pair<TypeSetValueType, TypeSet>
+toTypeSet(const clang::VarDecl *VDecl, const Config &Conf);
 
-[[nodiscard]] std::pair<TypeSet, TypeSet>
+[[nodiscard]] std::pair<TypeSetValueType, TypeSet>
 toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
 
 [[nodiscard]] TypeSetValueType toTypeSetValueType(const clang::Type *Type,

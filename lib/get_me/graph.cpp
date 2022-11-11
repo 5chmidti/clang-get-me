@@ -23,6 +23,7 @@
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/iota.hpp>
+#include <range/v3/view/remove.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
@@ -61,7 +62,7 @@
                        const TransitionType &Transition) {
         const auto AcquiredIsSubset =
             [Acquired = acquired(Transition)](const auto &IndexedVertex) {
-              return isSubset(Value(IndexedVertex), Acquired);
+              return Value(IndexedVertex).contains(Acquired);
             };
         const auto AllAreIndependentOfTransition =
             [&Transition](
@@ -90,10 +91,9 @@
     const indexed_value_type<TypeSet> &IndexedVertex) {
   return [&IndexedVertex](const TransitionType &Transition) {
     return std::pair{Transition,
-                     ranges::views::set_union(
-                         ranges::views::set_difference(Value(IndexedVertex),
-                                                       acquired(Transition)),
-                         required(Transition)) |
+                     Value(IndexedVertex) |
+                         ranges::views::remove(acquired(Transition)) |
+                         ranges::views::set_union(required(Transition)) |
                          ranges::to<TypeSet>};
   };
 }
