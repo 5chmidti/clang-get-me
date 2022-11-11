@@ -29,7 +29,9 @@ class GetMe : public clang::ASTConsumer {
 public:
   explicit GetMe(const Config &Configuration,
                  TransitionCollector &TransitionsRef, clang::Sema &Sema)
-      : Conf_{Configuration}, Transitions_{TransitionsRef}, Sema_{Sema} {}
+      : Conf_{Configuration},
+        Transitions_{TransitionsRef},
+        Sema_{Sema} {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) override;
 

@@ -14,10 +14,10 @@ void test(std::string_view Code, std::string_view QueriedType,
           const Config &CurrentConfig = getDefaultConfig(),
           std::source_location Loc = std::source_location::current());
 
-void test_failure(std::string_view Code, std::string_view QueriedType,
-                  const std::set<std::string> &ExpectedPaths,
-                  const Config &CurrentConfig = getDefaultConfig(),
-                  std::source_location Loc = std::source_location::current());
+void testFailure(std::string_view Code, std::string_view QueriedType,
+                 const std::set<std::string> &ExpectedPaths,
+                 const Config &CurrentConfig = getDefaultConfig(),
+                 std::source_location Loc = std::source_location::current());
 
 class GetMeTest : public testing::Test {
 protected:

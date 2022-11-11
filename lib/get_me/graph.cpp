@@ -99,19 +99,19 @@
 }
 
 void GraphBuilder::build() {
-  while (CurrentState.IterationIndex < Query.getConfig().MaxGraphDepth &&
+  while (CurrentState_.IterationIndex < Query_.getConfig().MaxGraphDepth &&
          buildStep()) {
     // complete build
   }
 }
 
 bool GraphBuilder::buildStep() {
-  return buildStepFor(CurrentState.InterestingVertices);
+  return buildStepFor(CurrentState_.InterestingVertices);
 }
 
 bool GraphBuilder::buildStepFor(VertexDescriptor Vertex) {
   return buildStepFor(
-      VertexData |
+      VertexData_ |
       ranges::views::filter(
           [Vertex](const size_t VertexIndex) { return VertexIndex == Vertex; },
           Index) |
@@ -119,7 +119,7 @@ bool GraphBuilder::buildStepFor(VertexDescriptor Vertex) {
 }
 
 bool GraphBuilder::buildStepFor(const TypeSet &InterestingVertex) {
-  return buildStepFor(VertexData |
+  return buildStepFor(VertexData_ |
                       ranges::views::filter(
                           [&InterestingVertex](const auto &Vertex) {
                             return Vertex == InterestingVertex;
@@ -131,25 +131,25 @@ bool GraphBuilder::buildStepFor(const TypeSet &InterestingVertex) {
 bool GraphBuilder::buildStepFor(
     const indexed_set<TypeSet> &InterestingVertices) {
   auto AddedTransitions = false;
-  StepState NewState{.IterationIndex = CurrentState.IterationIndex + 1};
+  StepState NewState{.IterationIndex = CurrentState_.IterationIndex + 1};
   for (auto [IndexedVertex, Transitions] :
        constructVertexAndTransitionsPairVector(InterestingVertices,
-                                               TransitionsForQuery)) {
+                                               TransitionsForQuery_)) {
     for (const auto &[Transition, TargetTypeSet] :
          Transitions |
              ranges::views::transform(
                  toTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
-      const auto TargetVertexIter = VertexData.find(TargetTypeSet);
-      const auto TargetVertexExists = TargetVertexIter != VertexData.end();
+      const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
+      const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
       const auto TargetVertexIndex =
-          TargetVertexExists ? Index(*TargetVertexIter) : VertexData.size();
+          TargetVertexExists ? Index(*TargetVertexIter) : VertexData_.size();
 
       const auto EdgeToAdd =
           GraphData::EdgeType{Index(IndexedVertex), TargetVertexIndex};
 
       if (TargetVertexExists &&
-          edgeWithTransitionExistsInContainer(EdgesData, EdgeToAdd, Transition,
-                                              EdgeWeights)) {
+          edgeWithTransitionExistsInContainer(EdgesData_, EdgeToAdd, Transition,
+                                              EdgeWeights_)) {
         continue;
       }
 
@@ -157,28 +157,28 @@ bool GraphBuilder::buildStepFor(
         NewState.InterestingVertices.emplace(*TargetVertexIter);
       } else {
         NewState.InterestingVertices.emplace(TargetVertexIndex, TargetTypeSet);
-        VertexData.emplace(TargetVertexIndex, TargetTypeSet);
+        VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
       }
       if (const auto [_, EdgeAdded] =
-              EdgesData.emplace(EdgesData.size(), EdgeToAdd);
+              EdgesData_.emplace(EdgesData_.size(), EdgeToAdd);
           EdgeAdded) {
-        EdgeWeights.push_back(Transition);
+        EdgeWeights_.push_back(Transition);
         AddedTransitions = true;
       }
     }
   }
-  CurrentState = std::move(NewState);
+  CurrentState_ = std::move(NewState);
   return AddedTransitions;
 }
 
 std::pair<GraphType, GraphData> GraphBuilder::commit() {
   GraphData Data{};
-  Data.VertexData = getIndexedSetSortedByIndex(std::move(VertexData));
-  Data.Edges = getIndexedSetSortedByIndex(std::move(EdgesData));
+  Data.VertexData = getIndexedSetSortedByIndex(std::move(VertexData_));
+  Data.Edges = getIndexedSetSortedByIndex(std::move(EdgesData_));
   Data.EdgeIndices =
       ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()) |
       ranges::to_vector;
-  Data.EdgeWeights = std::move(EdgeWeights);
+  Data.EdgeWeights = std::move(EdgeWeights_);
   return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                     Data.EdgeIndices.data(), Data.EdgeIndices.size()),
           std::move(Data)};

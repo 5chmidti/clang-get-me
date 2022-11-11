@@ -53,12 +53,12 @@ class DTDGraphBuilder {
 public:
   [[nodiscard]] std::pair<bool, VertexDescriptor>
   addType(const TypeSetValueType &Type) {
-    const auto BaseTypeIter = Vertices.find(Type);
-    const auto BaseTypeExists = BaseTypeIter != Vertices.end();
+    const auto BaseTypeIter = Vertices_.find(Type);
+    const auto BaseTypeExists = BaseTypeIter != Vertices_.end();
     const auto BaseVertexIndex =
-        BaseTypeExists ? Index(*BaseTypeIter) : Vertices.size();
+        BaseTypeExists ? Index(*BaseTypeIter) : Vertices_.size();
     if (!BaseTypeExists) {
-      Vertices.emplace(BaseVertexIndex, Type);
+      Vertices_.emplace(BaseVertexIndex, Type);
     }
     return {BaseTypeExists, BaseVertexIndex};
   }
@@ -75,11 +75,11 @@ public:
 
           const auto EdgeToAdd =
               DTDDataType::EdgeType{BaseVertexIndex, DerivedIndex};
-          if (Edges.contains(EdgeToAdd)) {
+          if (Edges_.contains(EdgeToAdd)) {
             return;
           }
-          Edges.emplace(Edges.size(), EdgeToAdd);
-          EdgeTypes.push_back(DTDEdgeType::Inheritance);
+          Edges_.emplace(Edges_.size(), EdgeToAdd);
+          EdgeTypes_.push_back(DTDEdgeType::Inheritance);
           visitCXXRecordDecl(QType->getAsCXXRecordDecl(), BaseVertexIndex);
         });
   };
@@ -90,23 +90,24 @@ public:
         launderType(Typedef->getUnderlyingType().getTypePtr());
     const auto EdgeToAdd = DTDDataType::EdgeType{addType(AliasType).second,
                                                  addType(BaseType).second};
-    const auto EdgesIter = Edges.lower_bound(EdgeToAdd);
+    const auto EdgesIter = Edges_.lower_bound(EdgeToAdd);
     if (const auto ContainsEdgeToAdd = Value(*EdgesIter) == EdgeToAdd;
         !ContainsEdgeToAdd) {
-      Edges.emplace_hint(EdgesIter, Edges.size(), EdgeToAdd);
-      EdgeTypes.push_back(DTDEdgeType::Typedef);
+      Edges_.emplace_hint(EdgesIter, Edges_.size(), EdgeToAdd);
+      EdgeTypes_.push_back(DTDEdgeType::Typedef);
     }
   };
 
   [[nodiscard]] DTDDataType getResult() {
-    return {getIndexedSetSortedByIndex(std::move(Vertices)),
-            getIndexedSetSortedByIndex(std::move(Edges)), std::move(EdgeTypes)};
+    return {getIndexedSetSortedByIndex(std::move(Vertices_)),
+            getIndexedSetSortedByIndex(std::move(Edges_)),
+            std::move(EdgeTypes_)};
   }
 
 private:
-  indexed_set<TypeSetValueType> Vertices{};
-  indexed_set<DTDDataType::EdgeType> Edges{};
-  std::vector<DTDEdgeType> EdgeTypes{};
+  indexed_set<TypeSetValueType> Vertices_{};
+  indexed_set<DTDDataType::EdgeType> Edges_{};
+  std::vector<DTDEdgeType> EdgeTypes_{};
 };
 
 [[nodiscard]] static std::pair<DTDDataType, DTDGraphType> createDTDGraph(
@@ -140,15 +141,15 @@ getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
   class BFSEdgeCollector : public boost::default_bfs_visitor {
   public:
     explicit BFSEdgeCollector(std::vector<DTDVertexDescriptor> &Collector)
-        : Collector{Collector} {}
+        : Collector_{Collector} {}
 
     void examine_vertex(DTDVertexDescriptor Vertex,
                         const DTDGraphType & /*Graph*/) {
-      Collector.emplace_back(Vertex);
+      Collector_.emplace_back(Vertex);
     }
 
   private:
-    std::vector<DTDVertexDescriptor> &Collector;
+    std::vector<DTDVertexDescriptor> &Collector_;
   };
 
   std::vector<DTDVertexDescriptor> Vertices{};
@@ -283,7 +284,7 @@ overridesConstructor(const TypeSetValueType &Type,
 class DepthFirstDTDPropagation {
 private:
   [[nodiscard]] auto toEdgeTypeFactory() const {
-    return [WheightMap = boost::get(boost::edge_weight, Graph)](
+    return [WheightMap = boost::get(boost::edge_weight, Graph_)](
                const EdgeDescriptor &Edge) { return get(WheightMap, Edge); };
   }
 
@@ -302,8 +303,8 @@ private:
 
   [[nodiscard]] auto propagateRequired() {
     return [this](const DTDEdgeDescriptor &Edge) {
-      const auto SourceType = Data.VertexData[Edge.m_source];
-      const auto TargetType = Data.VertexData[Edge.m_target];
+      const auto SourceType = Data_.VertexData[Edge.m_source];
+      const auto TargetType = Data_.VertexData[Edge.m_target];
 
       const auto PropagateRequired =
           [&SourceType](const TransitionType &Transition) {
@@ -312,7 +313,7 @@ private:
             return std::pair{Iter, Iter != Required.end()};
           };
 
-      return Transitions |
+      return Transitions_ |
              propagateRequiredImpl(TargetType, PropagateRequired) |
              ranges::to<TransitionCollector>;
     };
@@ -325,7 +326,7 @@ private:
           return acquired(Transition).contains(OldType);
         };
     // FIXME: apply iterating optimization if possible
-    return Transitions | propagateAcquiredImpl(NewType, PropagateAcquired);
+    return Transitions_ | propagateAcquiredImpl(NewType, PropagateAcquired);
   }
 
   [[nodiscard]] auto getPropagatedTransitionsForInheritedMethodsForAcquired(
@@ -354,14 +355,14 @@ private:
 
       return acquired(Transition).contains(OldType) && TransitionIsFromRecord;
     };
-    return Transitions | propagateAcquiredImpl(NewType, PropagateAcquired);
+    return Transitions_ | propagateAcquiredImpl(NewType, PropagateAcquired);
   };
 
   [[nodiscard]] auto propagateAcquired() {
     return [this, ToEdgeType = toEdgeTypeFactory()](
                const DTDEdgeDescriptor &Edge) -> TransitionCollector {
-      const auto &SourceType = Data.VertexData[Edge.m_source];
-      const auto &TargetType = Data.VertexData[Edge.m_target];
+      const auto &SourceType = Data_.VertexData[Edge.m_source];
+      const auto &TargetType = Data_.VertexData[Edge.m_target];
 
       switch (const auto EdgeType = ToEdgeType(Edge); EdgeType) {
       case DTDEdgeType::Inheritance:
@@ -383,9 +384,9 @@ private:
   }
 
   [[nodiscard]] auto getOutEdges() const {
-    return ranges::views::iota(0U, Data.VertexData.size()) |
+    return ranges::views::iota(0U, Data_.VertexData.size()) |
            ranges::views::transform([this](const VertexDescriptor Vertex) {
-             return toRange(out_edges(Vertex, Graph));
+             return toRange(out_edges(Vertex, Graph_));
            });
   }
 
@@ -393,18 +394,20 @@ public:
   DepthFirstDTDPropagation(TransitionCollector &TransitionsRef,
                            const DTDDataType &DataRef,
                            const DTDGraphType &GraphRef)
-      : Transitions{TransitionsRef}, Data{DataRef}, Graph{GraphRef} {}
+      : Transitions_{TransitionsRef},
+        Data_{DataRef},
+        Graph_{GraphRef} {}
   void operator()() {
-    const auto Sources = getVerticesWithNoInEdges(Data);
+    const auto Sources = getVerticesWithNoInEdges(Data_);
     const auto OutEdges = getOutEdges();
-    const auto VerticesToVisit = getVerticesToVisit(Sources, Graph);
+    const auto VerticesToVisit = getVerticesToVisit(Sources, Graph_);
     const auto NotVisited = [this](const DTDVertexDescriptor Vertex) {
-      return !VertexVisited[Vertex];
+      return !VertexVisited_[Vertex];
     };
 
     const auto ToPropagatedTransitionsOfVertex =
         [this, &OutEdges](const DTDVertexDescriptor Vertex) {
-          VertexVisited[Vertex] = true;
+          VertexVisited_[Vertex] = true;
           return OutEdges[Vertex] |
                  propagate(propagateAcquired(), propagateRequired()) |
                  ranges::views::join | ranges::to<TransitionCollector>;
@@ -413,15 +416,15 @@ public:
         VerticesToVisit | ranges::views::filter(NotVisited) |
             ranges::views::transform(ToPropagatedTransitionsOfVertex),
         [this](TransitionCollector NewTransitions) {
-          Transitions.merge(NewTransitions);
+          Transitions_.merge(NewTransitions);
         });
   }
 
 private:
-  TransitionCollector &Transitions;
-  const DTDDataType &Data;
-  const DTDGraphType &Graph;
-  std::vector<bool> VertexVisited = std::vector<bool>(Data.VertexData.size());
+  TransitionCollector &Transitions_;
+  const DTDDataType &Data_;
+  const DTDGraphType &Graph_;
+  std::vector<bool> VertexVisited_ = std::vector<bool>(Data_.VertexData.size());
 };
 
 // FIXME: swap order of graph?

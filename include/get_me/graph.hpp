@@ -65,10 +65,10 @@ struct GraphData {
 class GraphBuilder {
 public:
   explicit GraphBuilder(QueryType Query)
-      : Query(std::move(Query)),
-        TransitionsForQuery{this->Query.getTransitionsForQuery()},
-        VertexData{{0U, this->Query.getQueriedType()}}, CurrentState{
-                                                            0U, VertexData} {}
+      : Query_(std::move(Query)),
+        TransitionsForQuery_{Query_.getTransitionsForQuery()},
+        VertexData_{{0U, Query_.getQueriedType()}},
+        CurrentState_{0U, VertexData_} {}
 
   void build();
   [[nodiscard]] bool buildStep();
@@ -85,13 +85,13 @@ private:
     indexed_set<TypeSet> InterestingVertices{};
   };
 
-  QueryType Query;
-  TransitionCollector TransitionsForQuery{};
-  indexed_set<TypeSet> VertexData{};
-  indexed_set<GraphData::EdgeType> EdgesData{};
-  std::vector<GraphData::EdgeWeightType> EdgeWeights{};
+  QueryType Query_;
+  TransitionCollector TransitionsForQuery_{};
+  indexed_set<TypeSet> VertexData_{};
+  indexed_set<GraphData::EdgeType> EdgesData_{};
+  std::vector<GraphData::EdgeWeightType> EdgeWeights_{};
 
-  StepState CurrentState{};
+  StepState CurrentState_{};
 };
 
 [[nodiscard]] std::pair<GraphType, GraphData>

@@ -37,7 +37,7 @@ TEST_F(GetMeTest, inheritance) {
            "({struct B}, B B(), {})",
        });
 
-  test_failure(
+  testFailure(
       R"(
     struct A {};
     struct B : private A {};
@@ -85,7 +85,7 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
           "{struct D}), ({struct D}, D D(), {})",
       });
 
-  test_failure(
+  testFailure(
       R"(
     struct A {};
     struct B : public A {};
@@ -115,7 +115,7 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
           "{struct D}), ({struct D}, D D(), {})",
       });
 
-  test_failure(
+  testFailure(
       R"(
     struct A {};
     struct B : public A {};
@@ -148,7 +148,7 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
-  test_failure(
+  testFailure(
       R"(
     struct A { virtual void foo()=0; };
     struct B : public A { void foo() final; };
@@ -161,7 +161,7 @@ TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
           "({struct B}, B funcB(B), {struct B}), ({struct B}, B B(), {})",
       });
 
-  test_failure(
+  testFailure(
       R"(
     struct A { virtual void foo()=0; };
     struct B : public A { void foo() final; };
@@ -175,7 +175,7 @@ TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
           "({struct B}, B& funcBRef(B&), {struct B}), ({struct B}, B B(), {})",
       });
 
-  test_failure(
+  testFailure(
       R"(
     struct A { virtual void foo()=0; };
     struct B : public A { void foo() final; };

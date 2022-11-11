@@ -90,15 +90,17 @@ public:
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
                std::vector<const clang::TypedefNameDecl *> &TypedefNameDeclsRef,
                clang::Sema &SemaRef)
-      : Conf{Configuration}, Transitions{TransitionsRef},
-        CxxRecords{CXXRecordsRef},
-        TypedefNameDecls{TypedefNameDeclsRef}, Sema{SemaRef} {}
+      : Conf_{Configuration},
+        Transitions_{TransitionsRef},
+        CxxRecords_{CXXRecordsRef},
+        TypedefNameDecls_{TypedefNameDeclsRef},
+        Sema_{SemaRef} {}
 
   [[nodiscard]] bool TraverseDecl(clang::Decl *Decl) {
     if (Decl == nullptr) {
       return true;
     }
-    if (!Conf.EnableFilterStd || !Decl->isInStdNamespace()) {
+    if (!Conf_.EnableFilterStd || !Decl->isInStdNamespace()) {
       clang::RecursiveASTVisitor<GetMeVisitor>::TraverseDecl(Decl);
     }
     return true;
@@ -109,11 +111,11 @@ public:
     if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
       return true;
     }
-    if (filterOut(FDecl, Conf)) {
+    if (filterOut(FDecl, Conf_)) {
       return true;
     }
 
-    Transitions.emplace(toTransitionType(FDecl, Conf));
+    Transitions_.emplace(toTransitionType(FDecl, Conf_));
     return true;
   }
 
@@ -131,36 +133,36 @@ public:
       return true;
     }
 
-    Transitions.emplace(toTransitionType(FDecl, Conf));
+    Transitions_.emplace(toTransitionType(FDecl, Conf_));
     return true;
   }
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
-    if (filterOut(RDecl, Conf)) {
+    if (filterOut(RDecl, Conf_)) {
       return true;
     }
     const auto AddToTransitions =
         [this](const ranges::viewable_range auto Range) {
           ranges::transform(
               Range | ranges::views::filter([this](const auto *const Function) {
-                return !filterOut(Function, Conf);
+                return !filterOut(Function, Conf_);
               }),
-              std::inserter(Transitions, Transitions.end()),
+              std::inserter(Transitions_, Transitions_.end()),
               [this](const auto *const Function) {
-                return toTransitionType(Function, Conf);
+                return toTransitionType(Function, Conf_);
               });
         };
     AddToTransitions(RDecl->methods());
 
     // declare implicit default constructor even if it is not used
     if (RDecl->needsImplicitDefaultConstructor()) {
-      Sema.DeclareImplicitDefaultConstructor(RDecl);
+      Sema_.DeclareImplicitDefaultConstructor(RDecl);
     }
 
     AddToTransitions(RDecl->ctors());
 
     if (RDecl->getNumBases() != 0) {
-      CxxRecords.push_back(RDecl);
+      CxxRecords_.push_back(RDecl);
     }
     return true;
   }
@@ -177,7 +179,7 @@ public:
     if (!VDecl->isStaticDataMember()) {
       return true;
     }
-    if (Conf.EnableFilterStd && VDecl->isInStdNamespace()) {
+    if (Conf_.EnableFilterStd && VDecl->isInStdNamespace()) {
       return true;
     }
     if (VDecl->getType()->isArithmeticType()) {
@@ -190,8 +192,8 @@ public:
       return true;
     }
 
-    Transitions.emplace(std::get<0>(toTypeSet(VDecl, Conf)),
-                        TransitionDataType{VDecl}, TypeSet{});
+    Transitions_.emplace(std::get<0>(toTypeSet(VDecl, Conf_)),
+                         TransitionDataType{VDecl}, TypeSet{});
     return true;
   }
 
@@ -199,7 +201,7 @@ public:
     if (NDecl->isInvalidDecl()) {
       return true;
     }
-    if (Conf.EnableFilterStd && NDecl->isInStdNamespace()) {
+    if (Conf_.EnableFilterStd && NDecl->isInStdNamespace()) {
       return true;
     }
     if (NDecl->getUnderlyingType()->isArithmeticType()) {
@@ -219,16 +221,16 @@ public:
     if (hasReservedIdentifierNameOrType(NDecl)) {
       return true;
     }
-    TypedefNameDecls.push_back(NDecl);
+    TypedefNameDecls_.push_back(NDecl);
     return true;
   }
 
 private:
-  const Config &Conf;
-  TransitionCollector &Transitions;
-  std::vector<const clang::CXXRecordDecl *> &CxxRecords;
-  std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls;
-  clang::Sema &Sema;
+  const Config &Conf_;
+  TransitionCollector &Transitions_;
+  std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
+  std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls_;
+  clang::Sema &Sema_;
 };
 
 [[nodiscard]] static auto getParametersOpt(const TransitionDataType &Val) {

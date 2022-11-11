@@ -85,9 +85,9 @@ void test(std::string_view Code, std::string_view QueriedType,
   VERIFY(EXPECT_TRUE, FoundPathsAsString, ExpectedPaths)
 }
 
-void test_failure(std::string_view Code, std::string_view QueriedType,
-                  const std::set<std::string> &ExpectedPaths,
-                  const Config &CurrentConfig, std::source_location Loc) {
+void testFailure(std::string_view Code, std::string_view QueriedType,
+                 const std::set<std::string> &ExpectedPaths,
+                 const Config &CurrentConfig, std::source_location Loc) {
   const testing::ScopedTrace Trace(Loc.file_name(),
                                    static_cast<int>(Loc.line()), "Test source");
   spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",

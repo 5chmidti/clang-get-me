@@ -17,16 +17,17 @@
 class QueryType {
 public:
   QueryType(TransitionCollector Transitions, std::string Query, Config Conf)
-      : Transitions{std::move(Transitions)}, QueriedTypeAsString{std::move(
-                                                 Query)},
-        QueriedType{getQueriedTypeForInput()}, Conf{std::move(Conf)} {}
+      : Transitions_{std::move(Transitions)},
+        QueriedTypeAsString_{std::move(Query)},
+        QueriedType_{getQueriedTypeForInput()},
+        Conf_{Conf} {}
 
   [[nodiscard]] TransitionCollector getTransitionsForQuery() const {
     const auto QueriedTypeIsSubset = [this](const auto &Required) {
-      return isSubset(Required, QueriedType);
+      return isSubset(Required, QueriedType_);
     };
 
-    return Transitions |
+    return Transitions_ |
            ranges::views::filter(ranges::not_fn(QueriedTypeIsSubset),
                                  required) |
            ranges::to<TransitionCollector>;
@@ -35,13 +36,13 @@ public:
   // getSourceVertexMatchingQueriedType
 
   [[nodiscard]] const TransitionCollector &getTransitions() const {
-    return Transitions;
+    return Transitions_;
   }
   [[nodiscard]] const std::string &getQueriedTypeAsString() const {
-    return QueriedTypeAsString;
+    return QueriedTypeAsString_;
   }
-  [[nodiscard]] const TypeSet &getQueriedType() const { return QueriedType; }
-  [[nodiscard]] const Config &getConfig() const { return Conf; }
+  [[nodiscard]] const TypeSet &getQueriedType() const { return QueriedType_; }
+  [[nodiscard]] const Config &getConfig() const { return Conf_; }
 
 private:
   [[nodiscard]] auto matchesQueriedTypeName() const {
@@ -57,13 +58,13 @@ private:
                          return QTypeAsString;
                        }();
                        const auto EquivalentName =
-                           TypeAsString == QueriedTypeAsString;
+                           TypeAsString == QueriedTypeAsString_;
                        if (!EquivalentName &&
-                           (TypeAsString.find(QueriedTypeAsString) !=
+                           (TypeAsString.find(QueriedTypeAsString_) !=
                             std::string::npos)) {
                          spdlog::trace("matchesName(QualType): no match for "
                                        "close match: {} vs {}",
-                                       TypeAsString, QueriedTypeAsString);
+                                       TypeAsString, QueriedTypeAsString_);
                        }
                        return EquivalentName;
                      },
@@ -73,13 +74,13 @@ private:
   }
 
   [[nodiscard]] TypeSet getQueriedTypeForInput() {
-    if (Transitions.empty()) {
+    if (Transitions_.empty()) {
       spdlog::error(
           "QueryType::getQueriedTypeForInput(): Transitions are empty");
       return {};
     }
     const auto FilteredTypes =
-        Transitions | ranges::views::transform(acquired) |
+        Transitions_ | ranges::views::transform(acquired) |
         ranges::views::filter([this](const TypeSet &Acquired) {
           return ranges::any_of(Acquired, matchesQueriedTypeName());
         }) |
@@ -87,17 +88,17 @@ private:
 
     if (FilteredTypes.empty()) {
       spdlog::error("QueryType::getQueriedTypeForInput(): no type matching {}",
-                    QueriedTypeAsString);
+                    QueriedTypeAsString_);
       return {};
     }
 
     return ranges::front(FilteredTypes);
   }
 
-  TransitionCollector Transitions{};
-  std::string QueriedTypeAsString{};
-  TypeSet QueriedType{};
-  Config Conf{};
+  TransitionCollector Transitions_{};
+  std::string QueriedTypeAsString_{};
+  TypeSet QueriedType_{};
+  Config Conf_{};
 };
 
 #endif
