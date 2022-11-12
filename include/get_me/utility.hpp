@@ -2,11 +2,18 @@
 #define get_me_include_get_me_utility_hpp
 
 #include <concepts>
+#include <type_traits>
 #include <utility>
 
 #include <clang/AST/Decl.h>
+#include <range/v3/detail/range_access.hpp>
+#include <range/v3/iterator/default_sentinel.hpp>
+#include <range/v3/range/access.hpp>
 #include <range/v3/range/concepts.hpp>
+#include <range/v3/range/traits.hpp>
+#include <range/v3/view/facade.hpp>
 #include <range/v3/view/subrange.hpp>
+#include <range/v3/view/view.hpp>
 
 namespace llvm {
 template <typename T> class iterator_range;
@@ -44,5 +51,42 @@ inline constexpr auto Element = []<typename T>(T &&Tuple) -> decltype(auto) {
 inline constexpr auto ToQualType = [](const clang::ValueDecl *const VDecl) {
   return VDecl->getType();
 };
+
+template <ranges::viewable_range Rng>
+class ConditionalView : public ranges::view_facade<ConditionalView<Rng>> {
+public:
+  using value_type = ranges::range_value_t<Rng>;
+
+  ConditionalView() = default;
+  ConditionalView(bool Flag, Rng Range)
+      : flag_(Flag),
+        Cursor_(ranges::begin(Range)),
+        Sentinel_(ranges::end(Range)) {}
+
+private:
+  friend ranges::range_access;
+
+  [[nodiscard]] value_type read() const { return *Cursor_; }
+
+  void next() { ++Cursor_; }
+
+  [[nodiscard]] bool equal(ranges::default_sentinel_t /*unused*/) const {
+    return !flag_ || Cursor_ == Sentinel_;
+  }
+
+  bool flag_{};
+  ranges::iterator_t<Rng> Cursor_{};
+  ranges::iterator_t<Rng> Sentinel_{};
+};
+
+class ConditionalFn {
+public:
+  template <ranges::viewable_range Rng>
+  [[nodiscard]] auto operator()(bool Flag, Rng &&Range) const {
+    return ConditionalView<Rng>{Flag, std::forward<Rng>(Range)};
+  }
+};
+
+inline constexpr ConditionalFn Conditional{};
 
 #endif
