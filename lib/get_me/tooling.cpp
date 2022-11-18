@@ -342,12 +342,7 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
     filterOverloads(Transitions_);
   }
 
-  const auto PreSize = Transitions_.size();
   // FIXME: use config
   propagateTransitionsOfDirectTypeDependencies(Transitions_, CXXRecords,
                                                TypedefNameDecls);
-  const auto PostSize = Transitions_.size();
-  // spdlog::info("Transitions: {}", Transitions_);
-  // spdlog::info("propagateTransitionsOfDirectTypeDependencies: {} -> {}",
-  //              PreSize, PostSize);
 }
