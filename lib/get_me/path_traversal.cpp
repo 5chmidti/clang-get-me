@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <functional>
 #include <initializer_list>
+#include <limits>
 #include <list>
 #include <memory>
 #include <set>
@@ -12,6 +13,7 @@
 #include <type_traits>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/any_of.hpp>
@@ -20,6 +22,7 @@
 #include <range/v3/algorithm/permutation.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
+#include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
@@ -38,104 +41,162 @@
   };
 }
 
-// FIXME: there exist paths that contain edges with aliased types and edges with
-// their base types, basically creating redundant/non-optimal paths
-// FIXME: don't produce paths that end up with the queried type
-std::vector<PathType> pathTraversal(const GraphType &Graph,
-                                    const GraphData &Data, const Config &Conf,
-                                    const VertexDescriptor SourceVertex) {
+class PathFinder {
+private:
+  auto addToStack() {
+    return [this](const EdgeDescriptor Edge) { EdgesStack_.emplace(Edge); };
+  };
+
+public:
+  PathFinder(const GraphType &Graph, const GraphData &Data, const Config &Conf,
+             VertexDescriptor SourceVertex)
+      : Graph_(Graph),
+        Data_(Data),
+        Conf_(Conf),
+        SourceVertex_(SourceVertex),
+        State_{SourceVertex},
+        Paths_{IsPermutationComparator{Graph_, Data_}} {}
+
+  void operator()() {
+    ranges::for_each(toRange(out_edges(SourceVertex_, Graph_)), addToStack());
+
+    const auto IsValidPath = createIsValidPathPredicate(Conf_);
+    const auto ContinuePathSearch =
+        createContinuePathSearchPredicate(Conf_, Paths_);
+
+    while (!EdgesStack_.empty() && ContinuePathSearch()) {
+      const auto Edge = EdgesStack_.top();
+      EdgesStack_.pop();
+
+      State_.rollbackPathIfRequired(Source(Edge));
+      State_.setCurrentVertex(target(Edge, Graph_));
+      State_.addEdge(Edge);
+
+      if (!IsValidPath(State_.getCurrentPath())) {
+        continue;
+      }
+
+      if (const auto IsFinalVertexInPath = !addOutEdgesOfCurrentVertexToStack();
+          IsFinalVertexInPath) {
+        Paths_.insert(State_.getCurrentPath());
+      }
+    }
+  }
+
+  std::vector<PathType> commit() {
+    return std::move(Paths_) | ranges::to_vector;
+  }
+
+private:
   using possible_path_type = std::pair<VertexDescriptor, EdgeDescriptor>;
 
-  PathType CurrentPath{};
-  const auto IsPermutation = [&Graph, &Data](const PathType &Lhs,
-                                             const PathType &Rhs) {
-    if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
-      return std::is_lt(Comp);
+  class IsPermutationComparator {
+  public:
+    IsPermutationComparator(const GraphType &Graph, const GraphData &Data)
+        : Graph_(Graph),
+          Data_(Data) {}
+
+    [[nodiscard]] bool operator()(const PathType &Lhs,
+                                  const PathType &Rhs) const {
+      if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
+        return std::is_lt(Comp);
+      }
+      const auto IndexMap = get(boost::edge_index, Graph_);
+      const auto ToEdgeWeight = [&IndexMap, this](const EdgeDescriptor &Edge) {
+        return Data_.EdgeWeights[get(IndexMap, Edge)];
+      };
+      return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{}, ToEdgeWeight,
+                                     ToEdgeWeight);
     }
-    const auto IndexMap = get(boost::edge_index, Graph);
-    const auto ToEdgeWeight = [&IndexMap, &Data](const EdgeDescriptor &Edge) {
-      return Data.EdgeWeights[get(IndexMap, Edge)];
-    };
-    return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{}, ToEdgeWeight,
-                                   ToEdgeWeight);
-  };
-  auto Paths = std::set(std::initializer_list<PathType>{}, IsPermutation);
-  std::stack<possible_path_type> EdgesStack{};
 
-  const auto AddToStackFactory = [&EdgesStack](const VertexDescriptor Vertex) {
-    return [&EdgesStack, Vertex](const EdgeDescriptor Edge) {
-      EdgesStack.emplace(Vertex, Edge);
-    };
+  private:
+    const GraphType &Graph_;
+    const GraphData &Data_;
   };
 
-  ranges::for_each(toRange(out_edges(SourceVertex, Graph)),
-                   AddToStackFactory(SourceVertex));
+  class StateType {
+  public:
+    explicit StateType(VertexDescriptor CurrentVertex)
+        : CurrentVertex_(CurrentVertex) {}
 
-  const auto CurrentPathContainsVertex =
-      [&CurrentPath](const VertexDescriptor Vertex) {
+    [[nodiscard]] const VertexDescriptor &getCurrentVertex() const {
+      return CurrentVertex_;
+    }
+
+    [[nodiscard]] const PathType &getCurrentPath() const {
+      return CurrentPath_;
+    }
+
+    void setCurrentVertex(VertexDescriptor Vertex) { CurrentVertex_ = Vertex; }
+
+    void addEdge(EdgeDescriptor Edge) { CurrentPath_.emplace_back(Edge); }
+
+    void rollbackPathIfRequired(VertexDescriptor Src) {
+      if (requiresRollback(Src)) {
+        rollbackTo(Src);
+      }
+    }
+
+    [[nodiscard]] auto currentPathContainsVertex() const {
+      return [this](const VertexDescriptor Vertex) {
         const auto HasTargetEdge = [Vertex](const EdgeDescriptor &EdgeInPath) {
           return EdgeInPath.m_source == Vertex || EdgeInPath.m_target == Vertex;
         };
-        return !ranges::any_of(CurrentPath, HasTargetEdge);
+        return !ranges::any_of(getCurrentPath(), HasTargetEdge);
       };
-  const auto ToTypeSetSize = [&Data](const EdgeDescriptor Edge) {
-    return Data.VertexData[Edge.m_target].size();
+    }
+
+  private:
+    VertexDescriptor CurrentVertex_;
+    PathType CurrentPath_{};
+
+    [[nodiscard]] bool requiresRollback(VertexDescriptor Vertex) const {
+      return !CurrentPath_.empty() && CurrentVertex_ != Vertex;
+    }
+
+    void rollbackTo(VertexDescriptor Src) {
+      // visiting an edge whose source is not the target of the previous edge.
+      // the current path has to be reverted until the new edge can be added
+      // to the path remove edges that were added after the path got to src
+      CurrentPath_.erase(
+          ranges::find(CurrentPath_, Src, &EdgeDescriptor::m_source),
+          CurrentPath_.end());
+    }
   };
-  const auto AddOutEdgesOfVertexToStack = [&Graph, &AddToStackFactory,
-                                           &CurrentPathContainsVertex,
-                                           &ToTypeSetSize](
-                                              const VertexDescriptor Vertex) {
-    auto FilteredOutEdges = toRange(out_edges(Vertex, Graph)) |
-                            ranges::views::filter(CurrentPathContainsVertex,
-                                                  &EdgeDescriptor::m_target) |
-                            ranges::to_vector;
+
+  [[nodiscard]] bool addOutEdgesOfCurrentVertexToStack() {
+    const auto ToTypeSetSize = [this](const EdgeDescriptor Edge) {
+      return Data_.VertexData[Edge.m_target].size();
+    };
+    const auto VertexToAdd = State_.getCurrentVertex();
+    auto FilteredOutEdges =
+        toRange(out_edges(VertexToAdd, Graph_)) |
+        ranges::views::filter(State_.currentPathContainsVertex(),
+                              &EdgeDescriptor::m_target) |
+        ranges::to_vector;
     if (ranges::empty(FilteredOutEdges)) {
       return false;
     }
     ranges::for_each(std::move(FilteredOutEdges) |
                          ranges::actions::sort(std::greater{}, ToTypeSetSize),
-                     AddToStackFactory(Vertex));
+                     addToStack());
     return true;
-  };
-
-  const auto IsValidPath = createIsValidPathPredicate(Conf);
-  const auto ContinuePathSearch =
-      createContinuePathSearchPredicate(Conf, Paths);
-
-  VertexDescriptor CurrentVertex{};
-  VertexDescriptor PrevTarget{SourceVertex};
-  const auto RequiresRollback = [&CurrentPath,
-                                 &PrevTarget](const VertexDescriptor Src) {
-    return !CurrentPath.empty() && PrevTarget != Src;
-  };
-  while (!EdgesStack.empty() && ContinuePathSearch()) {
-    const auto [Src, Edge] = EdgesStack.top();
-    EdgesStack.pop();
-
-    if (RequiresRollback(Src)) {
-      // visiting an edge whose source is not the target of the previous edge.
-      // the current path has to be reverted until the new edge can be added to
-      // the path
-      // remove edges that were added after the path got to src
-      CurrentPath.erase(
-          ranges::find(CurrentPath, Src, &EdgeDescriptor::m_source),
-          CurrentPath.end());
-    }
-    PrevTarget = target(Edge, Graph);
-
-    CurrentPath.emplace_back(Edge);
-    CurrentVertex = target(Edge, Graph);
-
-    if (!IsValidPath(CurrentPath)) {
-      continue;
-    }
-
-    if (const auto IsFinalVertexInPath =
-            !AddOutEdgesOfVertexToStack(CurrentVertex);
-        IsFinalVertexInPath) {
-      Paths.insert(CurrentPath);
-    }
   }
 
-  return ranges::to_vector(Paths);
+  const GraphType &Graph_;
+  const GraphData &Data_;
+  const Config &Conf_;
+  VertexDescriptor SourceVertex_{};
+
+  StateType State_;
+  std::stack<EdgeDescriptor> EdgesStack_{};
+  std::set<PathType, IsPermutationComparator> Paths_;
+};
+
+std::vector<PathType> pathTraversal(const GraphType &Graph,
+                                    const GraphData &Data, const Config &Conf,
+                                    const VertexDescriptor SourceVertex) {
+  auto Finder = PathFinder{Graph, Data, Conf, SourceVertex};
+  Finder();
+  return Finder.commit();
 }

@@ -42,6 +42,15 @@ static_assert(
     "GraphType is required to allow parallel edges");
 
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
+
+inline constexpr auto Source = [](const EdgeDescriptor Edge) {
+  return Edge.m_source;
+};
+
+inline constexpr auto Target = [](const EdgeDescriptor Edge) {
+  return Edge.m_target;
+};
+
 using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
 
