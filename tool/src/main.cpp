@@ -77,8 +77,8 @@ static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
   DotFile.print("digraph D {{\n  layout = \"sfdp\";\n");
 
   for (const auto &Edge : toRange(boost::edges(Graph))) {
-    const auto SourceNode = Edge.m_source;
-    const auto TargetNode = Edge.m_target;
+    const auto SourceNode = Source(Edge);
+    const auto TargetNode = Target(Edge);
 
     const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
     const auto TargetVertex = Data.VertexData[TargetNode];
@@ -176,8 +176,8 @@ int main(int argc, const char **argv) {
         if (Lhs.empty()) {
           return true;
         }
-        return Data.VertexData[Lhs.back().m_target].size() <
-               Data.VertexData[Rhs.back().m_target].size();
+        return Data.VertexData[Target(Lhs.back())].size() <
+               Data.VertexData[Target(Rhs.back())].size();
       });
 
   ranges::for_each(
@@ -193,6 +193,6 @@ int main(int argc, const char **argv) {
                                  Data.EdgeWeights[boost::get(IndexMap, Edge)]);
                            }),
                 ", "),
-            Data.VertexData[Path.back().m_target]);
+            Data.VertexData[Target(Path.back())]);
       });
 }

@@ -25,6 +25,7 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/formatting.hpp"
+#include "get_me/graph.hpp"
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -287,6 +288,11 @@ private:
                const EdgeDescriptor &Edge) { return get(WheightMap, Edge); };
   }
 
+  [[nodiscard]] const TypeSetValueType &
+  toType(const VertexDescriptor Vertex) const {
+    return Data_.VertexData[Vertex];
+  }
+
   template <typename... Ts>
   [[nodiscard]] auto propagate(Ts &&...Propagators)
     requires(std::is_invocable_v<Ts, DTDEdgeDescriptor> && ...)
@@ -300,8 +306,8 @@ private:
 
   [[nodiscard]] auto propagateRequired() const {
     return [this](const DTDEdgeDescriptor &Edge) {
-      const auto SourceType = Data_.VertexData[Edge.m_source];
-      const auto TargetType = Data_.VertexData[Edge.m_target];
+      const auto SourceType = toType(Source(Edge));
+      const auto TargetType = toType(Target(Edge));
 
       const auto PropagateRequired =
           [SourceType](const TransitionType &Transition) {
@@ -369,8 +375,8 @@ private:
             propagatedForAcquired(false, {}, {}));
       }
 
-      const auto &SourceType = Data_.VertexData[Edge.m_source];
-      const auto &TargetType = Data_.VertexData[Edge.m_target];
+      const auto &SourceType = toType(Source(Edge));
+      const auto &TargetType = toType(Target(Edge));
 
       return ranges::views::concat(
           propagatedInheritedMethodsForAcquired(true, SourceType, TargetType),
@@ -387,8 +393,8 @@ private:
                                      propagatedForAcquired(false, {}, {}));
       }
 
-      const auto &SourceType = Data_.VertexData[Edge.m_source];
-      const auto &TargetType = Data_.VertexData[Edge.m_target];
+      const auto &SourceType = toType(Source(Edge));
+      const auto &TargetType = toType(Target(Edge));
 
       return ranges::views::concat(
           propagatedForAcquired(true, SourceType, TargetType),

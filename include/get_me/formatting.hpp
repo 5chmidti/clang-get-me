@@ -40,10 +40,10 @@ template <> struct fmt::formatter<EdgeDescriptor> {
   }
 
   template <typename FormatContext>
-  [[nodiscard]] auto format(const EdgeDescriptor &Val, FormatContext &Ctx) const
-      -> decltype(Ctx.out()) {
+  [[nodiscard]] auto format(const EdgeDescriptor &Edge,
+                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(Ctx.out(), "{}",
-                          std::pair{Val.m_source, Val.m_target});
+                          std::pair{Source(Edge), Target(Edge)});
   }
 };
 

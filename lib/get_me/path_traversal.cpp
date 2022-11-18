@@ -140,7 +140,7 @@ private:
     [[nodiscard]] auto currentPathContainsVertex() const {
       return [this](const VertexDescriptor Vertex) {
         const auto HasTargetEdge = [Vertex](const EdgeDescriptor &EdgeInPath) {
-          return EdgeInPath.m_source == Vertex || EdgeInPath.m_target == Vertex;
+          return Source(EdgeInPath) == Vertex || Target(EdgeInPath) == Vertex;
         };
         return !ranges::any_of(getCurrentPath(), HasTargetEdge);
       };
@@ -158,21 +158,19 @@ private:
       // visiting an edge whose source is not the target of the previous edge.
       // the current path has to be reverted until the new edge can be added
       // to the path remove edges that were added after the path got to src
-      CurrentPath_.erase(
-          ranges::find(CurrentPath_, Src, &EdgeDescriptor::m_source),
-          CurrentPath_.end());
+      CurrentPath_.erase(ranges::find(CurrentPath_, Src, Source),
+                         CurrentPath_.end());
     }
   };
 
   [[nodiscard]] bool addOutEdgesOfCurrentVertexToStack() {
     const auto ToTypeSetSize = [this](const EdgeDescriptor Edge) {
-      return Data_.VertexData[Edge.m_target].size();
+      return Data_.VertexData[Target(Edge)].size();
     };
     const auto VertexToAdd = State_.getCurrentVertex();
     auto FilteredOutEdges =
         toRange(out_edges(VertexToAdd, Graph_)) |
-        ranges::views::filter(State_.currentPathContainsVertex(),
-                              &EdgeDescriptor::m_target) |
+        ranges::views::filter(State_.currentPathContainsVertex(), Target) |
         ranges::to_vector;
     if (ranges::empty(FilteredOutEdges)) {
       return false;
