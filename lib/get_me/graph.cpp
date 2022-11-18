@@ -52,7 +52,7 @@
 }
 
 [[nodiscard]] static auto constructVertexAndTransitionsPairVector(
-    const indexed_set<TypeSet> &InterestingVertices,
+    const GraphBuilder::VertexSet &InterestingVertices,
     const TransitionCollector &Transitions) {
   auto IndependentTransitionsVec =
       std::vector<std::vector<TransitionType>>(InterestingVertices.size());
@@ -88,7 +88,7 @@
 }
 
 [[nodiscard]] static auto toTransitionAndTargetTypeSetPairForVertex(
-    const indexed_value_type<TypeSet> &IndexedVertex) {
+    const indexed_value_type<GraphBuilder::VertexType> &IndexedVertex) {
   return [&IndexedVertex](const TransitionType &Transition) {
     return std::pair{Transition,
                      Value(IndexedVertex) |
@@ -115,21 +115,20 @@ bool GraphBuilder::buildStepFor(VertexDescriptor Vertex) {
       ranges::views::filter(
           [Vertex](const size_t VertexIndex) { return VertexIndex == Vertex; },
           Index) |
-      ranges::to<indexed_set<TypeSet>>);
+      ranges::to<VertexSet>);
 }
 
-bool GraphBuilder::buildStepFor(const TypeSet &InterestingVertex) {
+bool GraphBuilder::buildStepFor(const VertexType &InterestingVertex) {
   return buildStepFor(VertexData_ |
                       ranges::views::filter(
                           [&InterestingVertex](const auto &Vertex) {
                             return Vertex == InterestingVertex;
                           },
                           Value) |
-                      ranges::to<indexed_set<TypeSet>>);
+                      ranges::to<VertexSet>);
 }
 
-bool GraphBuilder::buildStepFor(
-    const indexed_set<TypeSet> &InterestingVertices) {
+bool GraphBuilder::buildStepFor(const VertexSet &InterestingVertices) {
   auto AddedTransitions = false;
   StepState NewState{.IterationIndex = CurrentState_.IterationIndex + 1};
   for (auto [IndexedVertex, Transitions] :
@@ -139,7 +138,7 @@ bool GraphBuilder::buildStepFor(
          Transitions |
              ranges::views::transform(
                  toTransitionAndTargetTypeSetPairForVertex(IndexedVertex))) {
-      const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
+      auto TargetVertexIter = VertexData_.find(TargetTypeSet);
       const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
       const auto TargetVertexIndex =
           TargetVertexExists ? Index(*TargetVertexIter) : VertexData_.size();

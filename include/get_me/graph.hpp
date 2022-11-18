@@ -64,6 +64,9 @@ struct GraphData {
 
 class GraphBuilder {
 public:
+  using VertexType = TypeSet;
+  using VertexSet = indexed_set<VertexType>;
+
   explicit GraphBuilder(QueryType Query)
       : Query_(std::move(Query)),
         TransitionsForQuery_{Query_.getTransitionsForQuery()},
@@ -73,21 +76,20 @@ public:
   void build();
   [[nodiscard]] bool buildStep();
   [[nodiscard]] bool buildStepFor(VertexDescriptor Vertex);
-  [[nodiscard]] bool buildStepFor(const TypeSet &InterestingVertex);
-  [[nodiscard]] bool
-  buildStepFor(const indexed_set<TypeSet> &InterestingVertices);
+  [[nodiscard]] bool buildStepFor(const VertexType &InterestingVertex);
+  [[nodiscard]] bool buildStepFor(const VertexSet &InterestingVertices);
 
   [[nodiscard]] std::pair<GraphType, GraphData> commit();
 
 private:
   struct StepState {
     size_t IterationIndex{};
-    indexed_set<TypeSet> InterestingVertices{};
+    VertexSet InterestingVertices{};
   };
 
   QueryType Query_;
   TransitionCollector TransitionsForQuery_{};
-  indexed_set<TypeSet> VertexData_{};
+  VertexSet VertexData_{};
   indexed_set<GraphData::EdgeType> EdgesData_{};
   std::vector<GraphData::EdgeWeightType> EdgeWeights_{};
 
