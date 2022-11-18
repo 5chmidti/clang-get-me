@@ -36,6 +36,7 @@
 #include <llvm/Support/Error.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/raw_ostream.h>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/partial_sort.hpp>
 #include <range/v3/compare.hpp>
 #include <range/v3/functional/bind_back.hpp>
@@ -179,16 +180,19 @@ int main(int argc, const char **argv) {
                Data.VertexData[Rhs.back().m_target].size();
       });
 
-  for (const auto &[Number, Path] :
-       ranges::views::enumerate(Paths | ranges::views::take(OutputPathCount))) {
-    spdlog::info(
-        "path #{}: {} -> remaining: {}", Number,
-        fmt::join(
-            Path | ranges::views::transform([&Data, &IndexMap](
-                                                const EdgeDescriptor &Edge) {
-              return toString(Data.EdgeWeights[boost::get(IndexMap, Edge)]);
-            }),
-            ", "),
-        Data.VertexData[Path.back().m_target]);
-  }
+  ranges::for_each(
+      Paths | ranges::views::take(OutputPathCount) | ranges::views::enumerate,
+      [&Data, &IndexMap](const auto IndexedPath) {
+        const auto &[Number, Path] = IndexedPath;
+        spdlog::info(
+            "path #{}: {} -> remaining: {}", Number,
+            fmt::join(
+                Path | ranges::views::transform(
+                           [&Data, &IndexMap](const EdgeDescriptor &Edge) {
+                             return toString(
+                                 Data.EdgeWeights[boost::get(IndexMap, Edge)]);
+                           }),
+                ", "),
+            Data.VertexData[Path.back().m_target]);
+      });
 }
