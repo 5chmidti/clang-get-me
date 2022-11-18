@@ -65,8 +65,6 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
     return true;
   }
   if (isReturnTypeInParameterList(FDecl)) {
-    spdlog::trace("filtered due to require-acquire cycle: {}",
-                  FDecl->getNameAsString());
     return true;
   }
   // FIXME: support templates
