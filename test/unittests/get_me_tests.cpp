@@ -51,7 +51,7 @@
   }
 
 void test(std::string_view Code, std::string_view QueriedType,
-          const std::set<std::string> &ExpectedPaths,
+          const std::set<std::string, std::less<>> &ExpectedPaths,
           const Config &CurrentConfig, std::source_location Loc) {
   const testing::ScopedTrace Trace(Loc.file_name(),
                                    static_cast<int>(Loc.line()), "Test source");
@@ -86,7 +86,7 @@ void test(std::string_view Code, std::string_view QueriedType,
 }
 
 void testFailure(std::string_view Code, std::string_view QueriedType,
-                 const std::set<std::string> &ExpectedPaths,
+                 const std::set<std::string, std::less<>> &ExpectedPaths,
                  const Config &CurrentConfig, std::source_location Loc) {
   const testing::ScopedTrace Trace(Loc.file_name(),
                                    static_cast<int>(Loc.line()), "Test source");
