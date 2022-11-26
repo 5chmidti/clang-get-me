@@ -21,6 +21,7 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/permutation.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/operations.hpp>
 #include <range/v3/view/filter.hpp>
 #include <spdlog/spdlog.h>
 
@@ -139,10 +140,12 @@ private:
 
     [[nodiscard]] auto currentPathContainsVertex() const {
       return [this](const VertexDescriptor Vertex) {
-        const auto HasTargetEdge = [Vertex](const EdgeDescriptor &EdgeInPath) {
-          return Source(EdgeInPath) == Vertex || Target(EdgeInPath) == Vertex;
+        const auto ContainsVertex = [Vertex](const EdgeDescriptor &EdgeInPath) {
+          return Target(EdgeInPath) == Vertex;
         };
-        return !ranges::any_of(getCurrentPath(), HasTargetEdge);
+        return !ranges::empty(getCurrentPath()) &&
+               !(Source(ranges::front(getCurrentPath())) == Vertex) &&
+               !ranges::any_of(getCurrentPath(), ContainsVertex);
       };
     }
 
