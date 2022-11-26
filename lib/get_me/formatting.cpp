@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <variant>
 
+#include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclarationName.h>
+#include <clang/AST/PrettyPrinter.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/LLVM.h>
 #include <fmt/format.h>
@@ -15,6 +17,22 @@
 
 #include "get_me/graph.hpp"
 #include "get_me/utility.hpp"
+
+[[nodiscard]] static clang::PrintingPolicy
+normalize(clang::PrintingPolicy PrintingPolicy) {
+  PrintingPolicy.SuppressTagKeyword = 1;
+  return PrintingPolicy;
+}
+
+[[nodiscard]] static clang::PrintingPolicy
+getNormalizedPrintingPolicy(const clang::Decl *const Decl) {
+  return normalize(Decl->getASTContext().getPrintingPolicy());
+}
+
+[[nodiscard]] static std::string
+getTypeAsString(const clang::ValueDecl *const VDecl) {
+  return VDecl->getType().getAsString(getNormalizedPrintingPolicy(VDecl));
+}
 
 std::string getTransitionName(const TransitionDataType &Data) {
   const auto DeclaratorDeclToString = [](const clang::DeclaratorDecl *DDecl) {
@@ -29,11 +47,7 @@ std::string getTransitionName(const TransitionDataType &Data) {
     return DDecl->getNameAsString();
   };
 
-  return std::visit(Overloaded{DeclaratorDeclToString,
-                               [](const std::monostate) -> std::string {
-                                 return "monostate";
-                               }},
-                    Data);
+  return std::visit(DeclaratorDeclToString, Data);
 }
 
 static const auto FunctionDeclToStringForAcquired =
@@ -43,56 +57,48 @@ static const auto FunctionDeclToStringForAcquired =
         const auto *const Parent = Constructor->getParent();
         return Parent->getNameAsString();
       }
-      return FDecl->getReturnType().getAsString();
+      return FDecl->getReturnType().getAsString(
+          getNormalizedPrintingPolicy(FDecl));
     };
 
 std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
-  return std::visit(
-      Overloaded{FunctionDeclToStringForAcquired,
-                 [](const clang::FieldDecl *const FDecl) {
-                   return FDecl->getType().getAsString();
-                 },
-                 [](const clang::VarDecl *const VDecl) {
-                   return VDecl->getType().getAsString();
-                 },
-                 [](std::monostate) -> std::string { return "monostate"; }},
-      Data);
+  return std::visit(Overloaded{FunctionDeclToStringForAcquired,
+                               [](const clang::ValueDecl *const VDecl) {
+                                 return getTypeAsString(VDecl);
+                               }},
+                    Data);
 }
 
 static const auto FunctionDeclToStringForRequired =
     [](const clang::FunctionDecl *const FDecl) {
       const auto Parameters = FDecl->parameters();
       auto Params = fmt::format(
-          "{}",
-          fmt::join(Parameters | ranges::views::transform(
-                                     [](const clang::ParmVarDecl *PDecl) {
-                                       return PDecl->getType().getAsString();
-                                     }),
-                    ", "));
+          "{}", fmt::join(Parameters | ranges::views::transform(
+                                           [](const clang::ParmVarDecl *PDecl) {
+                                             return getTypeAsString(PDecl);
+                                           }),
+                          ", "));
       if (const auto *const Method =
-              llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
-        if (!llvm::isa<clang::CXXConstructorDecl>(Method)) {
-          const auto *const RDecl = Method->getParent();
-          if (Params.empty()) {
-            return RDecl->getNameAsString();
-          }
-          return fmt::format("{}, {}", RDecl->getNameAsString(), Params);
+              llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
+          Method != nullptr && !llvm::isa<clang::CXXConstructorDecl>(Method)) {
+        const auto *const RDecl = Method->getParent();
+        if (Params.empty()) {
+          return RDecl->getNameAsString();
         }
+        return fmt::format("{}, {}", RDecl->getNameAsString(), Params);
       }
       return Params;
     };
 
 std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
-      Overloaded{
-          FunctionDeclToStringForRequired,
-          [](const clang::FieldDecl *const FDecl) {
-            return FDecl->getParent()->getNameAsString();
-          },
-          [](const clang::VarDecl *const /*VDecl*/) -> std::string {
-            return "";
-          },
-          [](const std::monostate) -> std::string { return "monostate"; }},
+      Overloaded{FunctionDeclToStringForRequired,
+                 [](const clang::FieldDecl *const FDecl) {
+                   return FDecl->getParent()->getNameAsString();
+                 },
+                 [](const clang::VarDecl *const /*VDecl*/) -> std::string {
+                   return "";
+                 }},
       Data);
 }
 
@@ -122,6 +128,10 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
 };
 
 std::string toString(const clang::Type *const Type) {
+  if (const auto *const Decl = Type->getAsTagDecl(); Decl != nullptr) {
+    return clang::QualType(Type, 0).getAsString(
+        getNormalizedPrintingPolicy(Decl));
+  }
   return clang::QualType(Type, 0).getAsString();
 }
 std::string toString(const clang::NamedDecl *NDecl) {
