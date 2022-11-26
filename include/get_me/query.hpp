@@ -29,8 +29,16 @@ public:
     };
 
     return Transitions_ |
-           ranges::views::filter(ranges::not_fn(QueriedTypeIsSubset),
-                                 required) |
+           ranges::views::transform(
+               [&QueriedTypeIsSubset](
+                   const BundeledTransitionType &Transition) {
+                 return std::pair{
+                     Transition.first,
+                     Transition.second |
+                         ranges::views::filter(
+                             ranges::not_fn(QueriedTypeIsSubset), ToRequired) |
+                         ranges::to<StrippedTransitionsSet>};
+               }) |
            ranges::to<TransitionCollector>;
   }
 
@@ -78,7 +86,7 @@ private:
       return {};
     }
     const auto FilteredTypes =
-        Transitions_ | ranges::views::transform(acquired) |
+        Transitions_ | ranges::views::transform(ToAcquired) |
         ranges::views::filter([this](const TypeSetValueType &Acquired) {
           return matchesQueriedTypeName(Acquired);
         }) |

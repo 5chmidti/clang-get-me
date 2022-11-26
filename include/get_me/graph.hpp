@@ -71,6 +71,11 @@ struct GraphData {
   std::vector<VertexDataType> VertexData{};
 };
 
+[[nodiscard]] bool edgeWithTransitionExistsInContainer(
+    const indexed_set<GraphData::EdgeType> &Edges,
+    const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
+    const std::vector<GraphData::EdgeWeightType> &EdgeWeights);
+
 class GraphBuilder {
 public:
   using VertexType = TypeSet;
@@ -86,7 +91,7 @@ public:
   [[nodiscard]] bool buildStep();
   [[nodiscard]] bool buildStepFor(VertexDescriptor Vertex);
   [[nodiscard]] bool buildStepFor(const VertexType &InterestingVertex);
-  [[nodiscard]] bool buildStepFor(const VertexSet &InterestingVertices);
+  [[nodiscard]] bool buildStepFor(VertexSet InterestingVertices);
 
   [[nodiscard]] std::pair<GraphType, GraphData> commit();
 
@@ -95,6 +100,45 @@ private:
     size_t IterationIndex{};
     VertexSet InterestingVertices{};
   };
+
+  [[nodiscard]] auto
+  maybeAddEdgeFrom(const indexed_value_type<VertexType> &IndexedSourceVertex) {
+    return
+        [this, &IndexedSourceVertex](
+            bool AddedTransitions,
+            const std::pair<TransitionType, TypeSet> &TransitionAndTargetTS) {
+          const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
+          auto TargetVertexIter = VertexData_.find(TargetTypeSet);
+          const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
+          const auto TargetVertexIndex = TargetVertexExists
+                                             ? Index(*TargetVertexIter)
+                                             : VertexData_.size();
+
+          const auto EdgeToAdd = GraphData::EdgeType{Index(IndexedSourceVertex),
+                                                     TargetVertexIndex};
+
+          if (TargetVertexExists &&
+              edgeWithTransitionExistsInContainer(EdgesData_, EdgeToAdd,
+                                                  Transition, EdgeWeights_)) {
+            return AddedTransitions;
+          }
+
+          if (TargetVertexExists) {
+            CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
+          } else {
+            CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
+                                                      TargetTypeSet);
+            VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
+          }
+          if (const auto [_, EdgeAdded] =
+                  EdgesData_.emplace(EdgesData_.size(), EdgeToAdd);
+              EdgeAdded) {
+            EdgeWeights_.push_back(Transition);
+            AddedTransitions = true;
+          }
+          return AddedTransitions;
+        };
+  }
 
   QueryType Query_;
   TransitionCollector TransitionsForQuery_{};

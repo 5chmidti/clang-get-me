@@ -115,7 +115,7 @@ public:
       return true;
     }
 
-    Transitions_.emplace(toTransitionType(FDecl, Conf_));
+    addTransition(toTransitionType(FDecl, Conf_));
     return true;
   }
 
@@ -133,7 +133,7 @@ public:
       return true;
     }
 
-    Transitions_.emplace(toTransitionType(FDecl, Conf_));
+    addTransition(toTransitionType(FDecl, Conf_));
     return true;
   }
 
@@ -143,13 +143,12 @@ public:
     }
     const auto AddToTransitions =
         [this](const ranges::viewable_range auto Range) {
-          ranges::transform(
+          ranges::for_each(
               Range | ranges::views::filter([this](const auto *const Function) {
                 return !filterOut(Function, Conf_);
               }),
-              std::inserter(Transitions_, Transitions_.end()),
               [this](const auto *const Function) {
-                return toTransitionType(Function, Conf_);
+                addTransition(toTransitionType(Function, Conf_));
               });
         };
     AddToTransitions(RDecl->methods());
@@ -192,8 +191,8 @@ public:
       return true;
     }
 
-    Transitions_.emplace(std::get<0>(toTypeSet(VDecl, Conf_)),
-                         TransitionDataType{VDecl}, TypeSet{});
+    Transitions_[std::get<0>(toTypeSet(VDecl, Conf_))].emplace(
+        TransitionDataType{VDecl}, TypeSet{});
     return true;
   }
 
@@ -226,6 +225,11 @@ public:
   }
 
 private:
+  void addTransition(TransitionType Transition) {
+    Transitions_[ToAcquired(Transition)].emplace(ToTransition(Transition),
+                                                 ToRequired(Transition));
+  }
+
   const Config &Conf_;
   TransitionCollector &Transitions_;
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
@@ -287,10 +291,10 @@ static void filterOverloads(TransitionCollector &Transitions,
         }
         return false;
       };
-  const auto IsOverload = [](const TransitionType &LhsTuple,
-                             const TransitionType &RhsTuple) {
-    const auto &Lhs = transition(LhsTuple);
-    const auto &Rhs = transition(RhsTuple);
+  const auto IsOverload = [](const StrippedTransitionType &LhsTuple,
+                             const StrippedTransitionType &RhsTuple) {
+    const auto &Lhs = ToTransition(LhsTuple);
+    const auto &Rhs = ToTransition(RhsTuple);
     if (Lhs.index() != Rhs.index()) {
       return false;
     }
@@ -325,10 +329,17 @@ static void filterOverloads(TransitionCollector &Transitions,
   // FIXME: sorting just to make sure the overloads with longer parameter lists
   // are removed, figure out a better way. The algo also depends on this order
   // to determine if it is an overload
-  Transitions = std::move(Transitions) | ranges::to_vector |
-                ranges::actions::sort(Comparator, transition) |
-                ranges::actions::unique(IsOverload) |
-                ranges::to<TransitionCollector>;
+  Transitions =
+      Transitions | ranges::views::move |
+      ranges::views::transform([&IsOverload, &Comparator](
+                                   BundeledTransitionType BundeledTransition) {
+        return std::pair{ToAcquired(BundeledTransition),
+                         std::move(BundeledTransition.second) |
+                             ranges::actions::sort(Comparator, ToTransition) |
+                             ranges::actions::unique(IsOverload) |
+                             ranges::to<StrippedTransitionsSet>};
+      }) |
+      ranges::to<TransitionCollector>;
 }
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {

@@ -4,9 +4,12 @@
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
+#include <boost/graph/detail/adjacency_list.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <range/v3/action/insert.hpp>
+#include <range/v3/action/join.hpp>
+#include <range/v3/action/push_back.hpp>
 #include <range/v3/action/reverse.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
@@ -69,7 +72,7 @@ public:
                           const DTDVertexDescriptor DerivedIndex) {
     ranges::for_each(
         Derived->bases(),
-        [this, &DerivedIndex](const clang::CXXBaseSpecifier &BaseSpec) {
+        [this, DerivedIndex](const clang::CXXBaseSpecifier &BaseSpec) {
           const auto QType = BaseSpec.getType();
           const auto BaseType =
               TypeSetValueType{launderType(QType.getTypePtr())};
@@ -162,49 +165,6 @@ getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
   return std::move(Vertices) | ranges::actions::reverse;
 }
 
-template <typename T> [[nodiscard]] auto invokePropagator(T &&Propagator) {
-  return ranges::views::transform(
-      [Propagator = std::forward<T>(Propagator)](TransitionType Transition) {
-        auto PropagationResult = Propagator(Transition);
-        return std::tuple{std::move(Transition), std::move(PropagationResult)};
-      });
-}
-
-[[nodiscard]] auto propagateRequiredImpl(TypeSetValueType TargetType,
-                                         auto PropagateRequired) {
-  return invokePropagator(std::move(PropagateRequired)) |
-         ranges::views::cache1 |
-         ranges::views::filter([](const auto &TransitionAndPropagationStatus) {
-           return std::get<1>(TransitionAndPropagationStatus).second;
-         }) |
-         ranges::views::transform(
-             [TargetType](
-                 auto TransitionAndPropagationStatus) -> TransitionType {
-               auto &[Transition, PropagateRequiredStatus] =
-                   TransitionAndPropagationStatus;
-               auto &Required = std::get<2>(Transition);
-               Required.erase(std::get<0>(PropagateRequiredStatus));
-               Required.insert(TargetType);
-               return {acquired(Transition), transition(Transition), Required};
-             });
-}
-
-[[nodiscard]] auto propagateAcquiredImpl(TypeSetValueType TargetType,
-                                         auto PropagateAcquired) {
-  return invokePropagator(std::move(PropagateAcquired)) |
-         ranges::views::cache1 |
-         ranges::views::filter([](const auto &TransitionAndPropagationStatus) {
-           return std::get<1>(TransitionAndPropagationStatus);
-         }) |
-         ranges::views::transform([TargetType](
-                                      const auto
-                                          &TransitionAndPropagationStatus)
-                                      -> TransitionType {
-           const auto &Transition = std::get<0>(TransitionAndPropagationStatus);
-           return {TargetType, transition(Transition), required(Transition)};
-         });
-}
-
 [[nodiscard]] static auto getVerticesWithNoInEdges(const DTDDataType &Data) {
   return ranges::views::iota(0U, Data.VertexData.size()) |
          ranges::views::set_difference(Data.Edges |
@@ -281,6 +241,44 @@ overridesConstructor(const TypeSetValueType &Type,
       Type);
 }
 
+[[nodiscard]] static auto
+transitionIsMember(const TypeSetValueType &DerivedType) {
+  return [DerivedType](const StrippedTransitionType &Transition) {
+    return std::visit(
+        Overloaded{[](const clang::FieldDecl *const) { return false; },
+                   [DerivedType](const clang::FunctionDecl *const FDecl) {
+                     const auto *const Method =
+                         llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
+                     if (Method == nullptr) {
+                       return false;
+                     }
+                     if (const auto *const Ctor =
+                             llvm::dyn_cast<clang::CXXConstructorDecl>(Method);
+                         Ctor != nullptr) {
+                       return overridesConstructor(DerivedType, Ctor);
+                     }
+
+                     return overridesMethod(DerivedType, Method);
+                   },
+                   [](const auto *const) { return false; }},
+        ToTransition(Transition));
+  };
+}
+
+[[nodiscard]] static auto maybePropagate(const TypeSetValueType &SourceType,
+                                         const TypeSetValueType TargetType) {
+  return
+      [SourceType, TargetType](const StrippedTransitionType &StrippedTransition)
+          -> std::pair<bool, StrippedTransitionType> {
+        auto RequiredTS = ToRequired(StrippedTransition);
+        const auto ChangedRequiredTS = 0U != RequiredTS.erase(SourceType);
+        RequiredTS.insert(TargetType);
+        return {ChangedRequiredTS,
+                StrippedTransitionType{ToTransition(StrippedTransition),
+                                       RequiredTS}};
+      };
+}
+
 class DepthFirstDTDPropagation {
 private:
   [[nodiscard]] auto toEdgeTypeFactory() const {
@@ -306,63 +304,57 @@ private:
 
   [[nodiscard]] auto propagateRequired() const {
     return [this](const DTDEdgeDescriptor &Edge) {
-      const auto SourceType = toType(Source(Edge));
-      const auto TargetType = toType(Target(Edge));
-
-      const auto PropagateRequired =
-          [SourceType](const TransitionType &Transition) {
-            const auto &Required = required(Transition);
-            const auto Iter = Required.find(SourceType);
-            return std::pair{Iter, Iter != Required.end()};
-          };
-
       return Transitions_ |
-             propagateRequiredImpl(TargetType, PropagateRequired);
+             ranges::views::transform(
+                 [SourceType = toType(Source(Edge)),
+                  TargetType = toType(Target(Edge))](
+                     const BundeledTransitionType &BundeledTransition)
+                     -> BundeledTransitionType {
+                   return {ToAcquired(BundeledTransition),
+                           BundeledTransition.second |
+                               ranges::views::transform(
+                                   maybePropagate(SourceType, TargetType)) |
+                               ranges::views::cache1 |
+                               ranges::views::filter(Element<0>) |
+                               ranges::views::transform(Element<1>) |
+                               ranges::to<StrippedTransitionsSet>};
+                 });
     };
   }
 
   [[nodiscard]] auto
-  propagatedForAcquired(const bool Enabled, const TypeSetValueType &OldType,
-                        const TypeSetValueType &NewType) const {
-    const auto PropagateAcquired =
-        [&OldType](const TransitionType &Transition) {
-          return acquired(Transition) == OldType;
-        };
-    // FIXME: apply iterating optimization if possible
+  propagatedForAcquired(const bool Enabled, const TypeSetValueType &DerivedType,
+                        const TypeSetValueType &BaseType) const {
     return Conditional(Enabled, Transitions_) |
-           propagateAcquiredImpl(NewType, PropagateAcquired);
+           ranges::views::filter(
+               [DerivedType](const TypeSetValueType &Acquired) {
+                 return Acquired == DerivedType;
+               },
+               ToAcquired) |
+           ranges::views::transform(
+               [BaseType](const BundeledTransitionType &BundeledTransition)
+                   -> BundeledTransitionType {
+                 return {BaseType, BundeledTransition.second};
+               });
   }
 
-  [[nodiscard]] auto
-  propagatedInheritedMethodsForAcquired(const bool Enabled,
-                                        const TypeSetValueType &OldType,
-                                        const TypeSetValueType &NewType) const {
-    const auto PropagateAcquired =
-        [&OldType, &NewType](const TransitionType &Transition) {
-          const auto TransitionIsFromRecord = std::visit(
-              Overloaded{[](const clang::FieldDecl *const) { return false; },
-                         [&NewType](const clang::FunctionDecl *const FDecl) {
-                           const auto *const Method =
-                               llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
-                           if (Method == nullptr) {
-                             return false;
-                           }
-                           if (const auto *const Ctor =
-                                   llvm::dyn_cast<clang::CXXConstructorDecl>(
-                                       Method);
-                               Ctor != nullptr) {
-                             return overridesConstructor(NewType, Ctor);
-                           }
-
-                           return overridesMethod(NewType, Method);
-                         },
-                         [](const auto *const) { return false; }},
-              transition(Transition));
-
-          return acquired(Transition) == OldType && TransitionIsFromRecord;
-        };
+  [[nodiscard]] auto propagatedInheritedMethodsForAcquired(
+      const bool Enabled, const TypeSetValueType &BaseType,
+      const TypeSetValueType &DerivedType) const {
     return Conditional(Enabled, Transitions_) |
-           propagateAcquiredImpl(NewType, PropagateAcquired);
+           ranges::views::filter(
+               [BaseType](const TypeSetValueType &Acquired) {
+                 return Acquired == BaseType;
+               },
+               ToAcquired) |
+           ranges::views::transform(
+               [DerivedType](const BundeledTransitionType &BundeledTransition)
+                   -> BundeledTransitionType {
+                 return {DerivedType, BundeledTransition.second |
+                                          ranges::views::filter(
+                                              transitionIsMember(DerivedType)) |
+                                          ranges::to<StrippedTransitionsSet>};
+               });
   };
 
   [[nodiscard]] auto propagateAcquiredInheritance() const {
@@ -375,12 +367,12 @@ private:
             propagatedForAcquired(false, {}, {}));
       }
 
-      const auto &SourceType = toType(Source(Edge));
-      const auto &TargetType = toType(Target(Edge));
+      const auto &BaseType = toType(Source(Edge));
+      const auto &DerivedType = toType(Target(Edge));
 
       return ranges::views::concat(
-          propagatedInheritedMethodsForAcquired(true, SourceType, TargetType),
-          propagatedForAcquired(true, TargetType, SourceType));
+          propagatedInheritedMethodsForAcquired(true, BaseType, DerivedType),
+          propagatedForAcquired(true, DerivedType, BaseType));
     };
   }
 
@@ -402,13 +394,6 @@ private:
     };
   }
 
-  [[nodiscard]] auto getOutEdges() const {
-    return ranges::views::iota(0U, Data_.VertexData.size()) |
-           ranges::views::transform([this](const VertexDescriptor Vertex) {
-             return toRange(out_edges(Vertex, Graph_));
-           });
-  }
-
 public:
   DepthFirstDTDPropagation(TransitionCollector &TransitionsRef,
                            const DTDDataType &DataRef,
@@ -418,25 +403,27 @@ public:
         Graph_{GraphRef} {}
   void operator()() {
     const auto Sources = getVerticesWithNoInEdges(Data_);
-    const auto OutEdges = getOutEdges();
     const auto VerticesToVisit = getVerticesToVisit(Sources, Graph_);
     const auto NotVisited = [this](const DTDVertexDescriptor Vertex) {
       return !VertexVisited_[Vertex];
     };
 
     const auto ToPropagatedTransitionsOfVertex =
-        [this, &OutEdges](const DTDVertexDescriptor Vertex) {
+        [this](const DTDVertexDescriptor Vertex) {
           VertexVisited_[Vertex] = true;
-          return OutEdges[Vertex] | propagate(propagateAcquiredInheritance(),
-                                              propagateAcquiredTypedef(),
-                                              propagateRequired());
+          return toRange(boost::out_edges(Vertex, Graph_)) |
+                 propagate(propagateRequired(), propagateAcquiredInheritance(),
+                           propagateAcquiredTypedef());
         };
-    ranges::for_each(
+
+    std::vector<BundeledTransitionType> Vec =
         VerticesToVisit | ranges::views::filter(NotVisited) |
-            ranges::views::transform(ToPropagatedTransitionsOfVertex),
-        [this](auto NewTransitions) {
-          ranges::actions::insert(Transitions_, NewTransitions);
-        });
+        ranges::views::for_each(ToPropagatedTransitionsOfVertex) |
+        ranges::to_vector;
+    ranges::for_each(Vec, [this](BundeledTransitionType NewTransitions) {
+      Transitions_[ToAcquired(NewTransitions)].merge(
+          std::move(NewTransitions.second));
+    });
   }
 
 private:
@@ -447,20 +434,10 @@ private:
   std::vector<bool> VertexVisited_ = std::vector<bool>(Data_.VertexData.size());
 };
 
-// FIXME: swap order of graph?
-// I.e. from most basic type to derived
-
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
     const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls) {
   auto [Data, Graph] = createDTDGraph(CXXRecords, TypedefNameDecls);
-  // spdlog::info("TypedefNameDecls: {}", TypedefNameDecls.size());
-  // spdlog::info("CXXRecords: {}", CXXRecords.size());
-  // spdlog::info("Transitions: {}", Transitions);
-  // spdlog::info("Data.VertexData: {}",
-  //              ranges::views::zip(ranges::views::iota(0U),
-  //              Data.VertexData));
-  // spdlog::info("Data.Edges: {}", Data.Edges);
   DepthFirstDTDPropagation{Transitions, Data, Graph}();
 }

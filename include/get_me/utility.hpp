@@ -36,6 +36,9 @@ template <class... Ts> struct Overloaded : public Ts... {
   using Ts::operator()...;
 };
 
+template <typename T, typename... Ts>
+inline constexpr bool IsAnyOf = (std::same_as<T, Ts> || ...);
+
 template <class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
 
 template <std::size_t I>
