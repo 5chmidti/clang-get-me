@@ -54,7 +54,7 @@ TEST_F(GetMeTest, inheritance) {
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, inheritence_qualified_types) {
+TEST_F(GetMeTest, inheritenceQualifiedTypes) {
   test(
       R"(
     struct A {};
@@ -147,7 +147,7 @@ TEST_F(GetMeTest, inheritence_qualified_types) {
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, inheritence_qualified_types_virtual) {
+TEST_F(GetMeTest, inheritenceQualifiedTypesVirtual) {
   testFailure(
       R"(
     struct A { virtual void foo()=0; };
