@@ -36,6 +36,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   State.counters["paths"] = static_cast<double>(FoundPaths.size());
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define SETUP_BENCHMARK(Code, QueriedType)                                     \
   const auto QueriedTypeAsString = std::string{QueriedType};                   \
   const auto Conf = Config{};                                                  \
@@ -88,7 +89,9 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   BENCHMARK_GET_SOURCE_VERTEX                                                  \
   BENCHMARK_BODY_PATHTRAVERSAL
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GENERATE_GENERATED_BENCHMARKS(Name, Generator, Args)                   \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
   using Name = benchmark::Fixture;                                             \
   BENCHMARK_DEFINE_F(Name, full)                                               \
   (benchmark::State & State) {                                                 \
@@ -101,6 +104,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     State.SetComplexityN(                                                      \
         static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
   BENCHMARK_REGISTER_F(Name, full) Args;                                       \
   BENCHMARK_DEFINE_F(Name, transitions)                                        \
   (benchmark::State & State) {                                                 \
@@ -113,6 +117,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     State.SetComplexityN(                                                      \
         static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
   BENCHMARK_REGISTER_F(Name, transitions) Args;                                \
   BENCHMARK_DEFINE_F(Name, graph)                                              \
   (benchmark::State & State) {                                                 \
@@ -126,6 +131,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     State.SetComplexityN(                                                      \
         static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
   BENCHMARK_REGISTER_F(Name, graph) Args;                                      \
   BENCHMARK_DEFINE_F(Name, pathTraversal)                                      \
   (benchmark::State & State) {                                                 \
@@ -141,9 +147,12 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     State.SetComplexityN(                                                      \
         static_cast<std::int64_t>(State.counters["transitions"]));             \
   }                                                                            \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
   BENCHMARK_REGISTER_F(Name, pathTraversal) Args;
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GENERATE_BENCHMARKS(Name, Code, QueriedType)                           \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
   using Name = benchmark::Fixture;                                             \
   BENCHMARK_DEFINE_F(Name, full)                                               \
   (benchmark::State & State) {                                                 \
