@@ -16,10 +16,8 @@
 #include "get_me/graph.hpp"
 #include "get_me/utility.hpp"
 
-using namespace clang;
-
 std::string getTransitionName(const TransitionDataType &Data) {
-  const auto DeclaratorDeclToString = [](const DeclaratorDecl *DDecl) {
+  const auto DeclaratorDeclToString = [](const clang::DeclaratorDecl *DDecl) {
     if (!DDecl->getDeclName().isIdentifier()) {
       if (const auto *const Constructor =
               llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
@@ -39,8 +37,9 @@ std::string getTransitionName(const TransitionDataType &Data) {
 }
 
 static const auto FunctionDeclToStringForAcquired =
-    [](const FunctionDecl *const FDecl) {
-      if (const auto *const Constructor = dyn_cast<CXXConstructorDecl>(FDecl)) {
+    [](const clang::FunctionDecl *const FDecl) {
+      if (const auto *const Constructor =
+              dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
         const auto *const Parent = Constructor->getParent();
         return Parent->getNameAsString();
       }
@@ -50,10 +49,10 @@ static const auto FunctionDeclToStringForAcquired =
 std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
       Overloaded{FunctionDeclToStringForAcquired,
-                 [](const FieldDecl *const FDecl) {
+                 [](const clang::FieldDecl *const FDecl) {
                    return FDecl->getType().getAsString();
                  },
-                 [](const VarDecl *const VDecl) {
+                 [](const clang::VarDecl *const VDecl) {
                    return VDecl->getType().getAsString();
                  },
                  [](std::monostate) -> std::string { return "monostate"; }},
@@ -61,17 +60,18 @@ std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
 }
 
 static const auto FunctionDeclToStringForRequired =
-    [](const FunctionDecl *const FDecl) {
+    [](const clang::FunctionDecl *const FDecl) {
       const auto Parameters = FDecl->parameters();
       auto Params = fmt::format(
           "{}",
-          fmt::join(Parameters |
-                        ranges::views::transform([](const ParmVarDecl *PDecl) {
-                          return PDecl->getType().getAsString();
-                        }),
+          fmt::join(Parameters | ranges::views::transform(
+                                     [](const clang::ParmVarDecl *PDecl) {
+                                       return PDecl->getType().getAsString();
+                                     }),
                     ", "));
-      if (const auto *const Method = llvm::dyn_cast<CXXMethodDecl>(FDecl)) {
-        if (!llvm::isa<CXXConstructorDecl>(Method)) {
+      if (const auto *const Method =
+              llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
+        if (!llvm::isa<clang::CXXConstructorDecl>(Method)) {
           const auto *const RDecl = Method->getParent();
           if (Params.empty()) {
             return RDecl->getNameAsString();
@@ -86,10 +86,12 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
       Overloaded{
           FunctionDeclToStringForRequired,
-          [](const FieldDecl *const FDecl) {
+          [](const clang::FieldDecl *const FDecl) {
             return FDecl->getParent()->getNameAsString();
           },
-          [](const VarDecl *const /*VDecl*/) -> std::string { return ""; },
+          [](const clang::VarDecl *const /*VDecl*/) -> std::string {
+            return "";
+          },
           [](const std::monostate) -> std::string { return "monostate"; }},
       Data);
 }
