@@ -31,7 +31,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Threads REQUIRED)
-find_package(Clang REQUIRED 14)
+find_package(Clang REQUIRED CONFIG)
 
 include(cmake/Conan.cmake)
 run_conan()
