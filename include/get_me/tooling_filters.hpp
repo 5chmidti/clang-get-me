@@ -1,8 +1,10 @@
 #ifndef get_me_include_get_me_tooling_filters_hpp
 #define get_me_include_get_me_tooling_filters_hpp
 
+#include <concepts>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
@@ -12,6 +14,7 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
+#include "get_me/utility.hpp"
 
 namespace clang {
 class CXXMethodDecl;
@@ -29,36 +32,39 @@ struct Config;
 
 template <typename T>
 [[nodiscard]] static bool
-hasReservedIdentifierTypeOrReturnType(const T *const Decl) {
+hasReservedIdentifierTypeOrReturnType(const T *const Decl)
+  requires IsAnyOf<T, clang::FunctionDecl, clang::VarDecl, clang::FieldDecl,
+                   clang::TypedefNameDecl> ||
+           std::derived_from<T, clang::RecordDecl>
+{
   const auto GetReturnTypeOrValueType = [Decl]() -> clang::QualType {
     if constexpr (std::is_same_v<T, clang::FunctionDecl>) {
       return Decl->getReturnType();
     } else if constexpr (std::is_same_v<T, clang::VarDecl> ||
                          std::is_same_v<T, clang::FieldDecl>) {
       return Decl->getType();
-    } else if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
+    } else if constexpr (std::is_same_v<T, clang::TypedefNameDecl> ||
+                         std::derived_from<T, clang::RecordDecl>) {
       return clang::QualType(Decl->getTypeForDecl(), 0);
-    } else {
-      static_assert(std::is_same_v<T, void>,
-                    "hasReservedIdentifierType called with unsupported type");
     }
   };
   return hasReservedIdentifierName(GetReturnTypeOrValueType());
 }
 
 template <typename T>
-[[nodiscard]] static bool hasReservedIdentifierNameOrType(const T *const Decl) {
+[[nodiscard]] static bool hasReservedIdentifierNameOrType(const T *const Decl)
+  requires IsAnyOf<T, clang::FunctionDecl, clang::VarDecl, clang::FieldDecl,
+                   clang::TypedefNameDecl> ||
+           std::derived_from<T, clang::RecordDecl>
+{
   if (Decl->getDeclName().isIdentifier() && Decl->getName().startswith("_")) {
     return true;
   }
-  if constexpr (std::is_same_v<T, clang::FunctionDecl> ||
-                std::is_same_v<T, clang::VarDecl> ||
-                std::is_same_v<T, clang::FieldDecl>) {
-    return hasReservedIdentifierTypeOrReturnType(Decl);
+  if (hasReservedIdentifierTypeOrReturnType(Decl)) {
+    return true;
   }
   if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
-    return hasReservedIdentifierTypeOrReturnType(Decl) ||
-           hasReservedIdentifierType(Decl->getUnderlyingType().getTypePtr());
+    return hasReservedIdentifierType(Decl->getUnderlyingType().getTypePtr());
   }
   return false;
 }
