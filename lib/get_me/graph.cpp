@@ -48,7 +48,7 @@ bool edgeWithTransitionExistsInContainer(
                        Edges.upper_bound(EdgeToAdd)) |
           ranges::views::transform(
               [&EdgeWeights](
-                  const indexed_value_type<GraphData::EdgeType> &IndexedEdge) {
+                  const indexed_value<GraphData::EdgeType> &IndexedEdge) {
                 return EdgeWeights[Index(IndexedEdge)];
               }),
       Transition);
@@ -105,7 +105,7 @@ constructVertexAndTransitionsPairVector(
 }
 
 [[nodiscard]] static auto toTransitionAndTargetTypeSetPairForVertex(
-    const indexed_value_type<GraphBuilder::VertexType> &IndexedVertex) {
+    const indexed_value<GraphBuilder::VertexType> &IndexedVertex) {
   return [&IndexedVertex](const TransitionType &Transition) {
     return std::pair{Transition,
                      Value(IndexedVertex) |

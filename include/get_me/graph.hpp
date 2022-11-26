@@ -102,7 +102,7 @@ private:
   };
 
   [[nodiscard]] auto
-  maybeAddEdgeFrom(const indexed_value_type<VertexType> &IndexedSourceVertex) {
+  maybeAddEdgeFrom(const indexed_value<VertexType> &IndexedSourceVertex) {
     return
         [this, &IndexedSourceVertex](
             bool AddedTransitions,
