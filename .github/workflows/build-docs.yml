@@ -1,4 +1,4 @@
-name: Build docs via Doxygen and publish to gh-pages
+name: Build and publish Docs
 on:
   release:
     types: [published]
