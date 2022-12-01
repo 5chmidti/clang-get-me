@@ -108,4 +108,7 @@ jobs:
       - name: Test
         working-directory: ${{runner.workspace}}/build
         shell: bash
+        env:
+          SPDLOG_LEVEL: "trace"
+
         run: cmake --build . --target check
