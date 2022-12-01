@@ -34,7 +34,8 @@ target_link_libraries(
 target_include_directories(get_me_lib SYSTEM PUBLIC ${CLANG_INCLUDE_DIRS})
 message(STATUS "clang includes: " ${CLANG_INCLUDE_DIRS})
 
-# copy clang headers relative to tool location to fix not finding headers
+install(TARGETS get_me_lib DESTINATION lib)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include DESTINATION .)
 
 string(
   REPLACE "git"
@@ -42,9 +43,11 @@ string(
           LLVM_VERSION
           ${LLVM_VERSION})
 
-# FIXME: also fix for installing tool
+# copy clang headers relative to tool location to fix not finding headers
 set(CLANG_HEADER_INCLUDE_DIR
     "${LLVM_LIBRARY_DIR}/clang/${LLVM_VERSION}/include")
 message(STATUS "CLANG_HEADER_INCLUDE_DIR: " ${CLANG_HEADER_INCLUDE_DIR})
 file(COPY ${CLANG_HEADER_INCLUDE_DIR}
      DESTINATION ${CMAKE_BINARY_DIR}/lib/clang/${LLVM_VERSION})
+install(DIRECTORY ${CLANG_HEADER_INCLUDE_DIR}
+        DESTINATION lib/clang/${LLVM_VERSION})
