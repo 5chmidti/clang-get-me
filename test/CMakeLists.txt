@@ -14,7 +14,13 @@ set(check_args -j${CTEST_JOB_COUNT} --output-on-failure ${CTEST_EXTRA_ARGS})
 
 add_custom_target(
   check
-  COMMAND ${CMAKE_CTEST_COMMAND} ${check_args}
+  ${CMAKE_COMMAND}
+  -E
+  env
+  $<$<BOOL:${ENABLE_SANITIZER_ADDRESS}>:ASAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/cmake/sanitizer_files/asan.supp,fast_unwind_on_malloc=0,symbolize=1,allow_user_poisoning=false>
+  $<$<BOOL:${ENABLE_SANITIZER_LEAK}>:LSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/cmake/sanitizer_files/lsan.supp>
+  ${CMAKE_CTEST_COMMAND}
+  ${check_args}
   USES_TERMINAL)
 
 if(${COVERAGE_REPORT_AVAILABLE})
