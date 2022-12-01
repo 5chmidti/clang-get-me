@@ -8,15 +8,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
+      - name: Generate Cache Key
+        id: cache-key
+        uses: actions/github-script@v6
+        env:
+          OS: ubuntu-latest
+          COMPILER_NAME: llvm
+          COMPILER_VERSION: 15.0.2
+          BUILD_TYPE: Release
+          CONANFILE_HASH: ${{ hashFiles('conanfile.py') }}
+        with:
+          result-encoding: string
+          script: |
+            const { OS, COMPILER_NAME, COMPILER_VERSION, BUILD_TYPE, CONANFILE_HASH } = process.env
+            return `${OS}-${COMPILER_NAME}-${COMPILER_VERSION}-${BUILD_TYPE}-${CONANFILE_HASH}`
+
+      - name: Cache Conan
+        uses: actions/cache@v3
+        with:
+          path: ~/.conan/
+          key: ${{steps.cache-key.outputs.result}}
+
+      - name: Setup Build Tools
+        uses: aminya/setup-cpp@v1
+        with:
+          cmake: true
+          conan: true
+          ninja: true
+          doxygen: true
+          graphviz: true
+          compiler: llvm-15.0.2
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{runner.workspace}}/build
+
+      - name: Configure CMake
+        # Use a bash shell so we can use the same syntax for environment variable
+        # access regardless of the host operating system
+        shell: bash
+        working-directory: ${{runner.workspace}}/build
+        run: cmake .. -DENABLE_DOXYGEN=TRUE -DCMAKE_BUILD_TYPE=Release -DCMAKE_PATH_PREFIX=~/llvm/ -G "Ninja"
+
       - name: Generate Docs
-        run: |
-          pip install conan
-          sudo apt install doxygen graphviz
-          doxygen --version
-          mkdir build
-          cd build
-          cmake .. -DENABLE_DOXYGEN=TRUE
-          make doxygen-docs
+        run: cmake --build . --target doxygen-docs
+
       - name: Deploy Docs
         uses: peaceiris/actions-gh-pages@v3
         with:
