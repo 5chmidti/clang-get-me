@@ -19,17 +19,58 @@ jobs:
         build_type:
           - Release
           - Debug
+        sanitizers:
+          - []
+          - ["address", "leak", "undefined_behavior"]
         # include:
         #   - compiler: { name: gcc, version: 11 }
         #     llvm: 15.0.2
 
     steps:
       - uses: actions/checkout@v3
+      - name: Generate Cache Key
+        id: cache-key
+        uses: actions/github-script@v6
+        env:
+          OS: ${{ matrix.os }}
+          COMPILER_NAME: ${{ matrix.compiler.name }}
+          COMPILER_VERSION: ${{ matrix.compiler.version }}
+          BUILD_TYPE: ${{ matrix.build_type }}
+          CONANFILE_HASH: ${{ hashFiles('conanfile.py') }}
+          SANITIZERS: ${{ join(matrix.sanitizers) }}
+        with:
+          result-encoding: string
+          script: |
+            const { OS, COMPILER_NAME, COMPILER_VERSION, BUILD_TYPE, CONANFILE_HASH, SANITIZERS } = process.env
+            console.log()
+            let sanitizer_defs = SANITIZERS.split(",").reduce((result, sanitizer) => result + "-" + sanitizer, "")
+            if (sanitizer_defs.length !== 0) {
+              sanitizer_defs = "-" + sanitizer_defs
+            }
+            return `${OS}-${COMPILER_NAME}-${COMPILER_VERSION}-${BUILD_TYPE}-${CONANFILE_HASH}` + sanitizer_defs
+
+      - name: Generate CMake Sanitizer Definitions
+        id: cmake-sanitizer-defs
+        uses: actions/github-script@v6
+        env:
+          SANITIZERS: ${{ join(matrix.sanitizers) }}
+        with:
+          result-encoding: string
+          script: |
+            const { SANITIZERS } = process.env
+            if (SANITIZERS.length === 0) {
+              return ""
+            }
+            function toCMakeDef(sanitizer) {
+              return "-DENABLE_SANITIZER_" + sanitizer.toUpperCase() + "=ON";
+            }
+            return SANITIZERS.split(",").map(toCMakeDef).reduce((result, sanitizer) => result + " " + sanitizer, "")
+
       - name: Cache Conan
         uses: actions/cache@v3
         with:
           path: ~/.conan/
-          key: ${{ runner.os }}-${{ matrix.compiler.name }}-${{ matrix.compiler.version }}-${{ matrix.build_type }}-conan-${{ hashFiles('conanfile.py') }}
+          key: ${{steps.cache-key.outputs.result}}
 
       - if: ${{ matrix.llvm }}
         name: Setup LLVM for GCC
@@ -56,7 +97,7 @@ jobs:
         # Note the current convention is to use the -S and -B options here to specify source
         # and build directories, but this is only available with CMake 3.13 and higher.
         # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_USER_LINKER=OFF -DCMAKE_PATH_PREFIX=~/llvm/ -G "Ninja"
+        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_USER_LINKER=OFF ${{steps.cmake-sanitizer-defs.outputs.result}} -DCMAKE_PATH_PREFIX=~/llvm/ -G "Ninja"
 
       - name: Build
         working-directory: ${{runner.workspace}}/build
