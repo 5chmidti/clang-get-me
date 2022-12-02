@@ -34,6 +34,7 @@
 #include <clang/AST/Stmt.h>
 #include <clang/AST/StmtIterator.h>
 #include <clang/AST/Type.h>
+#include <clang/Basic/Specifiers.h>
 #include <clang/Sema/Sema.h>
 #include <fmt/core.h>
 #include <fmt/ranges.h>
@@ -73,7 +74,8 @@
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
+#include "support/ranges/projections.hpp"
+#include "support/ranges/ranges.hpp"
 
 template <typename T>
 [[nodiscard]] static TransitionType toTransitionType(const T *const Transition,
@@ -125,6 +127,9 @@ public:
     }
 
     // FIXME: filter access spec for members, depends on context of query
+    if (FDecl->getAccess() != clang::AccessSpecifier::AS_public) {
+      return true;
+    }
 
     if (FDecl->getType()->isArithmeticType()) {
       return true;

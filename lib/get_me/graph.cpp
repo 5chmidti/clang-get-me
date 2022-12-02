@@ -37,7 +37,6 @@
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
 
 bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,

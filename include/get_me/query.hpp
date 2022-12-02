@@ -13,7 +13,7 @@
 
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
+#include "support/variant.hpp"
 
 class QueryType {
 public:

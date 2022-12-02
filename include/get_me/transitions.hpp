@@ -8,7 +8,7 @@
 #include <boost/container/flat_set.hpp>
 
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
+#include "support/concepts.hpp"
 
 using TransitionDataType =
     std::variant<const clang::FunctionDecl *, const clang::FieldDecl *,

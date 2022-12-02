@@ -2,6 +2,7 @@
 #define get_me_include_get_me_indexed_graph_sets_hpp
 
 #include <concepts>
+#include <set>
 #include <utility>
 
 #include <range/v3/action/sort.hpp>
@@ -9,8 +10,7 @@
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
+#include "support/ranges/projections.hpp"
 
 template <typename ValueType>
 using indexed_value = std::pair<size_t, ValueType>;

@@ -14,7 +14,7 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
-#include "get_me/utility.hpp"
+#include "support/concepts.hpp"
 
 namespace clang {
 class CXXMethodDecl;

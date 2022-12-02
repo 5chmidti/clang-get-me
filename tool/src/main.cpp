@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <deque>
 #include <exception>
+#include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
@@ -61,6 +62,7 @@
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
 #include "get_me/tooling.hpp"
+#include "support/ranges/ranges.hpp"
 
 // NOLINTBEGIN
 using namespace llvm::cl;
@@ -68,6 +70,8 @@ using namespace llvm::cl;
 static OptionCategory ToolCategory("get_me");
 static opt<std::string> TypeName("t", desc("Name of the type to get"), Required,
                                  ValueRequired, cat(ToolCategory));
+static opt<std::string> ConfigPath("config", desc("Config file path"), Optional,
+                                   ValueRequired, cat(ToolCategory));
 // NOLINTEND
 
 static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
@@ -117,15 +121,13 @@ int main(int argc, const char **argv) {
     spdlog::error("error building ASTs");
     return 1;
   }
-  const auto Conf = Config{
-      .EnableFilterOverloads = true,
-      .EnablePropagateInheritance = true,
-      .EnablePropagateTypeAlias = true,
-      .EnableTruncateArithmetic = true,
-      .EnableFilterStd = true,
-      .MaxGraphDepth = 10,
-      .MaxPathCount = 10000,
-  };
+
+  const auto &ConfigPathStr = ConfigPath.getValue();
+  const auto Path = std::filesystem::path{ConfigPathStr};
+  const auto Conf = ConfigPathStr.empty() || !std::filesystem::exists(Path)
+                        ? Config{}
+                        : Config::parse(ConfigPathStr).value_or(Config{});
+
   for (const auto &AST : ASTs) {
     GetMe{Conf, TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
         AST->getASTContext());

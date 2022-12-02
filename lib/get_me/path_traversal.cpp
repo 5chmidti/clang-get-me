@@ -27,7 +27,7 @@
 
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
-#include "get_me/utility.hpp"
+#include "support/ranges/ranges.hpp"
 
 [[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
   return [MaxPathLength = Conf.MaxPathLength](const PathType &CurrentPath) {

@@ -16,7 +16,6 @@
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/graph.hpp"
-#include "get_me/utility.hpp"
 
 [[nodiscard]] static clang::PrintingPolicy
 normalize(clang::PrintingPolicy PrintingPolicy) {

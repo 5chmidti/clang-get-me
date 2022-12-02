@@ -80,6 +80,12 @@ bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
       Method->isMoveAssignmentOperator()) {
     return true;
   }
+
+  // FIXME: filter access spec for members, depends on context of query
+  if (Method->getAccess() != clang::AccessSpecifier::AS_public) {
+    return true;
+  }
+
   // FIXME: allow conversions
   if (llvm::isa<clang::CXXConversionDecl>(Method)) {
     return true;

@@ -32,7 +32,9 @@
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
+#include "support/ranges/projections.hpp"
+#include "support/ranges/ranges.hpp"
+#include "support/ranges/views/conditional.hpp"
 
 enum class DTDEdgeType { Typedef, Inheritance };
 
@@ -325,7 +327,7 @@ private:
   [[nodiscard]] auto
   propagatedForAcquired(const bool Enabled, const TypeSetValueType &DerivedType,
                         const TypeSetValueType &BaseType) const {
-    return Conditional(Enabled, Transitions_) |
+    return Transitions_ | Conditional(Enabled) |
            ranges::views::filter(
                [DerivedType](const TypeSetValueType &Acquired) {
                  return Acquired == DerivedType;
@@ -341,7 +343,7 @@ private:
   [[nodiscard]] auto propagatedInheritedMethodsForAcquired(
       const bool Enabled, const TypeSetValueType &BaseType,
       const TypeSetValueType &DerivedType) const {
-    return Conditional(Enabled, Transitions_) |
+    return Transitions_ | Conditional(Enabled) |
            ranges::views::filter(
                [BaseType](const TypeSetValueType &Acquired) {
                  return Acquired == BaseType;

@@ -14,7 +14,6 @@
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
 #include "get_me/type_set.hpp"
-#include "get_me/utility.hpp"
 
 namespace clang {
 class Type;
