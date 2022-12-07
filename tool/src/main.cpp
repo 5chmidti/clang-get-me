@@ -122,11 +122,11 @@ int main(int argc, const char **argv) {
     return 1;
   }
 
-  const auto &ConfigPathStr = ConfigPath.getValue();
-  const auto Path = std::filesystem::path{ConfigPathStr};
-  const auto Conf = ConfigPathStr.empty() || !std::filesystem::exists(Path)
-                        ? Config{}
-                        : Config::parse(ConfigPathStr).value_or(Config{});
+  const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
+  const auto Conf =
+      ConfigFilePath.empty() || !std::filesystem::exists(ConfigFilePath)
+          ? Config{}
+          : Config::parse(ConfigFilePath).value_or(Config{});
 
   for (const auto &AST : ASTs) {
     GetMe{Conf, TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
