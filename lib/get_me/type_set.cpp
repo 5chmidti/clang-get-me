@@ -7,6 +7,7 @@
 #include <clang/AST/Type.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/Casting.h>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/config.hpp"
@@ -48,14 +49,13 @@ std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
   }();
   const auto RequiredTypes = [FDecl, Conf]() {
     const auto Parameters = FDecl->parameters();
-    auto ParameterTypeRange =
+    auto Res =
         Parameters |
         ranges::views::transform([Conf](const clang::ParmVarDecl *PVDecl) {
           const auto QType = PVDecl->getType();
           return toTypeSetValueType(QType.getTypePtr(), Conf);
-        });
-    auto Res = TypeSet{std::make_move_iterator(ParameterTypeRange.begin()),
-                       std::make_move_iterator(ParameterTypeRange.end())};
+        }) |
+        ranges::to<TypeSet>;
     if (const auto *const Method =
             llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
       if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
