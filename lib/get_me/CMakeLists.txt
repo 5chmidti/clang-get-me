@@ -44,11 +44,16 @@ string(
           LLVM_VERSION
           ${LLVM_VERSION})
 
+set(LLVM_VERSION_USED ${LLVM_VERSION})
+if("${LLVM_VERSION_MAJOR}" GREATER_EQUAL 16)
+  set(LLVM_VERSION_USED ${LLVM_VERSION_MAJOR})
+endif()
+
 # copy clang headers relative to tool location to fix not finding headers
 set(CLANG_HEADER_INCLUDE_DIR
-    "${LLVM_LIBRARY_DIR}/clang/${LLVM_VERSION}/include")
+    "${LLVM_LIBRARY_DIR}/clang/${LLVM_VERSION_USED}/include")
 message(STATUS "CLANG_HEADER_INCLUDE_DIR: " ${CLANG_HEADER_INCLUDE_DIR})
 file(COPY ${CLANG_HEADER_INCLUDE_DIR}
-     DESTINATION ${CMAKE_BINARY_DIR}/lib/clang/${LLVM_VERSION})
+     DESTINATION ${CMAKE_BINARY_DIR}/lib/clang/${LLVM_VERSION_USED})
 install(DIRECTORY ${CLANG_HEADER_INCLUDE_DIR}
-        DESTINATION lib/clang/${LLVM_VERSION})
+        DESTINATION lib/clang/${LLVM_VERSION_USED})
