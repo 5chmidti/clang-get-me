@@ -5,7 +5,7 @@
 
 #include "get_me/graph.hpp"
 
-struct Config;
+class Config;
 
 using PathType = std::vector<EdgeDescriptor>;
 

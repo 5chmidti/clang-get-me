@@ -29,7 +29,7 @@ class FunctionDecl;
 class VarDecl;
 } // namespace clang
 
-struct Config;
+class Config;
 
 using GraphType =
     boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,
