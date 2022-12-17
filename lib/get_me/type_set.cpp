@@ -21,7 +21,7 @@ TypeSetValueType toTypeSetValueType(const clang::Type *const Type,
   return TypeSetValueType{ResultType};
 }
 
-const clang::Type *launderType(const clang::Type *Type) {
+const clang::Type *launderType(const clang::Type *const Type) {
   if (Type == nullptr) {
     return nullptr;
   }
@@ -35,8 +35,8 @@ const clang::Type *launderType(const clang::Type *Type) {
   return Type;
 }
 
-std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
-                                               const Config &Conf) {
+std::pair<TypeSetValueType, TypeSet>
+toTypeSet(const clang::FunctionDecl *const FDecl, const Config &Conf) {
   const auto AcquiredType = [FDecl, Conf]() {
     if (const auto *const Constructor =
             llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
@@ -49,13 +49,13 @@ std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
   }();
   const auto RequiredTypes = [FDecl, Conf]() {
     const auto Parameters = FDecl->parameters();
-    auto Res =
-        Parameters |
-        ranges::views::transform([Conf](const clang::ParmVarDecl *PVDecl) {
-          const auto QType = PVDecl->getType();
-          return toTypeSetValueType(QType.getTypePtr(), Conf);
-        }) |
-        ranges::to<TypeSet>;
+    auto Res = Parameters |
+               ranges::views::transform(
+                   [Conf](const clang::ParmVarDecl *const PVDecl) {
+                     const auto QType = PVDecl->getType();
+                     return toTypeSetValueType(QType.getTypePtr(), Conf);
+                   }) |
+               ranges::to<TypeSet>;
     if (const auto *const Method =
             llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
       if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
@@ -68,14 +68,14 @@ std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FunctionDecl *FDecl,
   return {{AcquiredType}, RequiredTypes};
 }
 
-std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::FieldDecl *FDecl,
-                                               const Config &Conf) {
+std::pair<TypeSetValueType, TypeSet>
+toTypeSet(const clang::FieldDecl *const FDecl, const Config &Conf) {
   return {{{toTypeSetValueType(FDecl->getType().getTypePtr(), Conf)}},
           {{toTypeSetValueType(FDecl->getParent()->getTypeForDecl(), Conf)}}};
 }
 
-std::pair<TypeSetValueType, TypeSet> toTypeSet(const clang::VarDecl *VDecl,
-                                               const Config &Conf) {
+std::pair<TypeSetValueType, TypeSet>
+toTypeSet(const clang::VarDecl *const VDecl, const Config &Conf) {
   return {{{toTypeSetValueType(VDecl->getType().getTypePtr(), Conf)}}, {}};
 }
 

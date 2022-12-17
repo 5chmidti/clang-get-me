@@ -21,7 +21,7 @@ class Type;
 class VarDecl;
 } // namespace clang
 
-struct Config;
+class Config;
 
 struct ArithmeticType {
   const clang::Type *Value{};

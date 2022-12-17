@@ -175,7 +175,7 @@ getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
 }
 
 [[nodiscard]] static bool
-overridesMethod(const TypeSetValueType &Type,
+overridesMethod(const TypeSetValueType &TypeValue,
                 const clang::CXXMethodDecl *const Method) {
   return std::visit(
       Overloaded{
@@ -201,7 +201,7 @@ overridesMethod(const TypeSetValueType &Type,
             return !ranges::any_of(Derived->methods(), IsOveriddenMethod);
           },
           [](auto &&) { return false; }},
-      Type);
+      TypeValue);
 }
 
 [[nodiscard]] static bool
@@ -217,7 +217,7 @@ isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
 }
 
 [[nodiscard]] static bool
-overridesConstructor(const TypeSetValueType &Type,
+overridesConstructor(const TypeSetValueType &TypeValue,
                      const clang::CXXMethodDecl *const Ctor) {
   return std::visit(
       Overloaded{[Ctor](const clang::Type *const Type) {
@@ -240,7 +240,7 @@ overridesConstructor(const TypeSetValueType &Type,
                    return isOverriddenBy(Ctor, Derived);
                  },
                  [](auto &&) { return false; }},
-      Type);
+      TypeValue);
 }
 
 [[nodiscard]] static auto
@@ -440,6 +440,6 @@ void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
     const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls) {
-  auto [Data, Graph] = createDTDGraph(CXXRecords, TypedefNameDecls);
+  const auto [Data, Graph] = createDTDGraph(CXXRecords, TypedefNameDecls);
   DepthFirstDTDPropagation{Transitions, Data, Graph}();
 }

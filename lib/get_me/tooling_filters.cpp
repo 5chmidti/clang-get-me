@@ -14,12 +14,12 @@
 #include "get_me/config.hpp"
 
 bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
-                               std::string_view Name) {
+                               const std::string_view Name) {
   return VDecl->getType().getAsString().find(Name) != std::string::npos;
 }
 
 bool hasReservedIdentifierName(const clang::QualType &QType) {
-  auto QTypeAsString = QType.getAsString();
+  const auto QTypeAsString = QType.getAsString();
   return QTypeAsString.starts_with("_") ||
          (QTypeAsString.find("::_") != std::string::npos);
 }

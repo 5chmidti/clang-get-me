@@ -8,7 +8,8 @@
 
 #include <llvm/Support/YAMLTraits.h>
 
-struct Config {
+class Config {
+public:
   [[nodiscard]] static std::optional<Config>
   parse(const std::filesystem::path &File);
 
@@ -29,7 +30,7 @@ struct Config {
 };
 
 template <> struct llvm::yaml::MappingTraits<Config> {
-  static void mapping(llvm::yaml::IO &IO, Config &Conf);
+  static void mapping(llvm::yaml::IO &YamlIO, Config &Conf);
 };
 
 #endif

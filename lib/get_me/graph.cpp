@@ -61,14 +61,14 @@ constructVertexAndTransitionsPairVector(
   auto IndependentTransitionsVec = ranges::fold_left(
       Transitions,
       std::vector<std::vector<TransitionType>>(InterestingVertices.size()),
-      [&InterestingVertices](auto IndependentTransitionsVec,
+      [&InterestingVertices](auto CurrentIndependentTransitionsVec,
                              const BundeledTransitionType &BundeledTransition) {
         const auto &Acquired = ToAcquired(BundeledTransition);
         const auto AcquiredIsSubset = [&Acquired](const auto &IndexedVertex) {
           return Value(IndexedVertex).contains(Acquired);
         };
         const auto MaybeAddIndependentTransitions =
-            [&Acquired, &InterestingVertices, &IndependentTransitionsVec,
+            [&Acquired, &InterestingVertices, &CurrentIndependentTransitionsVec,
              &AcquiredIsSubset](
                 const StrippedTransitionType &StrippedTransition) {
               const auto Transition =
@@ -87,7 +87,7 @@ constructVertexAndTransitionsPairVector(
                   };
               ranges::for_each(
                   ranges::views::zip(InterestingVertices,
-                                     IndependentTransitionsVec) |
+                                     CurrentIndependentTransitionsVec) |
                       ranges::views::filter(AcquiredIsSubset, Element<0>) |
                       ranges::views::transform(Element<1>) |
                       ranges::views::filter(AllAreIndependentOfTransition),
@@ -95,7 +95,7 @@ constructVertexAndTransitionsPairVector(
             };
         ranges::for_each(BundeledTransition.second,
                          MaybeAddIndependentTransitions);
-        return IndependentTransitionsVec;
+        return CurrentIndependentTransitionsVec;
       });
 
   return ranges::views::zip(InterestingVertices | ranges::views::move,
@@ -125,7 +125,7 @@ bool GraphBuilder::buildStep() {
   return buildStepFor(CurrentState_.InterestingVertices);
 }
 
-bool GraphBuilder::buildStepFor(VertexDescriptor Vertex) {
+bool GraphBuilder::buildStepFor(const VertexDescriptor Vertex) {
   return buildStepFor(
       VertexData_ |
       ranges::views::filter(

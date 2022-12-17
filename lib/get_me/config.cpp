@@ -29,16 +29,17 @@ void Config::save(const std::filesystem::path &File) {
   OutStream << *this;
 }
 
-void llvm::yaml::MappingTraits<Config>::mapping(llvm::yaml::IO &IO,
+void llvm::yaml::MappingTraits<Config>::mapping(llvm::yaml::IO &YamlIO,
                                                 Config &Conf) {
-  IO.mapOptional("EnableFilterOverloads", Conf.EnableFilterOverloads);
-  IO.mapOptional("EnablePropagateInheritance", Conf.EnablePropagateInheritance);
-  IO.mapOptional("EnablePropagateTypeAlias", Conf.EnablePropagateTypeAlias);
-  IO.mapOptional("EnableTruncateArithmetic", Conf.EnableTruncateArithmetic);
-  IO.mapOptional("EnableFilterStd", Conf.EnableFilterStd);
+  YamlIO.mapOptional("EnableFilterOverloads", Conf.EnableFilterOverloads);
+  YamlIO.mapOptional("EnablePropagateInheritance",
+                     Conf.EnablePropagateInheritance);
+  YamlIO.mapOptional("EnablePropagateTypeAlias", Conf.EnablePropagateTypeAlias);
+  YamlIO.mapOptional("EnableTruncateArithmetic", Conf.EnableTruncateArithmetic);
+  YamlIO.mapOptional("EnableFilterStd", Conf.EnableFilterStd);
 
-  IO.mapOptional("MaxGraphDepth", Conf.MaxGraphDepth);
-  IO.mapOptional("MaxPathLength", Conf.MaxPathLength);
-  IO.mapOptional("MinPathCount", Conf.MinPathCount);
-  IO.mapOptional("MaxPathCount", Conf.MaxPathCount);
+  YamlIO.mapOptional("MaxGraphDepth", Conf.MaxGraphDepth);
+  YamlIO.mapOptional("MaxPathLength", Conf.MaxPathLength);
+  YamlIO.mapOptional("MinPathCount", Conf.MinPathCount);
+  YamlIO.mapOptional("MaxPathCount", Conf.MaxPathCount);
 }

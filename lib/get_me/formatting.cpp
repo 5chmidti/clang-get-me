@@ -34,17 +34,18 @@ getTypeAsString(const clang::ValueDecl *const VDecl) {
 }
 
 std::string getTransitionName(const TransitionDataType &Data) {
-  const auto DeclaratorDeclToString = [](const clang::DeclaratorDecl *DDecl) {
-    if (!DDecl->getDeclName().isIdentifier()) {
-      if (const auto *const Constructor =
-              llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
-        return Constructor->getParent()->getNameAsString();
-      }
-      return fmt::format("non-identifier {}({})", DDecl->getDeclKindName(),
-                         static_cast<const void *>(DDecl));
-    }
-    return DDecl->getNameAsString();
-  };
+  const auto DeclaratorDeclToString =
+      [](const clang::DeclaratorDecl *const DDecl) {
+        if (!DDecl->getDeclName().isIdentifier()) {
+          if (const auto *const Constructor =
+                  llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
+            return Constructor->getParent()->getNameAsString();
+          }
+          return fmt::format("non-identifier {}({})", DDecl->getDeclKindName(),
+                             static_cast<const void *>(DDecl));
+        }
+        return DDecl->getNameAsString();
+      };
 
   return std::visit(DeclaratorDeclToString, Data);
 }
@@ -72,11 +73,12 @@ static const auto FunctionDeclToStringForRequired =
     [](const clang::FunctionDecl *const FDecl) {
       const auto Parameters = FDecl->parameters();
       auto Params = fmt::format(
-          "{}", fmt::join(Parameters | ranges::views::transform(
-                                           [](const clang::ParmVarDecl *PDecl) {
-                                             return getTypeAsString(PDecl);
-                                           }),
-                          ", "));
+          "{}",
+          fmt::join(Parameters | ranges::views::transform(
+                                     [](const clang::ParmVarDecl *const PDecl) {
+                                       return getTypeAsString(PDecl);
+                                     }),
+                    ", "));
       if (const auto *const Method =
               llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
           Method != nullptr && !llvm::isa<clang::CXXConstructorDecl>(Method)) {
@@ -133,6 +135,6 @@ std::string toString(const clang::Type *const Type) {
   }
   return clang::QualType(Type, 0).getAsString();
 }
-std::string toString(const clang::NamedDecl *NDecl) {
+std::string toString(const clang::NamedDecl *const NDecl) {
   return NDecl->getNameAsString();
 }

@@ -44,13 +44,13 @@
 
 class PathFinder {
 private:
-  auto addToStack() {
+  [[nodiscard]] auto addToStack() {
     return [this](const EdgeDescriptor Edge) { EdgesStack_.emplace(Edge); };
   };
 
 public:
   PathFinder(const GraphType &Graph, const GraphData &Data, const Config &Conf,
-             VertexDescriptor SourceVertex)
+             const VertexDescriptor SourceVertex)
       : Graph_(Graph),
         Data_(Data),
         Conf_(Conf),
@@ -84,7 +84,7 @@ public:
     }
   }
 
-  std::vector<PathType> commit() {
+  [[nodiscard]] std::vector<PathType> commit() {
     return std::move(Paths_) | ranges::to_vector;
   }
 
@@ -117,7 +117,7 @@ private:
 
   class StateType {
   public:
-    explicit StateType(VertexDescriptor CurrentVertex)
+    explicit StateType(const VertexDescriptor CurrentVertex)
         : CurrentVertex_(CurrentVertex) {}
 
     [[nodiscard]] const VertexDescriptor &getCurrentVertex() const {
@@ -128,11 +128,13 @@ private:
       return CurrentPath_;
     }
 
-    void setCurrentVertex(VertexDescriptor Vertex) { CurrentVertex_ = Vertex; }
+    void setCurrentVertex(const VertexDescriptor Vertex) {
+      CurrentVertex_ = Vertex;
+    }
 
-    void addEdge(EdgeDescriptor Edge) { CurrentPath_.emplace_back(Edge); }
+    void addEdge(const EdgeDescriptor Edge) { CurrentPath_.emplace_back(Edge); }
 
-    void rollbackPathIfRequired(VertexDescriptor Src) {
+    void rollbackPathIfRequired(const VertexDescriptor Src) {
       if (requiresRollback(Src)) {
         rollbackTo(Src);
       }
@@ -153,11 +155,11 @@ private:
     VertexDescriptor CurrentVertex_;
     PathType CurrentPath_{};
 
-    [[nodiscard]] bool requiresRollback(VertexDescriptor Vertex) const {
+    [[nodiscard]] bool requiresRollback(const VertexDescriptor Vertex) const {
       return !CurrentPath_.empty() && CurrentVertex_ != Vertex;
     }
 
-    void rollbackTo(VertexDescriptor Src) {
+    void rollbackTo(const VertexDescriptor Src) {
       // visiting an edge whose source is not the target of the previous edge.
       // the current path has to be reverted until the new edge can be added
       // to the path remove edges that were added after the path got to src

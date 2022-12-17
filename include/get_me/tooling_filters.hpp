@@ -21,7 +21,7 @@ class CXXMethodDecl;
 class CXXRecordDecl;
 } // namespace clang
 
-struct Config;
+class Config;
 
 [[nodiscard]] bool hasTypeNameContainingName(const clang::ValueDecl *VDecl,
                                              std::string_view Name);

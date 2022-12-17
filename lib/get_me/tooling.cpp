@@ -69,8 +69,6 @@
 #include "get_me/config.hpp"
 #include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/formatting.hpp"
-#include "get_me/graph.hpp"
-#include "get_me/indexed_graph_sets.hpp"
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -255,8 +253,9 @@ private:
       Val);
 };
 
-static void filterOverloads(TransitionCollector &Transitions,
-                            size_t OverloadFilterParameterCountThreshold = 0) {
+static void
+filterOverloads(TransitionCollector &Transitions,
+                const size_t OverloadFilterParameterCountThreshold = 0) {
 
   const auto Comparator =
       [OverloadFilterParameterCountThreshold](const TransitionDataType &Lhs,

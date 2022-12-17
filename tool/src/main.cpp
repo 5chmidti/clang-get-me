@@ -24,6 +24,7 @@
 #include <boost/move/utility_core.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <clang/Frontend/ASTUnit.h>
+#include <clang/Tooling/ArgumentsAdjusters.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
@@ -72,6 +73,8 @@ static opt<std::string> TypeName("t", desc("Name of the type to get"), Required,
                                  ValueRequired, cat(ToolCategory));
 static opt<std::string> ConfigPath("config", desc("Config file path"), Optional,
                                    ValueRequired, cat(ToolCategory));
+static opt<bool> Verbose("v", desc("Verbose output"), Optional,
+                         cat(ToolCategory));
 // NOLINTEND
 
 static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
@@ -114,6 +117,16 @@ int main(int argc, const char **argv) {
       OptionsParser->getCompilations(),
       Sources.empty() ? OptionsParser->getCompilations().getAllFiles()
                       : Sources);
+
+  if (Verbose) {
+    Tool.appendArgumentsAdjuster(
+        [](const clang::tooling::CommandLineArguments &Args,
+           const llvm::StringRef /*Filename*/) {
+          auto Res = Args;
+          Res.emplace_back("-v");
+          return Res;
+        });
+  }
 
   TransitionCollector TypeSetTransitionData{};
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
