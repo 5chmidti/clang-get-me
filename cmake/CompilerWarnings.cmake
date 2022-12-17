@@ -40,7 +40,7 @@ function(set_project_warnings project_name)
       /permissive- # standards conformance mode for MSVC compiler.
   )
 
-  set(CLANG_WARNINGS
+  set(GENERAL_WARNINGS
       -Wall
       -Wextra # reasonable and standard
       -Wshadow # warn the user if a variable declaration shadows one from a
@@ -65,12 +65,12 @@ function(set_project_warnings project_name)
   )
 
   if(WARNINGS_AS_ERRORS)
-    set(CLANG_WARNINGS ${CLANG_WARNINGS} -Werror)
+    set(GENERAL_WARNINGS ${GENERAL_WARNINGS} -Werror)
     set(MSVC_WARNINGS ${MSVC_WARNINGS} /WX)
   endif()
 
   set(GCC_WARNINGS
-      ${CLANG_WARNINGS}
+      ${GENERAL_WARNINGS}
       -Wmisleading-indentation # warn if indentation implies blocks where blocks
                                # do not exist
       -Wduplicated-cond # warn if if / else chain has duplicated conditions
@@ -83,7 +83,7 @@ function(set_project_warnings project_name)
   if(MSVC)
     set(PROJECT_WARNINGS ${MSVC_WARNINGS})
   elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
-    set(PROJECT_WARNINGS ${CLANG_WARNINGS})
+    set(PROJECT_WARNINGS ${GENERAL_WARNINGS} -Wdocumentation)
   elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(PROJECT_WARNINGS ${GCC_WARNINGS})
   else()
