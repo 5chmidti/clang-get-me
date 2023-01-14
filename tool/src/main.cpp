@@ -56,6 +56,8 @@
 #include <range/v3/view/view.hpp>
 #include <range/v3/view/zip_with.hpp>
 #include <spdlog/cfg/env.h>
+#include <spdlog/common.h>
+#include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
@@ -104,6 +106,11 @@ static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
+
+  auto FileSink =
+      std::make_shared<spdlog::sinks::basic_file_sink_mt>("get_me_log.txt");
+  FileSink->set_level(spdlog::level::trace);
+  spdlog::default_logger()->sinks().push_back(FileSink);
 
   spdlog::cfg::load_env_levels();
 
