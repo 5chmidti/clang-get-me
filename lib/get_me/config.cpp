@@ -6,6 +6,7 @@
 #include <system_error>
 
 #include <llvm/Support/raw_ostream.h>
+#include <range/v3/algorithm/for_each.hpp>
 #include <spdlog/spdlog.h>
 
 #include "support/get_me_exception.hpp"
@@ -39,15 +40,33 @@ void Config::save(const std::filesystem::path &File) {
 
 void llvm::yaml::MappingTraits<Config>::mapping(llvm::yaml::IO &YamlIO,
                                                 Config &Conf) {
-  YamlIO.mapOptional("EnableFilterOverloads", Conf.EnableFilterOverloads);
-  YamlIO.mapOptional("EnablePropagateInheritance",
-                     Conf.EnablePropagateInheritance);
-  YamlIO.mapOptional("EnablePropagateTypeAlias", Conf.EnablePropagateTypeAlias);
-  YamlIO.mapOptional("EnableTruncateArithmetic", Conf.EnableTruncateArithmetic);
-  YamlIO.mapOptional("EnableFilterStd", Conf.EnableFilterStd);
+  const auto MapOptional =
+      [&YamlIO, &Conf]<typename ValueType>(
+          const Config::MappingType<ValueType> &MappingValue) {
+        const auto &[ValueName, ValueAddress] = MappingValue;
+        YamlIO.mapOptional(ValueName.data(), std::invoke(ValueAddress, Conf));
+      };
 
-  YamlIO.mapOptional("MaxGraphDepth", Conf.MaxGraphDepth);
-  YamlIO.mapOptional("MaxPathLength", Conf.MaxPathLength);
-  YamlIO.mapOptional("MinPathCount", Conf.MinPathCount);
-  YamlIO.mapOptional("MaxPathCount", Conf.MaxPathCount);
+  const auto [BooleanMapping, SizeTMapping] = Config::getConfigMapping();
+  ranges::for_each(BooleanMapping, MapOptional);
+  ranges::for_each(SizeTMapping, MapOptional);
+}
+
+std::pair<std::vector<Config::BooleanMappingType>,
+          std::vector<Config::SizeTMappingType>>
+Config::getConfigMapping() {
+  return {
+      {
+          {"EnableFilterOverloads", &Config::EnableFilterOverloads},
+          {"EnablePropagateInheritance", &Config::EnablePropagateInheritance},
+          {"EnablePropagateTypeAlias", &Config::EnablePropagateTypeAlias},
+          {"EnableTruncateArithmetic", &Config::EnableTruncateArithmetic},
+          {"EnableFilterStd", &Config::EnableFilterStd},
+      },
+      {
+          {"MaxGraphDepth", &Config::MaxGraphDepth},
+          {"MaxPathLength", &Config::MaxPathLength},
+          {"MinPathCount", &Config::MinPathCount},
+          {"MaxPathCount", &Config::MaxPathCount},
+      }};
 }

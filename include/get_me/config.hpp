@@ -4,11 +4,23 @@
 #include <cstddef>
 #include <filesystem>
 #include <limits>
+#include <string_view>
+#include <vector>
 
 #include <llvm/Support/YAMLTraits.h>
 
 class Config {
 public:
+  template <typename ValueType>
+  using MappingType = std::pair<std::string_view, ValueType>;
+
+  using BooleanMappingType = MappingType<bool Config::*>;
+  using SizeTMappingType = MappingType<std::size_t Config::*>;
+
+  [[nodiscard]] static std::pair<std::vector<BooleanMappingType>,
+                                 std::vector<SizeTMappingType>>
+  getConfigMapping();
+
   [[nodiscard]] static Config parse(const std::filesystem::path &File);
 
   void save(const std::filesystem::path &File);
