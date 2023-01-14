@@ -37,6 +37,7 @@
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
+#include "support/get_me_exception.hpp"
 
 bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,
@@ -179,15 +180,13 @@ std::pair<GraphType, GraphData> createGraph(const QueryType &Query) {
   return Builder.commit();
 }
 
-std::optional<VertexDescriptor>
+VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const TypeSet &QueriedType) {
   const auto SourceVertex = ranges::find(Data.VertexData, QueriedType);
 
   if (SourceVertex == Data.VertexData.end()) {
-    spdlog::error("found no type matching {} in {}", QueriedType,
-                  Data.VertexData);
-    return std::nullopt;
+    throw GetMeException(fmt::format("found no type matching {}", QueriedType));
   }
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));

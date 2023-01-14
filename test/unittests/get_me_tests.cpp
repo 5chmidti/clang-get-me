@@ -70,14 +70,10 @@ void test(std::string_view Code, std::string_view QueriedType,
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   const auto VertexDataSize = Data.VertexData.size();
-  ASSERT_TRUE(SourceVertex.has_value());
-  if (!SourceVertex.has_value()) {
-    return;
-  }
   // adjusted for empty set
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
   const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig, *SourceVertex);
+      pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
 
   const auto FoundPathsAsString =
       toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
@@ -105,14 +101,10 @@ void testFailure(std::string_view Code, std::string_view QueriedType,
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   const auto VertexDataSize = Data.VertexData.size();
-  ASSERT_TRUE(SourceVertex.has_value());
-  if (!SourceVertex.has_value()) {
-    return;
-  }
   // adjusted for empty set
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
   const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig, *SourceVertex);
+      pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
 
   const auto FoundPathsAsString =
       toString(FoundPaths, Graph, Data) | ranges::to<std::set>;

@@ -28,11 +28,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-  if (!SourceVertex) {
-    spdlog::error("QueriedType not found");
-    return;
-  }
-  const auto FoundPaths = pathTraversal(Graph, Data, Conf, *SourceVertex);
+  const auto FoundPaths = pathTraversal(Graph, Data, Conf, SourceVertex);
   State.counters["paths"] = static_cast<double>(FoundPaths.size());
 }
 
@@ -54,15 +50,11 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 #define BENCHMARK_GRAPH const auto [Graph, Data] = createGraph(Query);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
-  const auto FoundPaths = pathTraversal(Graph, Data, Conf, *SourceVertex);
+  const auto FoundPaths = pathTraversal(Graph, Data, Conf, SourceVertex);
 
 #define BENCHMARK_GET_SOURCE_VERTEX                                            \
   const auto SourceVertex =                                                    \
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());        \
-  if (!SourceVertex) [[unlikely]] {                                            \
-    spdlog::error("QueriedType not found");                                    \
-    return;                                                                    \
-  }
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
 
 #define BENCHMARK_BODY_TRANSITIONS                                             \
   BENCHMARK_TRANSITIONS                                                        \

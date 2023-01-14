@@ -4,14 +4,12 @@
 #include <cstddef>
 #include <filesystem>
 #include <limits>
-#include <optional>
 
 #include <llvm/Support/YAMLTraits.h>
 
 class Config {
 public:
-  [[nodiscard]] static std::optional<Config>
-  parse(const std::filesystem::path &File);
+  [[nodiscard]] static Config parse(const std::filesystem::path &File);
 
   void save(const std::filesystem::path &File);
 

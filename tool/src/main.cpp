@@ -63,6 +63,7 @@
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
 #include "get_me/tooling.hpp"
+#include "support/get_me_exception.hpp"
 #include "support/ranges/ranges.hpp"
 
 // NOLINTBEGIN
@@ -129,17 +130,14 @@ int main(int argc, const char **argv) {
   }
 
   TransitionCollector TypeSetTransitionData{};
+
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
-  if (const auto BuildASTsResult = Tool.buildASTs(ASTs); BuildASTsResult != 0) {
-    spdlog::error("error building ASTs");
-    return 1;
-  }
+  const auto BuildASTsResult = Tool.buildASTs(ASTs);
+  GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
   const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
   const auto Conf =
-      ConfigFilePath.empty() || !std::filesystem::exists(ConfigFilePath)
-          ? Config{}
-          : Config::parse(ConfigFilePath).value_or(Config{});
+      ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath);
 
   for (const auto &AST : ASTs) {
     GetMe{Conf, TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
@@ -163,10 +161,7 @@ int main(int argc, const char **argv) {
 
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-  if (!SourceVertexDesc) {
-    return 1;
-  }
-  auto Paths = pathTraversal(Graph, Data, Conf, *SourceVertexDesc);
+  auto Paths = pathTraversal(Graph, Data, Conf, SourceVertexDesc);
   spdlog::info(
       "path length distribution: {}",
       Paths |

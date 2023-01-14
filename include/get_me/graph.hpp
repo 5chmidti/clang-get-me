@@ -155,7 +155,7 @@ createGraph(const QueryType &Query);
 [[nodiscard]] TransitionCollector
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
-[[nodiscard]] std::optional<VertexDescriptor>
+[[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const TypeSet &QueriedType);
 
