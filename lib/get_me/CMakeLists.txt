@@ -12,6 +12,7 @@ target_sources(
           formatting.cpp
           graph.cpp
           path_traversal.cpp
+          query.cpp
           tooling.cpp
           tooling_filters.cpp
           type_set.cpp)

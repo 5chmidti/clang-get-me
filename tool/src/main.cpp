@@ -138,6 +138,7 @@ int main(int argc, const char **argv) {
 
   TransitionCollector TypeSetTransitionData{};
 
+  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
   const auto BuildASTsResult = Tool.buildASTs(ASTs);
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
@@ -147,7 +148,7 @@ int main(int argc, const char **argv) {
       ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath);
 
   for (const auto &AST : ASTs) {
-    GetMe{Conf, TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
+    GetMe{Conf, *TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
         AST->getASTContext());
   }
 

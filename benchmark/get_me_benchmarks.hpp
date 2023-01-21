@@ -1,9 +1,10 @@
 #ifndef get_me_benchmark_get_me_benchmarks_hpp
 #define get_me_benchmark_get_me_benchmarks_hpp
+
+#include <memory>
 #include <string_view>
 
 #include <benchmark/benchmark.h>
-#include <boost/hana.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
 #include <spdlog/spdlog.h>
@@ -16,11 +17,11 @@
 inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
                           const std::string &QueriedTypeAsString) {
   const auto Conf = Config{};
-  TransitionCollector TypeSetTransitionData{};
-  auto Consumer = GetMe{Conf, TypeSetTransitionData, Ast.getSema()};
+  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
+  auto Consumer = GetMe{Conf, *TypeSetTransitionData, Ast.getSema()};
   Consumer.HandleTranslationUnit(Ast.getASTContext());
   State.counters["transitions"] =
-      static_cast<double>(TypeSetTransitionData.size());
+      static_cast<double>(TypeSetTransitionData->size());
   const auto Query =
       QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString, Conf};
   const auto [Graph, Data] = createGraph(Query);
@@ -41,11 +42,11 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   setupCounters(State, *Ast, QueriedTypeAsString);
 
 #define BENCHMARK_TRANSITIONS                                                  \
-  TransitionCollector TypeSetTransitionData{};                                 \
-  auto Consumer = GetMe{Conf, TypeSetTransitionData, Ast->getSema()};          \
+  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();        \
+  auto Consumer = GetMe{Conf, *TypeSetTransitionData, Ast->getSema()};         \
   Consumer.HandleTranslationUnit(Ast->getASTContext());                        \
   const auto Query =                                                           \
-      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString, Conf};
+      QueryType{TypeSetTransitionData, QueriedTypeAsString, Conf};
 
 #define BENCHMARK_GRAPH const auto [Graph, Data] = createGraph(Query);
 
@@ -58,7 +59,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_BODY_TRANSITIONS                                             \
   BENCHMARK_TRANSITIONS                                                        \
-  benchmark::DoNotOptimize(TypeSetTransitionData.begin());                     \
+  benchmark::DoNotOptimize(TypeSetTransitionData->begin());                    \
   benchmark::ClobberMemory();
 
 #define BENCHMARK_BODY_GRAPH                                                   \

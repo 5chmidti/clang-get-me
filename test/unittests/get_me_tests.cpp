@@ -61,8 +61,8 @@ void test(std::string_view Code, std::string_view QueriedType,
   const auto AST =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
-  TransitionCollector TypeSetTransitionData{};
-  auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData, AST->getSema()};
+  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
+  auto Consumer = GetMe{CurrentConfig, *TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto Query = QueryType{std::move(TypeSetTransitionData),
                                std::string{QueriedType}, CurrentConfig};
@@ -92,8 +92,8 @@ void testFailure(std::string_view Code, std::string_view QueriedType,
   const auto AST =
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
-  TransitionCollector TypeSetTransitionData{};
-  auto Consumer = GetMe{CurrentConfig, TypeSetTransitionData, AST->getSema()};
+  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
+  auto Consumer = GetMe{CurrentConfig, *TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto Query = QueryType{std::move(TypeSetTransitionData),
                                std::string{QueriedType}, CurrentConfig};
