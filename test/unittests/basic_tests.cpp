@@ -1,3 +1,4 @@
+#include "get_me/config.hpp"
 #include "get_me_tests.hpp"
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -48,6 +49,8 @@ B getB();
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, overloads) {
+  const auto ConfigWithOverloadFilter = Config{.EnableFilterOverloads = true};
+
   test(R"(
 struct A {};
 
@@ -59,8 +62,8 @@ A getA(float, float);
 )",
        "A",
        {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
-        "(A, A getA(float), {float})", "(A, A getA(float, float), {float})",
-        "(A, A getA(float, int), {int, float})"});
+        "(A, A getA(float), {float})", "(A, A getA(float, int), {int, float})"},
+       ConfigWithOverloadFilter);
 
   test(R"(
 struct A {};
@@ -68,9 +71,8 @@ struct A {};
 A getA(float);
 A getA(float, float);
 )",
-       "A",
-       {"(A, A getA(float, float), {float})", "(A, A getA(float), {float})",
-        "(A, A A(), {})"});
+       "A", {"(A, A getA(float), {float})", "(A, A A(), {})"},
+       ConfigWithOverloadFilter);
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -109,6 +111,9 @@ struct A {
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, inheritance) {
+  const auto ConfigWithInheritancePropagation =
+      Config{.EnablePropagateInheritance = true};
+
   test(R"(
   struct A { A(int, float); };
   struct B : public A {};
@@ -116,7 +121,9 @@ TEST_F(GetMeTest, inheritance) {
   A getA();
   B getB();
   )",
-       "B", {"(B, B getB(), {})", "(B, A A(int, float), {int, float})"});
+       "B", {"(B, B getB(), {})", "(B, A A(int, float), {int, float})"},
+       ConfigWithInheritancePropagation);
+
   test(R"(
 struct A { A(int, float); };
 struct B : public A {};
@@ -126,18 +133,14 @@ B getB();
 )",
        "A",
        {"(A, A getA(), {})", "(A, B getB(), {})",
-        "(A, A A(int, float), {int, float})"});
+        "(A, A A(int, float), {int, float})"},
+       ConfigWithInheritancePropagation);
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, typealias) {
-  test(R"(
-  struct A {};
-  using B = A;
-  A getA();
-  B getB();
-  )",
-       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"});
+  const auto ConfigWithTypealiasPropagation =
+      Config{.EnablePropagateTypeAlias = true};
 
   test(R"(
   struct A {};
@@ -145,7 +148,17 @@ TEST_F(GetMeTest, typealias) {
   A getA();
   B getB();
   )",
-       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"});
+       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"},
+       ConfigWithTypealiasPropagation);
+
+  test(R"(
+  struct A {};
+  using B = A;
+  A getA();
+  B getB();
+  )",
+       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"},
+       ConfigWithTypealiasPropagation);
 
   test(R"(
   template <typename T>
@@ -157,7 +170,8 @@ TEST_F(GetMeTest, typealias) {
   B getB();
   B b = getB();
   )",
-       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"});
+       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"},
+       ConfigWithTypealiasPropagation);
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)

@@ -1,5 +1,8 @@
 #include "get_me_tests.hpp"
 
+constexpr auto ConfigWithInheritancePropagation =
+    Config{.EnablePropagateInheritance = true};
+
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, inheritance) {
   test(R"(
@@ -11,7 +14,8 @@ TEST_F(GetMeTest, inheritance) {
        "B",
        {
            "(B, B B(), {})",
-       });
+       },
+       ConfigWithInheritancePropagation);
 
   test(R"(
     struct A {};
@@ -24,7 +28,8 @@ TEST_F(GetMeTest, inheritance) {
            "(A, A A(), {})",
            "(A, B B(), {})",
            "(A, A getA(), {})",
-       });
+       },
+       ConfigWithInheritancePropagation);
 
   test(R"(
     struct A {};
@@ -35,7 +40,8 @@ TEST_F(GetMeTest, inheritance) {
        "B",
        {
            "(B, B B(), {})",
-       });
+       },
+       ConfigWithInheritancePropagation);
 
   testFailure(
       R"(
@@ -50,7 +56,8 @@ TEST_F(GetMeTest, inheritance) {
           "(C, C C(), {})",
           "(C, C getC(A), {A}), (A, A A(), {})",
           "(C, C getC(A), {B}), (B, B B(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -79,7 +86,8 @@ TEST_F(GetMeTest, inheritenceQualifiedTypes) {
           "(C, C funcA(A), {A}), (A, B funcB(D), {D}), (D, D D(), {})",
           "(C, C funcA(A), {B}), (B, B funcB(D), {D}), (D, D D(), {})",
           "(C, C funcB(B), {B}), (B, B funcB(D), {D}), (D, D D(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 
   testFailure(
       R"(
@@ -105,7 +113,8 @@ TEST_F(GetMeTest, inheritenceQualifiedTypes) {
           "(C, C funcA(A&), {A}), (A, B& funcB(D), {D}), (D, D D(), {})",
           "(C, C funcA(A&), {B}), (B, B& funcB(D), {D}), (D, D D(), {})",
           "(C, C funcB(B&), {B}), (B, B& funcB(D), {D}), (D, D D(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 
   testFailure(
       R"(
@@ -131,7 +140,8 @@ TEST_F(GetMeTest, inheritenceQualifiedTypes) {
           "(C, C funcA(A), {A}), (A, B* funcB(D), {D}), (D, D D(), {})",
           "(C, C funcA(A), {B}), (B, B* funcB(D), {D}), (D, D D(), {})",
           "(C, C funcB(B), {B}), (B, B* funcB(D), {D}), (D, D D(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
@@ -147,7 +157,8 @@ TEST_F(GetMeTest, inheritenceQualifiedTypesVirtual) {
       {
           "(B, B B(), {})",
           "(B, B funcB(B), {B}), (B, B B(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 
   testFailure(
       R"(
@@ -161,7 +172,8 @@ TEST_F(GetMeTest, inheritenceQualifiedTypesVirtual) {
       {
           "(B, B B(), {})",
           "(B, B& funcBRef(B&), {B}), (B, B B(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 
   testFailure(
       R"(
@@ -175,5 +187,6 @@ TEST_F(GetMeTest, inheritenceQualifiedTypesVirtual) {
       {
           "(B, B B(), {})",
           "(B, B* funcBPtr(B*), {B}), (B, B B(), {})",
-      });
+      },
+      ConfigWithInheritancePropagation);
 }
