@@ -13,6 +13,7 @@
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Type.h>
 #include <fmt/core.h>
+#include <range/v3/action/push_back.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
@@ -51,7 +52,8 @@ bool edgeWithTransitionExistsInContainer(
       Transition);
 }
 
-[[nodiscard]] static std::vector<
+namespace {
+[[nodiscard]] std::vector<
     std::pair<GraphBuilder::VertexSet::value_type, std::vector<TransitionType>>>
 constructVertexAndTransitionsPairVector(
     GraphBuilder::VertexSet InterestingVertices,
@@ -61,35 +63,29 @@ constructVertexAndTransitionsPairVector(
       std::vector<std::vector<TransitionType>>(InterestingVertices.size()),
       [&InterestingVertices](auto CurrentIndependentTransitionsVec,
                              const BundeledTransitionType &BundeledTransition) {
-        const auto &Acquired = ToAcquired(BundeledTransition);
-        const auto AcquiredIsSubset = [&Acquired](const auto &IndexedVertex) {
-          return Value(IndexedVertex).contains(Acquired);
-        };
         const auto MaybeAddIndependentTransitions =
-            [&Acquired, &InterestingVertices, &CurrentIndependentTransitionsVec,
-             &AcquiredIsSubset](
+            [Acquired = ToAcquired(BundeledTransition), &InterestingVertices,
+             &CurrentIndependentTransitionsVec](
                 const StrippedTransitionType &StrippedTransition) {
               const auto Transition =
                   TransitionType{Acquired, ToTransition(StrippedTransition),
                                  ToRequired(StrippedTransition)};
+              const auto ContainsAcquired =
+                  [&Acquired](const auto &IndexedVertex) {
+                    return Value(IndexedVertex).contains(Acquired);
+                  };
               const auto AllAreIndependentOfTransition =
-                  [&Transition](const std::vector<TransitionType>
-                                    &IndependentTransitions) {
+                  [&Transition](const auto &IndependentTransitions) {
                     return ranges::all_of(IndependentTransitions,
                                           independentOf(Transition));
-                  };
-              const auto AddToIndependentTransitionsOfEdge =
-                  [&Transition](
-                      std::vector<TransitionType> &IndependentTransitions) {
-                    IndependentTransitions.push_back(Transition);
                   };
               ranges::for_each(
                   ranges::views::zip(InterestingVertices,
                                      CurrentIndependentTransitionsVec) |
-                      ranges::views::filter(AcquiredIsSubset, Element<0>) |
+                      ranges::views::filter(ContainsAcquired, Element<0>) |
                       ranges::views::transform(Element<1>) |
                       ranges::views::filter(AllAreIndependentOfTransition),
-                  AddToIndependentTransitionsOfEdge);
+                  ranges::push_back(Transition));
             };
         ranges::for_each(BundeledTransition.second,
                          MaybeAddIndependentTransitions);
@@ -101,7 +97,7 @@ constructVertexAndTransitionsPairVector(
          ranges::to_vector;
 }
 
-[[nodiscard]] static auto toTransitionAndTargetTypeSetPairForVertex(
+[[nodiscard]] auto toTransitionAndTargetTypeSetPairForVertex(
     const indexed_value<GraphBuilder::VertexType> &IndexedVertex) {
   return [&IndexedVertex](const TransitionType &Transition) {
     return std::pair{Transition,
@@ -111,6 +107,7 @@ constructVertexAndTransitionsPairVector(
                          ranges::to<TypeSet>};
   };
 }
+} // namespace
 
 void GraphBuilder::build() {
   while (CurrentState_.IterationIndex < Query_.getConfig().MaxGraphDepth &&

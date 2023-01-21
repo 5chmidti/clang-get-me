@@ -75,13 +75,28 @@
 #include "support/ranges/ranges.hpp"
 
 template <typename T>
-[[nodiscard]] static TransitionType toTransitionType(const T *const Transition,
-                                                     const Config &Conf) {
+[[nodiscard]] TransitionType toTransitionType(const T *const Transition,
+                                              const Config &Conf) {
 
   auto [Acquired, Required] = toTypeSet(Transition, Conf);
   return {std::move(Acquired), TransitionDataType{Transition},
           std::move(Required)};
 }
+
+namespace {
+[[nodiscard]] auto getParametersOpt(const TransitionDataType &Val) {
+  return std::visit(
+      Overloaded{
+          [](const clang::FunctionDecl *const CurrentDecl)
+              -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
+            return CurrentDecl->parameters();
+          },
+          [](auto &&) -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
+            return {};
+          }},
+      Val);
+}
+} // namespace
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
@@ -237,19 +252,6 @@ private:
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
   std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls_;
   clang::Sema &Sema_;
-};
-
-[[nodiscard]] static auto getParametersOpt(const TransitionDataType &Val) {
-  return std::visit(
-      Overloaded{
-          [](const clang::FunctionDecl *const CurrentDecl)
-              -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-            return CurrentDecl->parameters();
-          },
-          [](auto &&) -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-            return {};
-          }},
-      Val);
 };
 
 static void

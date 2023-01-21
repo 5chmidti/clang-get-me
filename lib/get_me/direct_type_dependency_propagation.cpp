@@ -16,6 +16,7 @@
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/not_fn.hpp>
 #include <range/v3/view/cache1.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
@@ -59,8 +60,7 @@ struct DTDDataType {
 
 class DTDGraphBuilder {
 public:
-  [[nodiscard]] std::pair<bool, VertexDescriptor>
-  addType(const TypeSetValueType &Type) {
+  [[nodiscard]] VertexDescriptor addType(const TypeSetValueType &Type) {
     const auto BaseTypeIter = Vertices_.find(Type);
     const auto BaseTypeExists = BaseTypeIter != Vertices_.end();
     const auto BaseVertexIndex =
@@ -68,43 +68,48 @@ public:
     if (!BaseTypeExists) {
       Vertices_.emplace(BaseVertexIndex, Type);
     }
-    return {BaseTypeExists, BaseVertexIndex};
+    return BaseVertexIndex;
   }
 
-  void visitCXXRecordDecl(const clang::CXXRecordDecl *const Derived,
-                          const DTDVertexDescriptor DerivedIndex) {
+  void visit(const clang::CXXRecordDecl *const Record) {
+    const auto RecordIndex = addType(launderType(Record->getTypeForDecl()));
+    visitCXXRecordDeclImpl(Record, RecordIndex);
+  }
+
+  void visitCXXRecordDeclImpl(const clang::CXXRecordDecl *const Derived,
+                              const DTDVertexDescriptor DerivedIndex) {
     ranges::for_each(
         Derived->bases(),
         [this, DerivedIndex](const clang::CXXBaseSpecifier &BaseSpec) {
           const auto QType = BaseSpec.getType();
-          const auto BaseType =
-              TypeSetValueType{launderType(QType.getTypePtr())};
-          const auto [BaseVertexExists, BaseVertexIndex] = addType(BaseType);
+          const auto BaseVertexIndex = addType(launderType(QType.getTypePtr()));
 
-          const auto EdgeToAdd =
-              DTDDataType::EdgeType{BaseVertexIndex, DerivedIndex};
-          if (Edges_.contains(EdgeToAdd)) {
-            return;
+          if (addEdge(DTDDataType::EdgeType{BaseVertexIndex, DerivedIndex},
+                      DTDEdgeType::Inheritance)) {
+            visitCXXRecordDeclImpl(QType->getAsCXXRecordDecl(),
+                                   BaseVertexIndex);
           }
-          Edges_.emplace(Edges_.size(), EdgeToAdd);
-          EdgeTypes_.push_back(DTDEdgeType::Inheritance);
-          visitCXXRecordDecl(QType->getAsCXXRecordDecl(), BaseVertexIndex);
         });
-  };
+  }
 
-  void visitTypedefNameDecl(const clang::TypedefNameDecl *const Typedef) {
+  void visit(const clang::TypedefNameDecl *const Typedef) {
     const auto *const AliasType = launderType(Typedef->getTypeForDecl());
     const auto *const BaseType =
         launderType(Typedef->getUnderlyingType().getTypePtr());
-    const auto EdgeToAdd = DTDDataType::EdgeType{addType(AliasType).second,
-                                                 addType(BaseType).second};
+    addEdge(DTDDataType::EdgeType{addType(AliasType), addType(BaseType)},
+            DTDEdgeType::Typedef);
+  };
+
+  bool addEdge(const DTDDataType::EdgeType &EdgeToAdd, DTDEdgeType Type) {
     const auto EdgesIter = Edges_.lower_bound(EdgeToAdd);
     if (const auto ContainsEdgeToAdd = Value(*EdgesIter) == EdgeToAdd;
         !ContainsEdgeToAdd) {
       Edges_.emplace_hint(EdgesIter, Edges_.size(), EdgeToAdd);
-      EdgeTypes_.push_back(DTDEdgeType::Typedef);
+      EdgeTypes_.push_back(Type);
+      return true;
     }
-  };
+    return false;
+  }
 
   [[nodiscard]] DTDDataType getResult() {
     return {getIndexedSetSortedByIndex(std::move(Vertices_)),
@@ -118,66 +123,31 @@ private:
   std::vector<DTDEdgeType> EdgeTypes_{};
 };
 
-[[nodiscard]] static std::pair<DTDDataType, DTDGraphType> createDTDGraph(
+namespace {
+[[nodiscard]] DTDDataType createDTDGraph(
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
     const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls) {
   auto Builder = DTDGraphBuilder{};
 
-  ranges::for_each(CXXRecords, [&Builder](
-                                   const clang::CXXRecordDecl *const Record) {
-    const auto RecordIndex =
-        Builder.addType(TypeSetValueType{launderType(Record->getTypeForDecl())})
-            .second;
-    Builder.visitCXXRecordDecl(Record, RecordIndex);
-  });
-
-  ranges::for_each(TypedefNameDecls,
-                   [&Builder](const clang::TypedefNameDecl *const Typedef) {
-                     Builder.visitTypedefNameDecl(Typedef);
-                   });
-
-  auto DTDData = Builder.getResult();
-  return std::pair{DTDData,
-                   DTDGraphType{DTDData.Edges.data(),
-                                DTDData.Edges.data() + DTDData.Edges.size(),
-                                DTDData.EdgeTypes.data(),
-                                DTDData.EdgeTypes.size()}};
-}
-
-[[nodiscard]] std::vector<DTDVertexDescriptor>
-getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
-  class BFSEdgeCollector : public boost::default_bfs_visitor {
-  public:
-    explicit BFSEdgeCollector(std::vector<DTDVertexDescriptor> &Collector)
-        : Collector_{Collector} {}
-
-    void examine_vertex(DTDVertexDescriptor Vertex,
-                        const DTDGraphType & /*Graph*/) {
-      Collector_.emplace_back(Vertex);
-    }
-
-  private:
-    std::vector<DTDVertexDescriptor> &Collector_;
+  const auto Visitor = [&Builder](const auto *const Value) {
+    Builder.visit(Value);
   };
 
-  std::vector<DTDVertexDescriptor> Vertices{};
-  auto Visitor = boost::visitor(BFSEdgeCollector{Vertices});
-  ranges::for_each(Sources, [&Visitor, &Graph](const VertexDescriptor Vertex) {
-    boost::breadth_first_search(Graph, Vertex, Visitor);
-  });
-  return std::move(Vertices) | ranges::actions::reverse;
+  ranges::for_each(CXXRecords, Visitor);
+  ranges::for_each(TypedefNameDecls, Visitor);
+
+  return Builder.getResult();
 }
 
-[[nodiscard]] static auto getVerticesWithNoInEdges(const DTDDataType &Data) {
+[[nodiscard]] auto getVerticesWithNoInEdges(const DTDDataType &Data) {
   return ranges::views::indices(Data.VertexData.size()) |
          ranges::views::set_difference(Data.Edges |
                                        ranges::views::transform(Element<1>) |
                                        ranges::views::unique);
 }
 
-[[nodiscard]] static bool
-overridesMethod(const TypeSetValueType &TypeValue,
-                const clang::CXXMethodDecl *const Method) {
+[[nodiscard]] bool overridesMethod(const TypeSetValueType &TypeValue,
+                                   const clang::CXXMethodDecl *const Method) {
   return std::visit(
       Overloaded{
           [Method](const clang::Type *const Type) {
@@ -205,9 +175,8 @@ overridesMethod(const TypeSetValueType &TypeValue,
       TypeValue);
 }
 
-[[nodiscard]] static bool
-isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
-               const clang::CXXRecordDecl *const Derived) {
+[[nodiscard]] bool isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
+                                  const clang::CXXRecordDecl *const Derived) {
   const auto IsOveriddenCtor =
       [Ctor](const clang::CXXConstructorDecl *const DerivedCtor) {
         return DerivedCtor->getNumParams() == Ctor->getNumParams() &&
@@ -217,7 +186,7 @@ isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
   return !ranges::any_of(Derived->ctors(), IsOveriddenCtor);
 }
 
-[[nodiscard]] static bool
+[[nodiscard]] bool
 overridesConstructor(const TypeSetValueType &TypeValue,
                      const clang::CXXMethodDecl *const Ctor) {
   return std::visit(
@@ -244,8 +213,7 @@ overridesConstructor(const TypeSetValueType &TypeValue,
       TypeValue);
 }
 
-[[nodiscard]] static auto
-transitionIsMember(const TypeSetValueType &DerivedType) {
+[[nodiscard]] auto transitionIsMember(const TypeSetValueType &DerivedType) {
   return [DerivedType](const StrippedTransitionType &Transition) {
     return std::visit(
         Overloaded{[](const clang::FieldDecl *const) { return false; },
@@ -268,8 +236,8 @@ transitionIsMember(const TypeSetValueType &DerivedType) {
   };
 }
 
-[[nodiscard]] static auto maybePropagate(const TypeSetValueType &SourceType,
-                                         const TypeSetValueType TargetType) {
+[[nodiscard]] auto maybePropagate(const TypeSetValueType &SourceType,
+                                  const TypeSetValueType TargetType) {
   return
       [SourceType, TargetType](const StrippedTransitionType &StrippedTransition)
           -> std::pair<bool, StrippedTransitionType> {
@@ -281,6 +249,39 @@ transitionIsMember(const TypeSetValueType &DerivedType) {
                                        RequiredTS}};
       };
 }
+
+[[nodiscard]] std::vector<DTDVertexDescriptor>
+getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
+  class BFSEdgeCollector : public boost::default_bfs_visitor {
+  public:
+    explicit BFSEdgeCollector(std::vector<DTDVertexDescriptor> &Collector)
+        : Collector_{Collector} {}
+
+    void examine_vertex(DTDVertexDescriptor Vertex,
+                        const DTDGraphType & /*Graph*/) {
+      Collector_.emplace_back(Vertex);
+    }
+
+  private:
+    std::vector<DTDVertexDescriptor> &Collector_;
+  };
+
+  const auto CollectEdges = [&Graph](const VertexDescriptor Vertex) {
+    std::vector<DTDVertexDescriptor> Vertices{};
+    boost::breadth_first_search(Graph, Vertex,
+                                boost::visitor(BFSEdgeCollector{Vertices}));
+    return Vertices;
+  };
+
+  return Sources | ranges::views::for_each(CollectEdges) | ranges::to_vector |
+         ranges::actions::reverse;
+}
+
+[[nodiscard]] DTDGraphType createGraph(const DTDDataType &DTDData) {
+  return {DTDData.Edges.data(), DTDData.Edges.data() + DTDData.Edges.size(),
+          DTDData.EdgeTypes.data(), DTDData.EdgeTypes.size()};
+}
+} // namespace
 
 class DepthFirstDTDPropagation {
 private:
@@ -391,19 +392,16 @@ private:
 
 public:
   DepthFirstDTDPropagation(TransitionCollector &TransitionsRef,
-                           const DTDDataType &DataRef,
-                           const DTDGraphType &GraphRef)
+                           DTDDataType Data)
       : Transitions_{TransitionsRef},
-        Data_{DataRef},
-        Graph_{GraphRef} {}
+        Data_{std::move(Data)},
+        Graph_{createGraph(Data_)} {}
+
   void operator()() {
     const auto Sources = getVerticesWithNoInEdges(Data_);
     const auto VerticesToVisit = getVerticesToVisit(Sources, Graph_);
-    const auto NotVisited = [this](const DTDVertexDescriptor Vertex) {
-      return !VertexVisited_[Vertex];
-    };
 
-    const auto ToPropagatedTransitionsOfVertex =
+    const auto PropagateTransitionsOfOutEdges =
         [this](const DTDVertexDescriptor Vertex) {
           VertexVisited_[Vertex] = true;
           return toRange(boost::out_edges(Vertex, Graph_)) |
@@ -412,8 +410,9 @@ public:
         };
 
     std::vector<BundeledTransitionType> Vec =
-        VerticesToVisit | ranges::views::filter(NotVisited) |
-        ranges::views::for_each(ToPropagatedTransitionsOfVertex) |
+        VerticesToVisit |
+        ranges::views::filter(ranges::not_fn(Lookup(VertexVisited_))) |
+        ranges::views::for_each(PropagateTransitionsOfOutEdges) |
         ranges::to_vector;
     ranges::for_each(Vec, [this](BundeledTransitionType NewTransitions) {
       Transitions_[ToAcquired(NewTransitions)].merge(
@@ -424,8 +423,8 @@ public:
 private:
   TransitionCollector &Transitions_;
   TransitionCollector EmptyTransitions_{};
-  const DTDDataType &Data_;
-  const DTDGraphType &Graph_;
+  DTDDataType Data_;
+  DTDGraphType Graph_;
   std::vector<bool> VertexVisited_ = std::vector<bool>(Data_.VertexData.size());
 };
 
@@ -433,6 +432,6 @@ void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
     const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls) {
-  const auto [Data, Graph] = createDTDGraph(CXXRecords, TypedefNameDecls);
-  DepthFirstDTDPropagation{Transitions, Data, Graph}();
+  DepthFirstDTDPropagation{Transitions,
+                           createDTDGraph(CXXRecords, TypedefNameDecls)}();
 }

@@ -14,43 +14,28 @@
 #include <llvm/Support/Casting.h>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>
+#include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
+#include "support/ranges/ranges.hpp"
 
-[[nodiscard]] static clang::PrintingPolicy
+namespace {
+[[nodiscard]] clang::PrintingPolicy
 normalize(clang::PrintingPolicy PrintingPolicy) {
   PrintingPolicy.SuppressTagKeyword = 1;
   return PrintingPolicy;
 }
 
-[[nodiscard]] static clang::PrintingPolicy
+[[nodiscard]] clang::PrintingPolicy
 getNormalizedPrintingPolicy(const clang::Decl *const Decl) {
   return normalize(Decl->getASTContext().getPrintingPolicy());
 }
 
-[[nodiscard]] static std::string
-getTypeAsString(const clang::ValueDecl *const VDecl) {
+[[nodiscard]] std::string getTypeAsString(const clang::ValueDecl *const VDecl) {
   return VDecl->getType().getAsString(getNormalizedPrintingPolicy(VDecl));
 }
 
-std::string getTransitionName(const TransitionDataType &Data) {
-  const auto DeclaratorDeclToString =
-      [](const clang::DeclaratorDecl *const DDecl) {
-        if (!DDecl->getDeclName().isIdentifier()) {
-          if (const auto *const Constructor =
-                  llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
-            return Constructor->getParent()->getNameAsString();
-          }
-          return fmt::format("non-identifier {}({})", DDecl->getDeclKindName(),
-                             static_cast<const void *>(DDecl));
-        }
-        return DDecl->getNameAsString();
-      };
-
-  return std::visit(DeclaratorDeclToString, Data);
-}
-
-static const auto FunctionDeclToStringForAcquired =
+constexpr auto FunctionDeclToStringForAcquired =
     [](const clang::FunctionDecl *const FDecl) {
       if (const auto *const Constructor =
               dyn_cast<clang::CXXConstructorDecl>(FDecl)) {
@@ -61,24 +46,15 @@ static const auto FunctionDeclToStringForAcquired =
           getNormalizedPrintingPolicy(FDecl));
     };
 
-std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
-  return std::visit(Overloaded{FunctionDeclToStringForAcquired,
-                               [](const clang::ValueDecl *const VDecl) {
-                                 return getTypeAsString(VDecl);
-                               }},
-                    Data);
-}
-
-static const auto FunctionDeclToStringForRequired =
+constexpr auto FunctionDeclToStringForRequired =
     [](const clang::FunctionDecl *const FDecl) {
-      const auto Parameters = FDecl->parameters();
       auto Params = fmt::format(
-          "{}",
-          fmt::join(Parameters | ranges::views::transform(
-                                     [](const clang::ParmVarDecl *const PDecl) {
-                                       return getTypeAsString(PDecl);
-                                     }),
-                    ", "));
+          "{}", fmt::join(FDecl->parameters() |
+                              ranges::views::transform(
+                                  [](const clang::ParmVarDecl *const PDecl) {
+                                    return getTypeAsString(PDecl);
+                                  }),
+                          ", "));
       if (const auto *const Method =
               llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
           Method != nullptr && !llvm::isa<clang::CXXConstructorDecl>(Method)) {
@@ -90,6 +66,36 @@ static const auto FunctionDeclToStringForRequired =
       }
       return Params;
     };
+
+constexpr auto DeclaratorDeclToString =
+    [](const clang::DeclaratorDecl *const DDecl) {
+      if (!DDecl->getDeclName().isIdentifier()) {
+        if (const auto *const Constructor =
+                llvm::dyn_cast<clang::CXXConstructorDecl>(DDecl)) {
+          return Constructor->getParent()->getNameAsString();
+        }
+
+        auto NonIdentifierString =
+            fmt::format("non-identifier {}({})", DDecl->getDeclKindName(),
+                        static_cast<const void *>(DDecl));
+        spdlog::warn(NonIdentifierString);
+        return NonIdentifierString;
+      }
+      return DDecl->getNameAsString();
+    };
+} // namespace
+
+std::string getTransitionName(const TransitionDataType &Data) {
+  return std::visit(DeclaratorDeclToString, Data);
+}
+
+std::string getTransitionAcquiredTypeNames(const TransitionDataType &Data) {
+  return std::visit(Overloaded{FunctionDeclToStringForAcquired,
+                               [](const clang::ValueDecl *const VDecl) {
+                                 return getTypeAsString(VDecl);
+                               }},
+                    Data);
+}
 
 std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
   return std::visit(
@@ -112,20 +118,18 @@ std::string toString(const TransitionType &Transition) {
 std::vector<std::string> toString(const std::vector<PathType> &Paths,
                                   const GraphType &Graph,
                                   const GraphData &Data) {
-  return ranges::to_vector(
-      Paths | ranges::views::transform([&Graph, &Data](const PathType &Path) {
-        return fmt::format(
-            "{}",
-            fmt::join(
-                Path |
-                    ranges::views::transform(
-                        [&Data,
-                         IndexMap = boost::get(boost::edge_index, Graph)](
-                            const EdgeDescriptor &Edge) {
-                          return Data.EdgeWeights[boost::get(IndexMap, Edge)];
-                        }),
-                ", "));
-      }));
+  const auto FormatPath = [&Graph, &Data](const PathType &Path) {
+    const auto GetTransition =
+        [&Data, IndexMap = boost::get(boost::edge_index, Graph)](
+            const EdgeDescriptor &Edge) {
+          return Data.EdgeWeights[boost::get(IndexMap, Edge)];
+        };
+
+    return fmt::format(
+        "{}", fmt::join(Path | ranges::views::transform(GetTransition), ", "));
+  };
+
+  return Paths | ranges::views::transform(FormatPath) | ranges::to_vector;
 };
 
 std::string toString(const clang::Type *const Type) {
@@ -135,6 +139,7 @@ std::string toString(const clang::Type *const Type) {
   }
   return clang::QualType(Type, 0).getAsString();
 }
+
 std::string toString(const clang::NamedDecl *const NDecl) {
   return NDecl->getNameAsString();
 }

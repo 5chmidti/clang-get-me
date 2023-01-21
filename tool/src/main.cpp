@@ -31,7 +31,9 @@
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
+#include <range/v3/view/concat.hpp>
 #include <range/v3/view/enumerate.hpp>
+#include <range/v3/view/single.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/view.hpp>

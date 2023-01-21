@@ -27,20 +27,23 @@
 
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
 
-[[nodiscard]] static auto createIsValidPathPredicate(const Config &Conf) {
+namespace {
+[[nodiscard]] auto createIsValidPathPredicate(const Config &Conf) {
   return [MaxPathLength = Conf.MaxPathLength](const PathType &CurrentPath) {
     return MaxPathLength >= CurrentPath.size();
   };
 }
 
-[[nodiscard]] static auto createContinuePathSearchPredicate(
+[[nodiscard]] auto createContinuePathSearchPredicate(
     const Config &Conf, const ranges::sized_range auto &CurrentPaths) {
   return [&CurrentPaths, MaxPathCount = Conf.MaxPathCount]() {
     return MaxPathCount > ranges::size(CurrentPaths);
   };
 }
+} // namespace
 
 class PathFinder {
 private:
@@ -102,8 +105,9 @@ private:
       if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
         return std::is_lt(Comp);
       }
-      const auto IndexMap = get(boost::edge_index, Graph_);
-      const auto ToEdgeWeight = [&IndexMap, this](const EdgeDescriptor &Edge) {
+      const auto ToEdgeWeight = [this,
+                                 IndexMap = get(boost::edge_index, Graph_)](
+                                    const EdgeDescriptor &Edge) {
         return Data_.EdgeWeights[get(IndexMap, Edge)];
       };
       return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{}, ToEdgeWeight,
@@ -142,12 +146,9 @@ private:
 
     [[nodiscard]] auto currentPathContainsVertex() const {
       return [this](const VertexDescriptor Vertex) {
-        const auto ContainsVertex = [Vertex](const EdgeDescriptor &EdgeInPath) {
-          return Target(EdgeInPath) == Vertex;
-        };
         return !ranges::empty(getCurrentPath()) &&
                !(Source(ranges::front(getCurrentPath())) == Vertex) &&
-               !ranges::any_of(getCurrentPath(), ContainsVertex);
+               !ranges::any_of(getCurrentPath(), EqualTo(Vertex), Target);
       };
     }
 

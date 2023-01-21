@@ -23,13 +23,12 @@ ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf) {
   const auto CreateEntry =
       [&Conf]<typename ValueType>(
           const Config::MappingType<ValueType> &MappingValue) {
-        const auto Flag1 =
-            configEntry(&std::invoke(std::get<1>(MappingValue), Conf));
-        return Renderer(Flag1,
-                        [Name = std::string{std::get<0>(MappingValue)}, Flag1] {
-                          return hbox(ftxui::text(fmt::format("{:35}: ", Name)),
-                                      Flag1->Render());
-                        });
+        const auto &[Name, MemberAddress] = MappingValue;
+        const auto Flag1 = configEntry(&std::invoke(MemberAddress, Conf));
+        return Renderer(Flag1, [Name, Flag1] {
+          return hbox(ftxui::text(fmt::format("{:35}: ", Name)),
+                      Flag1->Render());
+        });
       };
 
   const auto ConfigElements = ftxui::Container::Vertical(
