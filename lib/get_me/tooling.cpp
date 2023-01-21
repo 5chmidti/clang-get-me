@@ -58,7 +58,6 @@
 #include <range/v3/view/cache1.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
-#include <range/v3/view/iota.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/set_algorithm.hpp>

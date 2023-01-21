@@ -24,7 +24,7 @@
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
-#include <range/v3/view/iota.hpp>
+#include <range/v3/view/indices.hpp>
 #include <range/v3/view/remove.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
@@ -38,6 +38,7 @@
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
+#include "support/ranges/functional.hpp"
 
 bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,
@@ -46,11 +47,7 @@ bool edgeWithTransitionExistsInContainer(
   return ranges::contains(
       ranges::subrange(Edges.lower_bound(EdgeToAdd),
                        Edges.upper_bound(EdgeToAdd)) |
-          ranges::views::transform(
-              [&EdgeWeights](
-                  const indexed_value<GraphData::EdgeType> &IndexedEdge) {
-                return EdgeWeights[Index(IndexedEdge)];
-              }),
+          ranges::views::transform(Lookup(EdgeWeights, Index)),
       Transition);
 }
 
@@ -127,21 +124,14 @@ bool GraphBuilder::buildStep() {
 }
 
 bool GraphBuilder::buildStepFor(const VertexDescriptor Vertex) {
-  return buildStepFor(
-      VertexData_ |
-      ranges::views::filter(
-          [Vertex](const size_t VertexIndex) { return VertexIndex == Vertex; },
-          Index) |
-      ranges::to<VertexSet>);
+  return buildStepFor(VertexData_ |
+                      ranges::views::filter(EqualTo(Vertex), Index) |
+                      ranges::to<VertexSet>);
 }
 
 bool GraphBuilder::buildStepFor(const VertexType &InterestingVertex) {
   return buildStepFor(VertexData_ |
-                      ranges::views::filter(
-                          [&InterestingVertex](const auto &Vertex) {
-                            return Vertex == InterestingVertex;
-                          },
-                          Value) |
+                      ranges::views::filter(EqualTo(InterestingVertex), Value) |
                       ranges::to<VertexSet>);
 }
 
@@ -166,8 +156,7 @@ std::pair<GraphType, GraphData> GraphBuilder::commit() {
   Data.VertexData = getIndexedSetSortedByIndex(std::move(VertexData_));
   Data.Edges = getIndexedSetSortedByIndex(std::move(EdgesData_));
   Data.EdgeIndices =
-      ranges::views::iota(static_cast<size_t>(0U), Data.Edges.size()) |
-      ranges::to_vector;
+      ranges::views::indices(Data.Edges.size()) | ranges::to_vector;
   Data.EdgeWeights = std::move(EdgeWeights_);
   return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
                     Data.EdgeIndices.data(), Data.EdgeIndices.size()),

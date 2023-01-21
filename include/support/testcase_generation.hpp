@@ -11,7 +11,7 @@
 #include <fmt/ranges.h>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/view/concat.hpp>
-#include <range/v3/view/iota.hpp>
+#include <range/v3/view/indices.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/transform.hpp>
 
@@ -26,13 +26,12 @@ template <typename Generator>
        InitializerCode = std::move(InitializerCode),
        CodeTemplateGenerator = std::forward<Generator>(CodeTemplateGenerator)](
           const size_t NumRepetitions) -> std::pair<std::string, std::string> {
-        return {
-            QueriedType,
-            fmt::format(
-                "{}\n{}", InitializerCode,
-                fmt::join(ranges::views::iota(size_t{0U}, NumRepetitions) |
-                              ranges::views::transform(CodeTemplateGenerator),
-                          "\n"))};
+        return {QueriedType,
+                fmt::format("{}\n{}", InitializerCode,
+                            fmt::join(ranges::views::indices(NumRepetitions) |
+                                          ranges::views::transform(
+                                              CodeTemplateGenerator),
+                                      "\n"))};
       };
 }
 

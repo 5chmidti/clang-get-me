@@ -20,7 +20,7 @@
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
-#include <range/v3/view/iota.hpp>
+#include <range/v3/view/indices.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/unique.hpp>
@@ -32,6 +32,7 @@
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/ranges/projections.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/ranges/views/conditional.hpp"
@@ -168,7 +169,7 @@ getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
 }
 
 [[nodiscard]] static auto getVerticesWithNoInEdges(const DTDDataType &Data) {
-  return ranges::views::iota(0U, Data.VertexData.size()) |
+  return ranges::views::indices(Data.VertexData.size()) |
          ranges::views::set_difference(Data.Edges |
                                        ranges::views::transform(Element<1>) |
                                        ranges::views::unique);
@@ -328,11 +329,7 @@ private:
   propagatedForAcquired(const bool Enabled, const TypeSetValueType &DerivedType,
                         const TypeSetValueType &BaseType) const {
     return Transitions_ | Conditional(Enabled) |
-           ranges::views::filter(
-               [DerivedType](const TypeSetValueType &Acquired) {
-                 return Acquired == DerivedType;
-               },
-               ToAcquired) |
+           ranges::views::filter(EqualTo(DerivedType), ToAcquired) |
            ranges::views::transform(
                [BaseType](const BundeledTransitionType &BundeledTransition)
                    -> BundeledTransitionType {
@@ -344,11 +341,7 @@ private:
       const bool Enabled, const TypeSetValueType &BaseType,
       const TypeSetValueType &DerivedType) const {
     return Transitions_ | Conditional(Enabled) |
-           ranges::views::filter(
-               [BaseType](const TypeSetValueType &Acquired) {
-                 return Acquired == BaseType;
-               },
-               ToAcquired) |
+           ranges::views::filter(EqualTo(BaseType), ToAcquired) |
            ranges::views::transform(
                [DerivedType](const BundeledTransitionType &BundeledTransition)
                    -> BundeledTransitionType {
