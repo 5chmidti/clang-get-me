@@ -45,7 +45,7 @@ class ConditionalFn : public ConditionalBaseFn {
 public:
   using ConditionalBaseFn::operator();
 
-  constexpr auto operator()(bool Flag) const {
+  [[nodiscard]] constexpr auto operator()(bool Flag) const {
     return ranges::make_view_closure(
         ranges::bind_back(ConditionalBaseFn{}, Flag));
   }
