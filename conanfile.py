@@ -34,5 +34,8 @@ class TemplateProject(ConanFile):
         "benchmark/1.7.1",
         "boost/1.80.0",
         "range-v3/0.12.0",
+        "ftxui/3.0.0",
+        "rapidfuzz/cci.20210513",
+        "ctre/3.7.1",
     )
     generators = "cmake_find_package"

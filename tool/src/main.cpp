@@ -1,34 +1,23 @@
 #include <algorithm>
 #include <compare>
 #include <cstddef>
-#include <deque>
-#include <exception>
 #include <filesystem>
 #include <memory>
 #include <optional>
 #include <string>
-#include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/container/vector.hpp>
+#include <boost/container/flat_map.hpp>
+#include <boost/container/flat_set.hpp>
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/detail/adj_list_edge_iterator.hpp>
-#include <boost/graph/detail/adjacency_list.hpp>
-#include <boost/graph/detail/edge.hpp>
-#include <boost/graph/properties.hpp>
-#include <boost/iterator/iterator_facade.hpp>
-#include <boost/iterator/iterator_traits.hpp>
-#include <boost/move/utility_core.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/ArgumentsAdjusters.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
-#include <ext/alloc_traits.h>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/os.h>
@@ -39,22 +28,13 @@
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/algorithm/partial_sort.hpp>
-#include <range/v3/compare.hpp>
-#include <range/v3/functional/bind_back.hpp>
-#include <range/v3/functional/identity.hpp>
-#include <range/v3/iterator/basic_iterator.hpp>
-#include <range/v3/iterator/unreachable_sentinel.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/enumerate.hpp>
-#include <range/v3/view/iota.hpp>
-#include <range/v3/view/subrange.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/view.hpp>
-#include <range/v3/view/zip_with.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/common.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -64,9 +44,12 @@
 #include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
+#include "get_me/query.hpp"
 #include "get_me/tooling.hpp"
+#include "get_me/transitions.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/ranges.hpp"
+#include "tool/tui.hpp"
 
 // NOLINTBEGIN
 using namespace llvm::cl;
@@ -78,6 +61,8 @@ static opt<std::string> ConfigPath("config", desc("Config file path"), Optional,
                                    ValueRequired, cat(ToolCategory));
 static opt<bool> Verbose("v", desc("Verbose output"), Optional,
                          cat(ToolCategory));
+static opt<bool> Interactive("i", desc("Run with interactive gui"), Optional,
+                             cat(ToolCategory));
 // NOLINTEND
 
 static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
@@ -120,11 +105,13 @@ int main(int argc, const char **argv) {
     llvm::errs() << OptionsParser.takeError();
     return 1;
   }
-  const auto &Sources = OptionsParser->getSourcePathList();
-  clang::tooling::ClangTool Tool(
-      OptionsParser->getCompilations(),
-      Sources.empty() ? OptionsParser->getCompilations().getAllFiles()
-                      : Sources);
+  const auto &Sources = [&OptionsParser] {
+    const auto &Result = OptionsParser->getSourcePathList();
+    return Result.empty() ? OptionsParser->getCompilations().getAllFiles()
+                          : Result;
+  }();
+
+  clang::tooling::ClangTool Tool(OptionsParser->getCompilations(), Sources);
 
   if (Verbose) {
     Tool.appendArgumentsAdjuster(
@@ -136,16 +123,18 @@ int main(int argc, const char **argv) {
         });
   }
 
-  TransitionCollector TypeSetTransitionData{};
+  const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
+  auto Conf = ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath);
+
+  if (Interactive) {
+    runTui(Conf, Tool);
+    return 0;
+  }
 
   auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
   const auto BuildASTsResult = Tool.buildASTs(ASTs);
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
-
-  const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
-  const auto Conf =
-      ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath);
 
   for (const auto &AST : ASTs) {
     GetMe{Conf, *TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
