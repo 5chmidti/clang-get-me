@@ -107,6 +107,26 @@ struct A {
        "A",
        {"(A, A A(), {})", "(A, A A(int), {int})",
         "(A, A A(int, float), {int, float})"});
+
+  test(R"(
+struct A {
+  A();
+  virtual void foo() = 0;
+};
+A& getA();
+)",
+       "A &", {"(A &, A & getA(), {})"});
+
+  test(R"(
+struct A {
+  A();
+  virtual void foo() = 0;
+};
+struct B : public A {
+  void foo();
+};
+)",
+       "B", {"(B, B B(), {})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)

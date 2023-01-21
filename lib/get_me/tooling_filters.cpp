@@ -8,10 +8,13 @@
 #include <clang/Basic/Specifiers.h>
 #include <fmt/core.h>
 #include <llvm/Support/Casting.h>
+#include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
+#include <range/v3/view/indirect.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
+#include "support/ranges/ranges.hpp"
 
 bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
                                const std::string_view Name) {
@@ -96,8 +99,16 @@ bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
 
   if (const auto *const Constructor =
           llvm::dyn_cast<clang::CXXConstructorDecl>(Method);
-      (Constructor != nullptr) && Constructor->isCopyOrMoveConstructor()) {
-    return true;
+      Constructor != nullptr) {
+    if (Constructor->isCopyOrMoveConstructor()) {
+      return true;
+    }
+
+    // FIXME: allow dependent on context
+    if (ranges::any_of(Method->getParent()->methods() | ranges::views::indirect,
+                       &clang::CXXMethodDecl::isPure)) {
+      return true;
+    }
   }
 
   return filterOut(static_cast<const clang::FunctionDecl *>(Method), Conf);
