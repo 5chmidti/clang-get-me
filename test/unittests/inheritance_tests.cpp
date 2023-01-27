@@ -43,6 +43,28 @@ TEST_F(GetMeTest, inheritance) {
        },
        ConfigWithInheritancePropagation);
 
+  test(R"(
+  struct A { A(int, float); };
+  struct B : public A {};
+  struct C : public B {};
+  A getA();
+  B getB();
+  )",
+       "B", {"(B, B getB(), {})", "(B, A A(int, float), {int, float})"},
+       ConfigWithInheritancePropagation);
+
+  test(R"(
+struct A { A(int, float); };
+struct B : public A {};
+struct C : public B {};
+A getA();
+B getB();
+)",
+       "A",
+       {"(A, A getA(), {})", "(A, B getB(), {})",
+        "(A, A A(int, float), {int, float})"},
+       ConfigWithInheritancePropagation);
+
   testFailure(
       R"(
     struct A {};
