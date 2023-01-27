@@ -20,8 +20,7 @@ target_sources(
 target_compile_options(get_me_lib PUBLIC -fno-rtti)
 target_include_directories(get_me_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
-target_link_libraries(get_me_lib PUBLIC project_libraries project_options
-                                        project_warnings)
+target_link_libraries(get_me_lib PUBLIC project_libraries project_options)
 target_link_libraries(get_me_lib PUBLIC Boost::graph range-v3::range-v3)
 target_link_libraries(
   get_me_lib

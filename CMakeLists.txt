@@ -15,8 +15,7 @@ configure_linker(project_options)
 
 # standard compiler warnings
 include(cmake/CompilerWarnings.cmake)
-add_library(project_warnings INTERFACE)
-set_project_warnings(project_warnings)
+set_project_warnings(project_options)
 
 # sanitizer options if supported by compiler
 include(cmake/Sanitizers.cmake)
