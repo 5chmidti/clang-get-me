@@ -96,6 +96,99 @@ namespace {
           }},
       Val);
 }
+
+void filterOverloads(TransitionCollector &Transitions,
+                     const size_t OverloadFilterParameterCountThreshold = 0) {
+
+  const auto Comparator =
+      [OverloadFilterParameterCountThreshold](const TransitionDataType &Lhs,
+                                              const TransitionDataType &Rhs) {
+        if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
+            std::is_neq(IndexComparison)) {
+          return std::is_lt(IndexComparison);
+        }
+        if (const auto NameComparison =
+                getTransitionName(Lhs) <=> getTransitionName(Rhs);
+            std::is_neq(NameComparison)) {
+          return std::is_lt(NameComparison);
+        }
+        const auto LhsParams = getParametersOpt(Lhs);
+        if (!LhsParams) {
+          return true;
+        }
+        const auto RhsParams = getParametersOpt(Rhs);
+        if (!RhsParams) {
+          return false;
+        }
+
+        if (LhsParams->empty()) {
+          return true;
+        }
+        if (RhsParams->empty()) {
+          return false;
+        }
+
+        if (const auto MismatchResult =
+                ranges::mismatch(LhsParams.value(), RhsParams.value(),
+                                 std::equal_to{}, ToQualType, ToQualType);
+            MismatchResult.in1 == LhsParams.value().end()) {
+          return static_cast<size_t>(
+                     std::distance(LhsParams->begin(), MismatchResult.in1)) <
+                 OverloadFilterParameterCountThreshold;
+        }
+        return false;
+      };
+  const auto IsOverload = [](const StrippedTransitionType &LhsTuple,
+                             const StrippedTransitionType &RhsTuple) {
+    const auto &Lhs = ToTransition(LhsTuple);
+    const auto &Rhs = ToTransition(RhsTuple);
+    if (Lhs.index() != Rhs.index()) {
+      return false;
+    }
+    if (getTransitionName(Lhs) != getTransitionName(Rhs)) {
+      return false;
+    }
+    const auto LhsParams = getParametersOpt(Lhs);
+    if (!LhsParams) {
+      return false;
+    }
+    const auto RhsParams = getParametersOpt(Rhs);
+    if (!RhsParams) {
+      return false;
+    }
+
+    if (LhsParams->empty()) {
+      return false;
+    }
+    if (RhsParams->empty()) {
+      return false;
+    }
+
+    const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
+      return PVarDecl->getType()->getUnqualifiedDesugaredType();
+    };
+    const auto MismatchResult =
+        ranges::mismatch(LhsParams.value(), RhsParams.value(), std::equal_to{},
+                         Projection, Projection);
+    return MismatchResult.in1 == LhsParams.value().end();
+  };
+
+  // FIXME: sorting just to make sure the overloads with longer parameter lists
+  // are removed, figure out a better way. The algo also depends on this order
+  // to determine if it is an overload
+  Transitions =
+      Transitions | ranges::views::move |
+      ranges::views::transform([&IsOverload, &Comparator](
+                                   BundeledTransitionType BundeledTransition) {
+        return std::pair{ToAcquired(BundeledTransition),
+                         std::move(BundeledTransition.second) |
+                             ranges::actions::sort(Comparator, ToTransition) |
+                             ranges::actions::unique(IsOverload) |
+                             ranges::to<StrippedTransitionsSet>};
+      }) |
+      ranges::to<TransitionCollector>;
+}
+
 } // namespace
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
@@ -253,99 +346,6 @@ private:
   std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls_;
   clang::Sema &Sema_;
 };
-
-static void
-filterOverloads(TransitionCollector &Transitions,
-                const size_t OverloadFilterParameterCountThreshold = 0) {
-
-  const auto Comparator =
-      [OverloadFilterParameterCountThreshold](const TransitionDataType &Lhs,
-                                              const TransitionDataType &Rhs) {
-        if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
-            std::is_neq(IndexComparison)) {
-          return std::is_lt(IndexComparison);
-        }
-        if (const auto NameComparison =
-                getTransitionName(Lhs) <=> getTransitionName(Rhs);
-            std::is_neq(NameComparison)) {
-          return std::is_lt(NameComparison);
-        }
-        const auto LhsParams = getParametersOpt(Lhs);
-        if (!LhsParams) {
-          return true;
-        }
-        const auto RhsParams = getParametersOpt(Rhs);
-        if (!RhsParams) {
-          return false;
-        }
-
-        if (LhsParams->empty()) {
-          return true;
-        }
-        if (RhsParams->empty()) {
-          return false;
-        }
-
-        if (const auto MismatchResult =
-                ranges::mismatch(LhsParams.value(), RhsParams.value(),
-                                 std::equal_to{}, ToQualType, ToQualType);
-            MismatchResult.in1 == LhsParams.value().end()) {
-          return static_cast<size_t>(
-                     std::distance(LhsParams->begin(), MismatchResult.in1)) <
-                 OverloadFilterParameterCountThreshold;
-        }
-        return false;
-      };
-  const auto IsOverload = [](const StrippedTransitionType &LhsTuple,
-                             const StrippedTransitionType &RhsTuple) {
-    const auto &Lhs = ToTransition(LhsTuple);
-    const auto &Rhs = ToTransition(RhsTuple);
-    if (Lhs.index() != Rhs.index()) {
-      return false;
-    }
-    if (getTransitionName(Lhs) != getTransitionName(Rhs)) {
-      return false;
-    }
-    const auto LhsParams = getParametersOpt(Lhs);
-    if (!LhsParams) {
-      return false;
-    }
-    const auto RhsParams = getParametersOpt(Rhs);
-    if (!RhsParams) {
-      return false;
-    }
-
-    if (LhsParams->empty()) {
-      return false;
-    }
-    if (RhsParams->empty()) {
-      return false;
-    }
-
-    const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
-      return PVarDecl->getType()->getUnqualifiedDesugaredType();
-    };
-    const auto MismatchResult =
-        ranges::mismatch(LhsParams.value(), RhsParams.value(), std::equal_to{},
-                         Projection, Projection);
-    return MismatchResult.in1 == LhsParams.value().end();
-  };
-
-  // FIXME: sorting just to make sure the overloads with longer parameter lists
-  // are removed, figure out a better way. The algo also depends on this order
-  // to determine if it is an overload
-  Transitions =
-      Transitions | ranges::views::move |
-      ranges::views::transform([&IsOverload, &Comparator](
-                                   BundeledTransitionType BundeledTransition) {
-        return std::pair{ToAcquired(BundeledTransition),
-                         std::move(BundeledTransition.second) |
-                             ranges::actions::sort(Comparator, ToTransition) |
-                             ranges::actions::unique(IsOverload) |
-                             ranges::to<StrippedTransitionsSet>};
-      }) |
-      ranges::to<TransitionCollector>;
-}
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};

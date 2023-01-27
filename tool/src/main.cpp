@@ -67,7 +67,8 @@ static opt<bool> Interactive("i", desc("Run with interactive gui"), Optional,
                              cat(ToolCategory));
 // NOLINTEND
 
-static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
+namespace {
+void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
   const auto IndexMap = boost::get(boost::edge_index, Graph);
 
   auto DotFile = fmt::output_file("graph.dot");
@@ -90,6 +91,7 @@ static void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
   }
   DotFile.print("}}\n");
 }
+} // namespace
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
