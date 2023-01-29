@@ -152,11 +152,13 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
               "path #{}: {} -> remaining: {}", Number,
               fmt::join(
                   Path |
-                      ranges::views::transform(
-                          [&Data, &IndexMap](const EdgeDescriptor &Edge) {
-                            return toString(
-                                Data.EdgeWeights[boost::get(IndexMap, Edge)]);
-                          }),
+                      ranges::views::transform([&Data, &IndexMap](
+                                                   const EdgeDescriptor &Edge) {
+                        return fmt::format(
+                            "{}",
+                            ToTransition(
+                                Data.EdgeWeights[boost::get(IndexMap, Edge)]));
+                      }),
                   ", "),
               Data.VertexData[Target(Path.back())]);
         }) |

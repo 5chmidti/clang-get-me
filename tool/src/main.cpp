@@ -78,11 +78,12 @@ void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
     const auto SourceNode = Source(Edge);
     const auto TargetNode = Target(Edge);
 
-    const auto EdgeWeight = Data.EdgeWeights[boost::get(IndexMap, Edge)];
+    const auto Transition =
+        ToTransition(Data.EdgeWeights[boost::get(IndexMap, Edge)]);
     const auto TargetVertex = Data.VertexData[TargetNode];
     const auto SourceVertex = Data.VertexData[SourceNode];
 
-    auto EdgeWeightAsString = toString(EdgeWeight);
+    auto EdgeWeightAsString = fmt::format("{}", Transition);
     boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
     DotFile.print(
         R"(  "{}" -> "{}"[label="{}"]
@@ -198,11 +199,14 @@ int main(int argc, const char **argv) {
         spdlog::info(
             "path #{}: {} -> remaining: {}", Number,
             fmt::join(
-                Path | ranges::views::transform(
-                           [&Data, &IndexMap](const EdgeDescriptor &Edge) {
-                             return toString(
-                                 Data.EdgeWeights[boost::get(IndexMap, Edge)]);
-                           }),
+                Path |
+                    ranges::views::transform([&Data, &IndexMap](
+                                                 const EdgeDescriptor &Edge) {
+                      return fmt::format(
+                          "{}",
+                          ToTransition(
+                              Data.EdgeWeights[boost::get(IndexMap, Edge)]));
+                    }),
                 ", "),
             Data.VertexData[Target(Path.back())]);
       });

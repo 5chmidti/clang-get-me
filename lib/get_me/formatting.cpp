@@ -109,12 +109,6 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
       Data);
 }
 
-std::string toString(const TransitionType &Transition) {
-  const auto &[Acquired, Function, Required] = Transition;
-  return fmt::format("{} {}({})", Acquired, getTransitionName(Function),
-                     fmt::join(Required, ", "));
-}
-
 std::vector<std::string> toString(const std::vector<PathType> &Paths,
                                   const GraphType &Graph,
                                   const GraphData &Data) {

@@ -28,7 +28,6 @@ getTransitionAcquiredTypeNames(const TransitionDataType &Data);
 [[nodiscard]] std::string
 getTransitionRequiredTypeNames(const TransitionDataType &Data);
 
-[[nodiscard]] std::string toString(const TransitionType &Transition);
 [[nodiscard]] std::string toString(const clang::Type *Type);
 [[nodiscard]] std::string toString(const clang::NamedDecl *NDecl);
 
