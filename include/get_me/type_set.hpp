@@ -55,11 +55,4 @@ toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
 
 [[nodiscard]] bool isSubset(const TypeSet &Superset, const TypeSet &Subset);
 
-[[nodiscard]] inline bool setIntersectionIsEmpty(const TypeSet &Lhs,
-                                                 const TypeSet &Rhs) {
-  return ranges::all_of(Lhs, [&Rhs](const TypeSetValueType &LhsElement) {
-    return Rhs.lower_bound(LhsElement) == Rhs.upper_bound(LhsElement);
-  });
-}
-
 #endif
