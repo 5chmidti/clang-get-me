@@ -21,6 +21,7 @@
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
+#include "support/concepts.hpp"
 
 namespace clang {
 class CXXRecordDecl;
@@ -43,14 +44,6 @@ static_assert(
 
 using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
 
-inline constexpr auto Source = [](const EdgeDescriptor Edge) {
-  return Edge.m_source;
-};
-
-inline constexpr auto Target = [](const EdgeDescriptor Edge) {
-  return Edge.m_target;
-};
-
 using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
 
@@ -69,6 +62,26 @@ struct GraphData {
 
   // vertices
   std::vector<VertexDataType> VertexData{};
+};
+
+inline constexpr auto Source = []<typename T>(const T &Edge)
+  requires IsAnyOf<T, EdgeDescriptor, GraphData::EdgeType>
+{
+  if constexpr (std::same_as<T, EdgeDescriptor>) {
+    return Edge.m_source;
+  } else if constexpr (std::same_as<T, GraphData::EdgeType>) {
+    return std::get<0>(Edge);
+  }
+};
+
+inline constexpr auto Target = []<typename T>(const T &Edge)
+  requires IsAnyOf<T, EdgeDescriptor, GraphData::EdgeType>
+{
+  if constexpr (std::same_as<T, EdgeDescriptor>) {
+    return Edge.m_target;
+  } else if constexpr (std::same_as<T, GraphData::EdgeType>) {
+    return std::get<1>(Edge);
+  }
 };
 
 [[nodiscard]] bool edgeWithTransitionExistsInContainer(

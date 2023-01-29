@@ -24,7 +24,7 @@ namespace {
 [[nodiscard]] auto getVerticesWithNoInEdges(const DTDGraphData &Data) {
   return ranges::views::indices(Data.VertexData.size()) |
          ranges::views::set_difference(Data.Edges |
-                                       ranges::views::transform(Element<1>) |
+                                       ranges::views::transform(Target) |
                                        ranges::views::unique);
 }
 

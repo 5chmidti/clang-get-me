@@ -25,9 +25,7 @@ public:
                            rapidfuzz::fuzz::ratio(Query, SearchListElement)};
         }) |
         ranges::to_vector;
-    ranges::sort(ScoredValues, std::greater{}, [](const auto &ValueScorePair) {
-      return std::get<1>(ValueScorePair);
-    });
+    ranges::sort(ScoredValues, std::greater{}, Element<1>);
     Values_ = ScoredValues | ranges::views::move |
               ranges::views::transform(Element<0>) | ranges::to_vector;
   }
