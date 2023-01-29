@@ -36,4 +36,33 @@ TEST_F(GetMeTest, alias) {
   )",
        "B", {"(B, A A(int), {int})", "(B, B getB(), {})"},
        ConfigWithTypealiasPropagation);
+
+  test(R"(
+  struct A {};
+  using B = A;
+  struct C {};
+  C getC(A);
+  void foo(B); // force creation of type alias
+  )",
+       "C",
+       {
+           "(C, C C(), {})",
+           "(C, C getC(A), {A}), (A, A A(), {})",
+           "(C, C getC(A), {B}), (B, A A(), {})",
+       },
+       ConfigWithTypealiasPropagation);
+
+  test(R"(
+  struct A {};
+  using B = A;
+  struct C {};
+  C getC(B);
+  )",
+       "C",
+       {
+           "(C, C C(), {})",
+           "(C, C getC(B), {A}), (A, A A(), {})",
+           "(C, C getC(B), {B}), (B, A A(), {})",
+       },
+       ConfigWithTypealiasPropagation);
 }

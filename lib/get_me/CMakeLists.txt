@@ -12,6 +12,8 @@ target_sources(
           formatting.cpp
           graph.cpp
           path_traversal.cpp
+          propagate_inheritance.cpp
+          propagate_type_aliasing.cpp
           query.cpp
           tooling.cpp
           tooling_filters.cpp
