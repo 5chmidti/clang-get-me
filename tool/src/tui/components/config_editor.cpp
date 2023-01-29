@@ -9,14 +9,6 @@
 #include "tui/components/boolean_toggle.hpp"
 #include "tui/components/size_t_input.hpp"
 
-ftxui::Component configEntry(bool *const Flag) {
-  return ftxui::Make<BooleanToggle>(Flag);
-}
-
-ftxui::Component configEntry(std::size_t *const Value) {
-  return ftxui::Make<SizeTInputComponent>(Value);
-}
-
 ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf) {
   const auto [BooleanMapping, SizeTMapping] = Config::getConfigMapping();
 

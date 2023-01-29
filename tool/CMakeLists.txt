@@ -7,6 +7,7 @@ target_sources(
   get_me_tui
   PRIVATE src/tui.cpp
           src/tui/components/query.cpp
+          src/tui/components/boolean_toogle.cpp
           src/tui/components/size_t_input.cpp
           src/tui/components/paths_menu.cpp
           src/tui/components/config_editor.cpp)
