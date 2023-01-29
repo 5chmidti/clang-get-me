@@ -46,4 +46,25 @@ inline const auto GenerateForkingPath =
                          (Iter + 1) * 2 - 1, (Iter + 1) * 2, Iter);
     });
 
+inline const auto GenerateMultiForkingPath =
+    generateFromTemplate("A0", "struct A0 {};", [](const size_t Iter) {
+      return fmt::format(
+          R"(
+struct A{1};
+struct B{0};
+struct C{0};
+struct D{0};
+struct E{0};
+
+A{0} getA{0}(B{0});
+A{0} getA{0}(C{0});
+B{0} getB{0}(D{0});
+C{0} getC{0}(D{0});
+C{0} getC{0}(E{0});
+D{0} getD{0}(A{1});
+E{0} getE{0}();
+    )",
+          Iter, Iter + 1);
+    });
+
 #endif
