@@ -49,7 +49,7 @@ B getB();
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
 TEST_F(GetMeTest, overloads) {
-  const auto ConfigWithOverloadFilter = Config{.EnableFilterOverloads = true};
+  setConfig(Config{.EnableFilterOverloads = true});
 
   test(R"(
 struct A {};
@@ -62,8 +62,8 @@ A getA(float, float);
 )",
        "A",
        {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
-        "(A, A getA(float), {float})", "(A, A getA(float, int), {int, float})"},
-       ConfigWithOverloadFilter);
+        "(A, A getA(float), {float})",
+        "(A, A getA(float, int), {int, float})"});
 
   test(R"(
 struct A {};
@@ -71,8 +71,7 @@ struct A {};
 A getA(float);
 A getA(float, float);
 )",
-       "A", {"(A, A getA(float), {float})", "(A, A A(), {})"},
-       ConfigWithOverloadFilter);
+       "A", {"(A, A getA(float), {float})", "(A, A A(), {})"});
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)

@@ -1,10 +1,19 @@
 #include "get_me_tests.hpp"
 
-constexpr auto ConfigWithTypealiasPropagation =
-    Config{.EnablePropagateTypeAlias = true};
+class TypeAliasingTest : public GetMeTest {
+protected:
+  TypeAliasingTest() { setConfig(Config{.EnablePropagateTypeAlias = true}); };
+};
 
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, alias) {
+TEST_F(TypeAliasingTest, alias) {
+  test(R"(
+  struct A {};
+  using B = A;
+  A getA();
+  B getB();
+  )",
+       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"});
 
   test(R"(
   struct A {};
@@ -12,17 +21,7 @@ TEST_F(GetMeTest, alias) {
   A getA();
   B getB();
   )",
-       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"},
-       ConfigWithTypealiasPropagation);
-
-  test(R"(
-  struct A {};
-  using B = A;
-  A getA();
-  B getB();
-  )",
-       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"},
-       ConfigWithTypealiasPropagation);
+       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"});
 
   test(R"(
   template <typename T>
@@ -34,8 +33,7 @@ TEST_F(GetMeTest, alias) {
   B getB();
   B b = getB();
   )",
-       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"},
-       ConfigWithTypealiasPropagation);
+       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"});
 
   test(R"(
   struct A {};
@@ -49,8 +47,7 @@ TEST_F(GetMeTest, alias) {
            "(C, C C(), {})",
            "(C, C getC(A), {A}), (A, A A(), {})",
            "(C, C getC(A), {B}), (B, A A(), {})",
-       },
-       ConfigWithTypealiasPropagation);
+       });
 
   test(R"(
   struct A {};
@@ -63,6 +60,5 @@ TEST_F(GetMeTest, alias) {
            "(C, C C(), {})",
            "(C, C getC(B), {A}), (A, A A(), {})",
            "(C, C getC(B), {B}), (B, A A(), {})",
-       },
-       ConfigWithTypealiasPropagation);
+       });
 }

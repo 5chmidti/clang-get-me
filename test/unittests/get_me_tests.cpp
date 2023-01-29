@@ -50,9 +50,25 @@
                        ToSetDifference(FoundPathsAsString, ExpectedPaths));    \
   }
 
-void test(std::string_view Code, std::string_view QueriedType,
-          const std::set<std::string, std::less<>> &ExpectedPaths,
-          const Config &CurrentConfig, std::source_location Loc) {
+GetMeTest::GetMeTest() {
+  spdlog::set_level(spdlog::level::trace);
+  static constexpr auto BacktraceCount = 1024U;
+  spdlog::enable_backtrace(BacktraceCount);
+}
+
+void GetMeTest::SetUp() { Config_ = CurrentConfig_; }
+
+void GetMeTest::TearDown() {
+  if (HasFailure()) {
+    spdlog::dump_backtrace();
+  }
+  CurrentConfig_ = Config_;
+}
+
+void GetMeTest::test(const std::string_view Code,
+                     const std::string_view QueriedType,
+                     const std::set<std::string, std::less<>> &ExpectedPaths,
+                     const std::source_location Loc) const {
   const testing::ScopedTrace Trace(Loc.file_name(),
                                    static_cast<int>(Loc.line()), "Test source");
   spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
@@ -62,10 +78,10 @@ void test(std::string_view Code, std::string_view QueriedType,
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
   auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{CurrentConfig, *TypeSetTransitionData, AST->getSema()};
+  auto Consumer = GetMe{CurrentConfig_, *TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto Query = QueryType{std::move(TypeSetTransitionData),
-                               std::string{QueriedType}, CurrentConfig};
+                               std::string{QueriedType}, CurrentConfig_};
   const auto [Graph, Data] = createGraph(Query);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
@@ -73,7 +89,7 @@ void test(std::string_view Code, std::string_view QueriedType,
   // adjusted for empty set
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
   const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
+      pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
 
   const auto FoundPathsAsString =
       toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
@@ -81,9 +97,10 @@ void test(std::string_view Code, std::string_view QueriedType,
   VERIFY(EXPECT_TRUE, FoundPathsAsString, ExpectedPaths)
 }
 
-void testFailure(std::string_view Code, std::string_view QueriedType,
-                 const std::set<std::string, std::less<>> &ExpectedPaths,
-                 const Config &CurrentConfig, std::source_location Loc) {
+void GetMeTest::testFailure(
+    const std::string_view Code, const std::string_view QueriedType,
+    const std::set<std::string, std::less<>> &ExpectedPaths,
+    const std::source_location Loc) const {
   const testing::ScopedTrace Trace(Loc.file_name(),
                                    static_cast<int>(Loc.line()), "Test source");
   spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
@@ -93,10 +110,10 @@ void testFailure(std::string_view Code, std::string_view QueriedType,
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
 
   auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{CurrentConfig, *TypeSetTransitionData, AST->getSema()};
+  auto Consumer = GetMe{CurrentConfig_, *TypeSetTransitionData, AST->getSema()};
   Consumer.HandleTranslationUnit(AST->getASTContext());
   const auto Query = QueryType{std::move(TypeSetTransitionData),
-                               std::string{QueriedType}, CurrentConfig};
+                               std::string{QueriedType}, CurrentConfig_};
   const auto [Graph, Data] = createGraph(Query);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
@@ -104,7 +121,7 @@ void testFailure(std::string_view Code, std::string_view QueriedType,
   // adjusted for empty set
   ASSERT_LT(SourceVertex, VertexDataSize - 1);
   const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
+      pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
 
   const auto FoundPathsAsString =
       toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
@@ -112,10 +129,10 @@ void testFailure(std::string_view Code, std::string_view QueriedType,
   VERIFY(EXPECT_FALSE, FoundPathsAsString, ExpectedPaths)
 }
 
-void testNoThrow(const std::string_view Code,
-                 const std::string_view QueriedType,
-                 const Config &CurrentConfig, const std::source_location Loc) {
-  const auto Test = [&Loc, &Code, &CurrentConfig, &QueriedType]() {
+void GetMeTest::testNoThrow(const std::string_view Code,
+                            const std::string_view QueriedType,
+                            const std::source_location Loc) const {
+  const auto Test = [this, &Loc, &Code, &QueriedType]() {
     const testing::ScopedTrace Trace(
         Loc.file_name(), static_cast<int>(Loc.line()), "Test source");
     spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
@@ -126,10 +143,10 @@ void testNoThrow(const std::string_view Code,
 
     auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
     auto Consumer =
-        GetMe{CurrentConfig, *TypeSetTransitionData, AST->getSema()};
+        GetMe{CurrentConfig_, *TypeSetTransitionData, AST->getSema()};
     Consumer.HandleTranslationUnit(AST->getASTContext());
     const auto Query = QueryType{std::move(TypeSetTransitionData),
-                                 std::string{QueriedType}, CurrentConfig};
+                                 std::string{QueriedType}, CurrentConfig_};
     const auto [Graph, Data] = createGraph(Query);
     const auto SourceVertex =
         getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
@@ -137,23 +154,11 @@ void testNoThrow(const std::string_view Code,
     // adjusted for empty set
     ASSERT_LT(SourceVertex, VertexDataSize - 1);
     const auto FoundPaths =
-        pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
+        pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
 
     const auto FoundPathsAsString =
         toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
   };
 
   ASSERT_NO_THROW(Test());
-}
-
-GetMeTest::GetMeTest() {
-  spdlog::set_level(spdlog::level::trace);
-  static constexpr auto BacktraceCount = 1024U;
-  spdlog::enable_backtrace(BacktraceCount);
-}
-
-void GetMeTest::TearDown() {
-  if (HasFailure()) {
-    spdlog::dump_backtrace();
-  }
 }
