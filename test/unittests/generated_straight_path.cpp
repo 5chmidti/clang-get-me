@@ -2,5 +2,5 @@
 #include "support/testcase_generation.hpp"
 
 TEST_F(GetMeTest, generatedStraightPath) {
-  testGenerator(GenerateStraightPath, size_t{1} << size_t{6});
+  test(GenerateStraightPath, size_t{1} << size_t{6});
 }

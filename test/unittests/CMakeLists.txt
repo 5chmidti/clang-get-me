@@ -14,7 +14,7 @@ function(add_get_me_test name)
 endfunction()
 
 add_get_me_test(basic)
-add_get_me_test(type_alias)
+add_get_me_test(type_aliasing)
 add_get_me_test(inheritance)
 add_get_me_test(generated_straight_path)
 add_get_me_test(generated_forking_path)
