@@ -1,12 +1,9 @@
 #include "get_me_tests.hpp"
 
-class TypeAliasingTest : public GetMeTest {
-protected:
-  TypeAliasingTest() { setConfig(Config{.EnablePropagateInheritance = true}); };
-};
+static constexpr auto PropagateInheritanceConfig =
+    Config{.EnablePropagateInheritance = true};
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(TypeAliasingTest, inheritance) {
+TEST_CASE("propagate inheritance") {
   test(R"(
     struct A {};
     struct B : public A {};
@@ -16,7 +13,8 @@ TEST_F(TypeAliasingTest, inheritance) {
        "B",
        {
            "(B, B B(), {})",
-       });
+       },
+       PropagateInheritanceConfig);
 
   test(R"(
     struct A {};
@@ -29,7 +27,8 @@ TEST_F(TypeAliasingTest, inheritance) {
            "(A, A A(), {})",
            "(A, B B(), {})",
            "(A, A getA(), {})",
-       });
+       },
+       PropagateInheritanceConfig);
 
   test(R"(
     struct A {};
@@ -40,7 +39,8 @@ TEST_F(TypeAliasingTest, inheritance) {
        "B",
        {
            "(B, B B(), {})",
-       });
+       },
+       PropagateInheritanceConfig);
 
   test(R"(
   struct A { A(int, float); };
@@ -49,7 +49,8 @@ TEST_F(TypeAliasingTest, inheritance) {
   A getA();
   B getB();
   )",
-       "B", {"(B, B getB(), {})", "(B, A A(int, float), {int, float})"});
+       "B", {"(B, B getB(), {})", "(B, A A(int, float), {int, float})"},
+       PropagateInheritanceConfig);
 
   test(R"(
 struct A { A(int, float); };
@@ -60,7 +61,8 @@ B getB();
 )",
        "A",
        {"(A, A getA(), {})", "(A, B getB(), {})",
-        "(A, A A(int, float), {int, float})"});
+        "(A, A A(int, float), {int, float})"},
+       PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -75,11 +77,11 @@ B getB();
           "(C, C C(), {})",
           "(C, C getC(A), {A}), (A, A A(), {})",
           "(C, C getC(A), {B}), (B, B B(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(TypeAliasingTest, inheritenceQualifiedTypes) {
+TEST_CASE("propagate inheritence: qualified types") {
   test(
       R"(
     struct A {};
@@ -104,7 +106,8 @@ TEST_F(TypeAliasingTest, inheritenceQualifiedTypes) {
           "(C, C funcA(A), {A}), (A, B funcB(D), {D}), (D, D D(), {})",
           "(C, C funcA(A), {B}), (B, B funcB(D), {D}), (D, D D(), {})",
           "(C, C funcB(B), {B}), (B, B funcB(D), {D}), (D, D D(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -130,7 +133,8 @@ TEST_F(TypeAliasingTest, inheritenceQualifiedTypes) {
           "(C, C funcA(A&), {A}), (A, B& funcB(D), {D}), (D, D D(), {})",
           "(C, C funcA(A&), {B}), (B, B& funcB(D), {D}), (D, D D(), {})",
           "(C, C funcB(B&), {B}), (B, B& funcB(D), {D}), (D, D D(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -156,11 +160,11 @@ TEST_F(TypeAliasingTest, inheritenceQualifiedTypes) {
           "(C, C funcA(A), {A}), (A, B* funcB(D), {D}), (D, D D(), {})",
           "(C, C funcA(A), {B}), (B, B* funcB(D), {D}), (D, D D(), {})",
           "(C, C funcB(B), {B}), (B, B* funcB(D), {D}), (D, D D(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(TypeAliasingTest, inheritenceQualifiedTypesVirtual) {
+TEST_CASE("propagate inheritence: qualified types virtual") {
   testFailure(
       R"(
     struct A { virtual void foo()=0; };
@@ -172,7 +176,8 @@ TEST_F(TypeAliasingTest, inheritenceQualifiedTypesVirtual) {
       {
           "(B, B B(), {})",
           "(B, B funcB(B), {B}), (B, B B(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -186,7 +191,8 @@ TEST_F(TypeAliasingTest, inheritenceQualifiedTypesVirtual) {
       {
           "(B, B B(), {})",
           "(B, B& funcBRef(B&), {B}), (B, B B(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -200,5 +206,6 @@ TEST_F(TypeAliasingTest, inheritenceQualifiedTypesVirtual) {
       {
           "(B, B B(), {})",
           "(B, B* funcBPtr(B*), {B}), (B, B B(), {})",
-      });
+      },
+      PropagateInheritanceConfig);
 }

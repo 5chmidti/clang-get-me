@@ -8,13 +8,13 @@
 #include <string_view>
 #include <vector>
 
+#include <catch2/catch_test_macros.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
 #include <fmt/format.h>
 #include <get_me/formatting.hpp>
 #include <get_me/graph.hpp>
 #include <get_me/tooling.hpp>
-#include <gtest/gtest.h>
 #include <llvm/ADT/StringRef.h>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -31,198 +31,132 @@
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 
-// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define VERIFY(EXPECT_OUTCOME, FoundPathsAsString, ExpectedPaths)              \
-  {                                                                            \
-    const auto ToString = []<typename T>(const T &Val) -> std::string {        \
-      if constexpr (std::is_same_v<T, std::string>) {                          \
-        return Val;                                                            \
-      }                                                                        \
-      return std::string{Val};                                                 \
-    };                                                                         \
-                                                                               \
-    const auto ToSetDifference = [&ToString](const auto &Lhs,                  \
-                                             const auto &Rhs) {                \
-      return ranges::views::set_difference(Lhs, Rhs, std::less{}, ToString,    \
-                                           ToString) |                         \
-             ranges::to<std::set>;                                             \
-    };                                                                         \
-                                                                               \
-    EXPECT_OUTCOME(ranges::equal(FoundPathsAsString, ExpectedPaths))           \
-        << fmt::format("Expected:\t{}\nFound:\t\t{}\nNot found:\t{}\nNot "     \
-                       "expected:\t{}",                                        \
-                       ExpectedPaths, FoundPathsAsString,                      \
-                       ToSetDifference(ExpectedPaths, FoundPathsAsString),     \
-                       ToSetDifference(FoundPathsAsString, ExpectedPaths));    \
-  }
-
-GetMeTest::GetMeTest() {
-  spdlog::set_level(spdlog::level::trace);
-  static constexpr auto BacktraceCount = 1024U;
-  spdlog::enable_backtrace(BacktraceCount);
+namespace {
+void logLoc(auto Loc) {
+  INFO(fmt::format("Test location ({}:{}:{})", Loc.file_name(), Loc.line(),
+                   Loc.column()));
 }
 
-void GetMeTest::SetUp() { Config_ = CurrentConfig_; }
-
-void GetMeTest::TearDown() {
-  if (HasFailure()) {
-    spdlog::dump_backtrace();
-  }
-  CurrentConfig_ = Config_;
-}
-
-void GetMeTest::test(const std::string_view Code,
-                     const std::string_view QueriedType,
-                     const std::set<std::string, std::less<>> &ExpectedPaths,
-                     const std::source_location Loc) const {
-  testSuccess(Code, QueriedType, ExpectedPaths, Loc);
-  testQueryAll(Code, Loc);
-}
-
-void GetMeTest::testSuccess(
-    const std::string_view Code, const std::string_view QueriedType,
-    const std::set<std::string, std::less<>> &ExpectedPaths,
-    const std::source_location Loc) const {
-  const testing::ScopedTrace Trace(Loc.file_name(),
-                                   static_cast<int>(Loc.line()), "Test source");
-  spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
-                                        Loc.function_name(), Loc.line()));
-
-  const auto AST =
-      clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
-
-  auto Transitions = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{CurrentConfig_, *Transitions, AST->getSema()};
-  Consumer.HandleTranslationUnit(AST->getASTContext());
-  const auto Query = QueryType{std::move(Transitions), std::string{QueriedType},
-                               CurrentConfig_};
-  const auto [Graph, Data] = createGraph(Query);
-  const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-  const auto VertexDataSize = Data.VertexData.size();
-  if (VertexDataSize == 0) {
-    return;
-  }
-  ASSERT_LT(SourceVertex, VertexDataSize - 1);
-  const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
-
-  const auto FoundPathsAsString =
-      toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
-
-  VERIFY(EXPECT_TRUE, FoundPathsAsString, ExpectedPaths)
-}
-
-void GetMeTest::testFailure(
-    const std::string_view Code, const std::string_view QueriedType,
-    const std::set<std::string, std::less<>> &ExpectedPaths,
-    const std::source_location Loc) const {
-  const testing::ScopedTrace Trace(Loc.file_name(),
-                                   static_cast<int>(Loc.line()), "Test source");
-  spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
-                                        Loc.function_name(), Loc.line()));
-
-  const auto AST =
-      clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
-
-  auto Transitions = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{CurrentConfig_, *Transitions, AST->getSema()};
-  Consumer.HandleTranslationUnit(AST->getASTContext());
-  const auto Query = QueryType{std::move(Transitions), std::string{QueriedType},
-                               CurrentConfig_};
-  const auto [Graph, Data] = createGraph(Query);
-  const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-  const auto VertexDataSize = Data.VertexData.size();
-  if (VertexDataSize == 0) {
-    return;
-  }
-  ASSERT_LT(SourceVertex, VertexDataSize);
-  const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
-
-  const auto FoundPathsAsString =
-      toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
-
-  VERIFY(EXPECT_FALSE, FoundPathsAsString, ExpectedPaths)
-}
-
-void GetMeTest::testNoThrow(const std::string_view Code,
-                            const std::string_view QueriedType,
-                            const std::source_location Loc) const {
-  const auto Test = [this, &Loc, &Code, &QueriedType]() {
-    const testing::ScopedTrace Trace(
-        Loc.file_name(), static_cast<int>(Loc.line()), "Test source");
-    spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
-                                          Loc.function_name(), Loc.line()));
-
-    const auto AST =
-        clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
-
-    auto Transitions = std::make_shared<TransitionCollector>();
-    auto Consumer = GetMe{CurrentConfig_, *Transitions, AST->getSema()};
-    Consumer.HandleTranslationUnit(AST->getASTContext());
-    const auto Query = QueryType{std::move(Transitions),
-                                 std::string{QueriedType}, CurrentConfig_};
-    const auto [Graph, Data] = createGraph(Query);
-    const auto SourceVertex =
-        getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-    const auto VertexDataSize = Data.VertexData.size();
-    if (VertexDataSize == 0) {
-      return;
+void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
+            const auto &ExpectedPaths) {
+  const auto ToString = []<typename T>(const T &Val) -> std::string {
+    if constexpr (std::is_same_v<T, std::string>) {
+      return Val;
     }
-    ASSERT_LT(SourceVertex, VertexDataSize);
-    const auto FoundPaths =
-        pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
-
-    const auto FoundPathsAsString =
-        toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
+    return std::string{Val};
   };
 
-  ASSERT_NO_THROW(Test());
+  const auto ToSetDifference = [&ToString](const auto &Lhs, const auto &Rhs) {
+    return ranges::views::set_difference(Lhs, Rhs, std::less{}, ToString,
+                                         ToString) |
+           ranges::to<std::set>;
+  };
+  INFO(fmt::format("Expected:\t{}\nFound:\t{}\nNot found:\t{}\nNot "
+                   "expected:\t{}",
+                   ExpectedPaths, FoundPathsAsString,
+                   ToSetDifference(ExpectedPaths, FoundPathsAsString),
+                   ToSetDifference(FoundPathsAsString, ExpectedPaths)));
+  REQUIRE(ExpectedEqualityResult ==
+          ranges::equal(FoundPathsAsString, ExpectedPaths));
+}
+} // namespace
 
-  testQueryAll(Code, Loc);
+void test(const std::string_view Code, const std::string_view QueriedType,
+          const std::set<std::string, std::less<>> &ExpectedPaths,
+          const Config &CurrentConfig, const std::source_location Loc) {
+  testSuccess(Code, QueriedType, ExpectedPaths, CurrentConfig, Loc);
+  testQueryAll(Code, CurrentConfig, Loc);
 }
 
-void GetMeTest::testQueryAll(std::string_view Code,
-                             std::source_location Loc) const {
-  const testing::ScopedTrace Trace(Loc.file_name(),
-                                   static_cast<int>(Loc.line()), "Test source");
-  spdlog::trace("{:*^100}", fmt::format("Test start ({}:{})",
-                                        Loc.function_name(), Loc.line()));
+void testSuccess(const std::string_view Code,
+                 const std::string_view QueriedType,
+                 const std::set<std::string, std::less<>> &ExpectedPaths,
+                 const Config &CurrentConfig, const std::source_location Loc) {
+  logLoc(Loc);
+  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+  const auto FoundPathsAsString =
+      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+  verify(true, FoundPathsAsString, ExpectedPaths);
+}
 
-  const auto AST =
-      clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
+void testFailure(const std::string_view Code,
+                 const std::string_view QueriedType,
+                 const std::set<std::string, std::less<>> &ExpectedPaths,
+                 const Config &CurrentConfig, const std::source_location Loc) {
+  logLoc(Loc);
+  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+  const auto FoundPathsAsString =
+      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+  verify(false, FoundPathsAsString, ExpectedPaths);
+}
 
-  auto Transitions = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{CurrentConfig_, *Transitions, AST->getSema()};
-  Consumer.HandleTranslationUnit(AST->getASTContext());
+void testNoThrow(const std::string_view Code,
+                 const std::string_view QueriedType,
+                 const Config &CurrentConfig, const std::source_location Loc) {
+  const auto Test = [&Loc, &Code, &QueriedType, &CurrentConfig]() {
+    logLoc(Loc);
+    const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+    std::ignore =
+        buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+  };
 
-  const auto Run = [this, &Transitions](const auto &QueriedType) {
-    const auto RunImpl = [this, &Transitions,
+  REQUIRE_NOTHROW(Test());
+}
+
+void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
+                  const std::source_location Loc) {
+  logLoc(Loc);
+
+  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+
+  const auto Run = [&Transitions, &CurrentConfig](const auto &QueriedType) {
+    const auto RunImpl = [&Transitions, &CurrentConfig,
                           QueriedType = fmt::format("{}", QueriedType)]() {
-      const auto Query = QueryType{Transitions, QueriedType, CurrentConfig_};
-      const auto [Graph, Data] = createGraph(Query);
-      const auto SourceVertex =
-          getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-      const auto VertexDataSize = Data.VertexData.size();
-      ASSERT_LT(SourceVertex, VertexDataSize)
-          << fmt::format("{}\n{}", QueriedType, Data.VertexData);
-      if (Data.Edges.empty()) {
-        return;
-      }
-      const auto FoundPaths =
-          pathTraversal(Graph, Data, CurrentConfig_, SourceVertex);
-
-      const auto FoundPathsAsString =
-          toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
+      std::ignore =
+          buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
     };
 
-    ASSERT_NO_THROW(RunImpl());
+    REQUIRE_NOTHROW(RunImpl());
   };
 
   ranges::for_each(*Transitions |
                        ranges::views::filter(ranges::empty, Element<1>) |
                        ranges::views::transform(ToAcquired),
                    Run);
+}
+
+std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionCollector>>
+collectTransitions(const std::string_view Code, const Config &CurrentConfig) {
+  auto AST = clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
+  auto Transitions = std::make_shared<TransitionCollector>();
+  auto Consumer = GetMe{CurrentConfig, *Transitions, AST->getSema()};
+  Consumer.HandleTranslationUnit(AST->getASTContext());
+  return {std::move(AST), std::move(Transitions)};
+}
+
+std::set<std::string>
+buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
+                       const std::string_view QueriedType,
+                       const Config &CurrentConfig) {
+  const auto Query =
+      QueryType{Transitions, std::string{QueriedType}, CurrentConfig};
+  const auto [Graph, Data] = createGraph(Query);
+  const auto SourceVertex =
+      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+  const auto VertexDataSize = Data.VertexData.size();
+  REQUIRE(VertexDataSize != 0);
+  REQUIRE(SourceVertex < VertexDataSize);
+
+  // return instead of requires because querying all might query a type with no
+  // edges/transitions that acquire it
+  // FIXME: TransitionCollector should not contain entries with an empty set of
+  // transitions for an acquired type
+  if (Data.Edges.empty()) {
+    return {};
+  }
+
+  const auto FoundPaths =
+      pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
+
+  return toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
 }

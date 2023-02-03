@@ -1,8 +1,7 @@
 #include "get_me/config.hpp"
 #include "get_me_tests.hpp"
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, simpleSingleEdge) {
+TEST_CASE("simple single edges") {
   test(R"(
 struct A {};
 )",
@@ -31,8 +30,7 @@ struct B { static A StaticMemberA; };
        "A", {"(A, A StaticMemberA(), {})", "(A, A A(), {})"});
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, simple) {
+TEST_CASE("simple") {
   test(R"(
 struct A {};
 struct B { A MemberA; };
@@ -47,10 +45,7 @@ B getB();
         "(A, A MemberA(B), {B}), (B, B B(), {})"});
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, overloads) {
-  setConfig(Config{.EnableFilterOverloads = true});
-
+TEST_CASE("overloads") {
   test(R"(
 struct A {};
 
@@ -62,8 +57,8 @@ A getA(float, float);
 )",
        "A",
        {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
-        "(A, A getA(float), {float})",
-        "(A, A getA(float, int), {int, float})"});
+        "(A, A getA(float), {float})", "(A, A getA(float, int), {int, float})"},
+       Config{.EnableFilterOverloads = true});
 
   test(R"(
 struct A {};
@@ -71,11 +66,11 @@ struct A {};
 A getA(float);
 A getA(float, float);
 )",
-       "A", {"(A, A getA(float), {float})", "(A, A A(), {})"});
+       "A", {"(A, A getA(float), {float})", "(A, A A(), {})"},
+       Config{.EnableFilterOverloads = true});
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, specialMemberFunctions) {
+TEST_CASE("special member functions") {
   test(R"(
 struct A {};
 )",
@@ -128,8 +123,7 @@ struct B : public A {
        "B", {"(B, B B(), {})"});
 }
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(GetMeTest, templates) {
+TEST_CASE("templates") {
   test(R"(
   template <typename T>
   struct A {};

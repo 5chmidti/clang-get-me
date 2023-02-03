@@ -1,19 +1,19 @@
+#include <catch2/catch_test_macros.hpp>
+
 #include "get_me_tests.hpp"
 
-class TypeAliasingTest : public GetMeTest {
-protected:
-  TypeAliasingTest() { setConfig(Config{.EnablePropagateTypeAlias = true}); };
-};
+static constexpr auto PropagateTypeAliasConfig =
+    Config{.EnablePropagateTypeAlias = true};
 
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables,cert-err58-cpp,cppcoreguidelines-owning-memory)
-TEST_F(TypeAliasingTest, alias) {
+TEST_CASE("propagate type aliasing") {
   test(R"(
   struct A {};
   using B = A;
   A getA();
   B getB();
   )",
-       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"});
+       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"},
+       PropagateTypeAliasConfig);
 
   test(R"(
   struct A {};
@@ -21,7 +21,8 @@ TEST_F(TypeAliasingTest, alias) {
   A getA();
   B getB();
   )",
-       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"});
+       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"},
+       PropagateTypeAliasConfig);
 
   test(R"(
   template <typename T>
@@ -33,7 +34,8 @@ TEST_F(TypeAliasingTest, alias) {
   B getB();
   B b = getB();
   )",
-       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"});
+       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"},
+       PropagateTypeAliasConfig);
 
   test(R"(
   struct A {};
@@ -47,7 +49,8 @@ TEST_F(TypeAliasingTest, alias) {
            "(C, C C(), {})",
            "(C, C getC(A), {A}), (A, A A(), {})",
            "(C, C getC(A), {B}), (B, A A(), {})",
-       });
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
   struct A {};
@@ -60,5 +63,6 @@ TEST_F(TypeAliasingTest, alias) {
            "(C, C C(), {})",
            "(C, C getC(B), {A}), (A, A A(), {})",
            "(C, C getC(B), {B}), (B, A A(), {})",
-       });
+       },
+       PropagateTypeAliasConfig);
 }
