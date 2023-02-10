@@ -96,8 +96,7 @@ private:
     GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
     for (const auto &AST : ASTs_) {
-      GetMe{Conf_, *Transitions_, AST->getSema()}.HandleTranslationUnit(
-          AST->getASTContext());
+      ::collectTransitions(Transitions_, *AST, Conf_);
     }
   }
 

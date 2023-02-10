@@ -18,8 +18,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
                           const std::string &QueriedTypeAsString) {
   const auto Conf = Config{};
   auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{Conf, *TypeSetTransitionData, Ast.getSema()};
-  Consumer.HandleTranslationUnit(Ast.getASTContext());
+  collectTransitions(TypeSetTransitionData, Ast, Conf);
   State.counters["transitions"] =
       static_cast<double>(TypeSetTransitionData->size());
   const auto Query =
@@ -43,8 +42,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_TRANSITIONS                                                  \
   auto TypeSetTransitionData = std::make_shared<TransitionCollector>();        \
-  auto Consumer = GetMe{Conf, *TypeSetTransitionData, Ast->getSema()};         \
-  Consumer.HandleTranslationUnit(Ast->getASTContext());                        \
+  collectTransitions(TypeSetTransitionData, *Ast, Conf);                       \
   const auto Query =                                                           \
       QueryType{TypeSetTransitionData, QueriedTypeAsString, Conf};
 

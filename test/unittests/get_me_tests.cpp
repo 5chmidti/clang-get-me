@@ -133,8 +133,7 @@ std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionCollector>>
 collectTransitions(const std::string_view Code, const Config &CurrentConfig) {
   auto AST = clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
   auto Transitions = std::make_shared<TransitionCollector>();
-  auto Consumer = GetMe{CurrentConfig, *Transitions, AST->getSema()};
-  Consumer.HandleTranslationUnit(AST->getASTContext());
+  collectTransitions(Transitions, *AST, CurrentConfig);
   return {std::move(AST), std::move(Transitions)};
 }
 

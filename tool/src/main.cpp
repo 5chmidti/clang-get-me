@@ -142,8 +142,7 @@ int main(int argc, const char **argv) {
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
   for (const auto &AST : ASTs) {
-    GetMe{Conf, *TypeSetTransitionData, AST->getSema()}.HandleTranslationUnit(
-        AST->getASTContext());
+    collectTransitions(TypeSetTransitionData, *AST, Conf);
   }
 
   const auto &QueriedType = TypeName.getValue();

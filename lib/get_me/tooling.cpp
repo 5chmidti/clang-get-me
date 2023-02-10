@@ -21,6 +21,7 @@
 #include <boost/graph/properties.hpp>
 #include <boost/graph/visitors.hpp>
 #include <boost/pending/property.hpp>
+#include <clang/AST/ASTConsumer.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclBase.h>
@@ -84,6 +85,26 @@ template <typename T>
 }
 
 namespace {
+// FIXME: add support for current context (i.e. current function)
+// this would mean only traversing into a function definition if it is the
+// current context
+class GetMe : public clang::ASTConsumer {
+public:
+  explicit GetMe(const Config &Configuration,
+                 std::shared_ptr<TransitionCollector> TransitionsRef,
+                 clang::Sema &Sema)
+      : Conf_{Configuration},
+        Transitions_{std::move(TransitionsRef)},
+        Sema_{Sema} {}
+
+  void HandleTranslationUnit(clang::ASTContext &Context) override;
+
+private:
+  Config Conf_;
+  std::shared_ptr<TransitionCollector> Transitions_;
+  clang::Sema &Sema_;
+};
+
 [[nodiscard]] auto getParametersOpt(const TransitionDataType &Val) {
   return std::visit(
       Overloaded{
@@ -350,15 +371,22 @@ private:
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
   std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
-  GetMeVisitor Visitor{Conf_, Transitions_, CXXRecords, TypedefNameDecls,
+  GetMeVisitor Visitor{Conf_, *Transitions_, CXXRecords, TypedefNameDecls,
                        Sema_};
 
   std::ignore = Visitor.TraverseDecl(Context.getTranslationUnitDecl());
   if (Conf_.EnableFilterOverloads) {
-    filterOverloads(Transitions_);
+    filterOverloads(*Transitions_);
   }
 
   // FIXME: use config
-  propagateTransitionsOfDirectTypeDependencies(Transitions_, CXXRecords,
+  propagateTransitionsOfDirectTypeDependencies(*Transitions_, CXXRecords,
                                                TypedefNameDecls);
+}
+
+void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,
+                        clang::ASTUnit &AST, const Config &Conf) {
+
+  GetMe{Conf, std::move(Transitions), AST.getSema()}.HandleTranslationUnit(
+      AST.getASTContext());
 }
