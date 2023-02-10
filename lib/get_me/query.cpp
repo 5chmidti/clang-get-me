@@ -40,19 +40,12 @@ bool QueryType::matchesQueriedTypeName(const TypeSetValueType &Val) const {
   return std::visit(
       Overloaded{
           [this](const clang::Type *const Type) {
-            const auto QType = clang::QualType(Type, 0);
-            const auto TypeAsString = [&QType]() {
-              auto QTypeAsString = QType.getAsString();
-              boost::erase_all(QTypeAsString, "struct");
-              boost::erase_all(QTypeAsString, "class");
-              boost::trim(QTypeAsString);
-              return QTypeAsString;
-            }();
+            const auto TypeAsString = toString(Type);
             const auto EquivalentName = TypeAsString == QueriedTypeAsString_;
             if (!EquivalentName && (TypeAsString.find(QueriedTypeAsString_) !=
                                     std::string::npos)) {
-              spdlog::trace("matchesName(QualType): no match for "
-                            "close match: {} vs {}",
+              spdlog::trace("QueryType::matchesQueriedTypeName: no match for "
+                            "close match: {} != {}",
                             TypeAsString, QueriedTypeAsString_);
             }
             return EquivalentName;
