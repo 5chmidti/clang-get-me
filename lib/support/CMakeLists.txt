@@ -1,4 +1,5 @@
-add_library(support STATIC)
-target_sources(support PRIVATE testcase_generation.cpp)
-target_link_libraries(support PUBLIC get_me_lib)
-target_include_directories(support PUBLIC ${CMAKE_SOURCE_DIR}/include)
+add_library(get_me_support STATIC)
+target_sources(get_me_support PRIVATE src/testcase_generation.cpp)
+target_link_libraries(get_me_support PUBLIC project_libraries project_options)
+target_include_directories(get_me_support
+                           PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

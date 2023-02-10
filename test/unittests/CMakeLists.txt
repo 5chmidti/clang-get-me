@@ -1,9 +1,8 @@
-find_package(Catch2 REQUIRED)
-
 add_library(get_me_test_lib STATIC)
 target_sources(get_me_test_lib PRIVATE main.cpp get_me_tests.cpp)
-target_link_libraries(get_me_test_lib PUBLIC get_me_lib support)
+target_link_libraries(get_me_test_lib PUBLIC get_me_lib get_me_support)
 target_link_libraries(get_me_test_lib PUBLIC Catch2::Catch2WithMain)
+target_include_directories(get_me_test_lib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 function(add_get_me_test name)
   add_executable(test_${name})

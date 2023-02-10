@@ -39,7 +39,8 @@ run_conan()
 add_library(project_libraries INTERFACE)
 
 target_link_libraries(project_libraries INTERFACE ${CMAKE_THREAD_LIBS_INIT})
-target_link_libraries(project_libraries INTERFACE fmt::fmt spdlog::spdlog)
+target_link_libraries(project_libraries INTERFACE fmt::fmt spdlog::spdlog
+                                                  range-v3::range-v3)
 
 # allow for static analysis options
 include(cmake/StaticAnalyzers.cmake)

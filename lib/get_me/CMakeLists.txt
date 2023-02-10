@@ -1,29 +1,25 @@
-find_package(
-  Boost
-  COMPONENTS graph
-  REQUIRED)
-find_package(range-v3 REQUIRED)
-
 add_library(get_me_lib STATIC)
 target_sources(
   get_me_lib
-  PRIVATE config.cpp
-          direct_type_dependency_propagation.cpp
-          formatting.cpp
-          graph.cpp
-          path_traversal.cpp
-          propagate_inheritance.cpp
-          propagate_type_aliasing.cpp
-          query.cpp
-          tooling.cpp
-          tooling_filters.cpp
-          type_set.cpp)
+  PRIVATE src/config.cpp
+          src/direct_type_dependency_propagation.cpp
+          src/formatting.cpp
+          src/graph.cpp
+          src/path_traversal.cpp
+          src/propagate_inheritance.cpp
+          src/propagate_type_aliasing.cpp
+          src/query.cpp
+          src/tooling.cpp
+          src/tooling_filters.cpp
+          src/type_set.cpp)
 
 target_compile_options(get_me_lib PUBLIC -fno-rtti)
-target_include_directories(get_me_lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(get_me_lib
+                           PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(get_me_lib PUBLIC project_libraries project_options)
-target_link_libraries(get_me_lib PUBLIC Boost::graph range-v3::range-v3)
+target_link_libraries(get_me_lib PUBLIC get_me_support)
+target_link_libraries(get_me_lib PUBLIC Boost::graph)
 target_link_libraries(
   get_me_lib
   PUBLIC LLVMSupport
