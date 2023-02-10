@@ -32,9 +32,9 @@
 #include "get_me/type_set.hpp"
 
 namespace {
-void logLoc(auto Loc) {
-  INFO(fmt::format("Test location ({}:{}:{})", Loc.file_name(), Loc.line(),
-                   Loc.column()));
+[[nodiscard]] std::string toString(const std::source_location &Loc) {
+  return fmt::format("Test location ({}:{}:{})", Loc.file_name(), Loc.line(),
+                     Loc.column());
 }
 
 void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
@@ -61,6 +61,10 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
 }
 } // namespace
 
+#define LOG_LOC(Loc)                                                           \
+  spdlog::trace(toString(Loc));                                                \
+  INFO(toString(Loc));
+
 void test(const std::string_view Code, const std::string_view QueriedType,
           const std::set<std::string, std::less<>> &ExpectedPaths,
           const Config &CurrentConfig, const std::source_location Loc) {
@@ -72,7 +76,7 @@ void testSuccess(const std::string_view Code,
                  const std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
                  const Config &CurrentConfig, const std::source_location Loc) {
-  logLoc(Loc);
+  LOG_LOC(Loc);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
@@ -83,7 +87,7 @@ void testFailure(const std::string_view Code,
                  const std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
                  const Config &CurrentConfig, const std::source_location Loc) {
-  logLoc(Loc);
+  LOG_LOC(Loc);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
@@ -94,7 +98,7 @@ void testNoThrow(const std::string_view Code,
                  const std::string_view QueriedType,
                  const Config &CurrentConfig, const std::source_location Loc) {
   const auto Test = [&Loc, &Code, &QueriedType, &CurrentConfig]() {
-    logLoc(Loc);
+    LOG_LOC(Loc);
     const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
     std::ignore =
         buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
@@ -105,7 +109,7 @@ void testNoThrow(const std::string_view Code,
 
 void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
                   const std::source_location Loc) {
-  logLoc(Loc);
+  LOG_LOC(Loc);
 
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
 
