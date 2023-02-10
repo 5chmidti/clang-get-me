@@ -379,9 +379,8 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
     filterOverloads(*Transitions_);
   }
 
-  // FIXME: use config
   propagateTransitionsOfDirectTypeDependencies(*Transitions_, CXXRecords,
-                                               TypedefNameDecls);
+                                               TypedefNameDecls, Conf_);
 }
 
 void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,

@@ -35,6 +35,7 @@ template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
-    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls);
+    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls,
+    const Config &Conf);
 
 #endif
