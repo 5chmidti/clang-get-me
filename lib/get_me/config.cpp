@@ -51,22 +51,3 @@ void llvm::yaml::MappingTraits<Config>::mapping(llvm::yaml::IO &YamlIO,
   ranges::for_each(BooleanMapping, MapOptional);
   ranges::for_each(SizeTMapping, MapOptional);
 }
-
-std::pair<std::vector<Config::BooleanMappingType>,
-          std::vector<Config::SizeTMappingType>>
-Config::getConfigMapping() {
-  return {
-      {
-          {"EnableFilterOverloads", &Config::EnableFilterOverloads},
-          {"EnablePropagateInheritance", &Config::EnablePropagateInheritance},
-          {"EnablePropagateTypeAlias", &Config::EnablePropagateTypeAlias},
-          {"EnableTruncateArithmetic", &Config::EnableTruncateArithmetic},
-          {"EnableFilterStd", &Config::EnableFilterStd},
-      },
-      {
-          {"MaxGraphDepth", &Config::MaxGraphDepth},
-          {"MaxPathLength", &Config::MaxPathLength},
-          {"MinPathCount", &Config::MinPathCount},
-          {"MaxPathCount", &Config::MaxPathCount},
-      }};
-}

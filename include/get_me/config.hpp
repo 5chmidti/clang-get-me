@@ -17,9 +17,28 @@ public:
   using BooleanMappingType = MappingType<bool Config::*>;
   using SizeTMappingType = MappingType<std::size_t Config::*>;
 
-  [[nodiscard]] static std::pair<std::vector<BooleanMappingType>,
-                                 std::vector<SizeTMappingType>>
-  getConfigMapping();
+  [[nodiscard]] static consteval std::pair<std::array<BooleanMappingType, 5>,
+                                           std::array<SizeTMappingType, 4>>
+  getConfigMapping() {
+    constexpr auto BooleanMappings = std::array{
+        BooleanMappingType{"EnableFilterOverloads",
+                           &Config::EnableFilterOverloads},
+        BooleanMappingType{"EnablePropagateInheritance",
+                           &Config::EnablePropagateInheritance},
+        BooleanMappingType{"EnablePropagateTypeAlias",
+                           &Config::EnablePropagateTypeAlias},
+        BooleanMappingType{"EnableTruncateArithmetic",
+                           &Config::EnableTruncateArithmetic},
+        BooleanMappingType{"EnableFilterStd", &Config::EnableFilterStd},
+    };
+    constexpr auto SizeTMappings = std::array{
+        SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
+        SizeTMappingType{"MaxPathLength", &Config::MaxPathLength},
+        SizeTMappingType{"MinPathCount", &Config::MinPathCount},
+        SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
+    };
+    return {BooleanMappings, SizeTMappings};
+  }
 
   [[nodiscard]] static Config parse(const std::filesystem::path &File);
 
