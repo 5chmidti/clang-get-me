@@ -17,14 +17,13 @@ public:
   explicit GetMeException(std::string Message)
       : Message_(std::move(Message)) {
     spdlog::error(Message_);
+    spdlog::dump_backtrace();
   }
 
   template <typename... Ts>
   explicit GetMeException(const std::string_view FormatString, Ts &&...Args)
-      : Message_{fmt::format(fmt::runtime(FormatString),
-                             std::forward<Ts>(Args)...)} {
-    spdlog::error(Message_);
-  }
+      : GetMeException{fmt::format(fmt::runtime(FormatString),
+                                   std::forward<Ts>(Args)...)} {}
 
   [[nodiscard]] const char *what() const noexcept final { return ""; }
 
@@ -32,8 +31,13 @@ public:
   static void verify(const bool Condition, const std::string_view FormatString,
                      Ts &&...Args) {
     if (!Condition) {
-      throw GetMeException{FormatString, std::forward<Ts>(Args)...};
+      fail(FormatString, std::forward<Ts>(Args)...);
     }
+  }
+
+  template <typename... Ts>
+  static void fail(const std::string_view FormatString, Ts &&...Args) {
+    throw GetMeException{FormatString, std::forward<Ts>(Args)...};
   }
 
 private:
