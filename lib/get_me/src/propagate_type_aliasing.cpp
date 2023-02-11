@@ -1,14 +1,31 @@
 #include "get_me/propagate_type_aliasing.hpp"
 
+#include <functional>
+#include <utility>
+#include <vector>
+
 #include <boost/graph/connected_components.hpp>
+#include <clang/AST/Decl.h>
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/range/access.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
+#include <range/v3/view/cache1.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
+#include <range/v3/view/indirect.hpp>
+#include <range/v3/view/join.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/set_algorithm.hpp>
+#include <range/v3/view/transform.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
+#include "get_me/indexed_graph_sets.hpp"
+#include "get_me/transitions.hpp"
+#include "get_me/type_set.hpp"
 #include "support/ranges/functional.hpp"
 
 namespace {

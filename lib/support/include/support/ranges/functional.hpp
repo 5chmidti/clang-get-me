@@ -1,18 +1,11 @@
 #ifndef get_me_lib_support_include_support_ranges_functional_hpp
 #define get_me_lib_support_include_support_ranges_functional_hpp
 
-#pragma once
-
-#include <cmath>
-#include <concepts>
 #include <functional>
-#include <ranges>
-#include <type_traits>
 #include <utility>
 
-#include <range/v3/functional/arithmetic.hpp>
+#include <range/v3/functional/comparisons.hpp>
 #include <range/v3/range/concepts.hpp>
-#include <range/v3/range/traits.hpp>
 
 inline constexpr auto Plus = []<typename T>(T &&Rhs) constexpr {
   return [CapturedRhs = std::forward<T>(Rhs)](const auto &Lhs) constexpr {

@@ -1,11 +1,12 @@
 #include "get_me/type_set.hpp"
 
-#include <iterator>
+#include <utility>
+#include <variant>
 
+#include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
-#include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/transform.hpp>

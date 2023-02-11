@@ -1,11 +1,19 @@
 #ifndef get_me_lib_get_me_include_get_me_direct_type_dependency_propagation_hpp
 #define get_me_lib_get_me_include_get_me_direct_type_dependency_propagation_hpp
 
+#include <utility>
+#include <vector>
+
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_selectors.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <clang/AST/Decl.h>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/for_each.hpp>
 
 #include "get_me/graph.hpp"
 #include "get_me/transitions.hpp"
+#include "get_me/type_set.hpp"
 
 using DTDGraphType =
     boost::adjacency_list<boost::listS, boost::vecS, boost::directedS>;

@@ -1,69 +1,39 @@
 #include "get_me/tooling.hpp"
 
-#include <algorithm>
 #include <compare>
 #include <cstddef>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <optional>
-#include <set>
-#include <string>
 #include <tuple>
-#include <utility>
 #include <variant>
 #include <vector>
 
-#include <boost/container/flat_set.hpp>
-#include <boost/container/vector.hpp>
-#include <boost/graph/depth_first_search.hpp>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/named_function_params.hpp>
-#include <boost/graph/properties.hpp>
-#include <boost/graph/visitors.hpp>
-#include <boost/pending/property.hpp>
 #include <clang/AST/ASTConsumer.h>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclBase.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/DeclObjC.h>
-#include <clang/AST/DeclOpenMP.h>
-#include <clang/AST/DeclTemplate.h>
 #include <clang/AST/Expr.h>
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/AST/Redeclarable.h>
 #include <clang/AST/Stmt.h>
 #include <clang/AST/StmtIterator.h>
 #include <clang/AST/Type.h>
+#include <clang/Basic/LLVM.h>
 #include <clang/Basic/Specifiers.h>
+#include <clang/Frontend/ASTUnit.h>
 #include <clang/Sema/Sema.h>
-#include <fmt/core.h>
 #include <fmt/ranges.h>
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/STLExtras.h>
-#include <llvm/ADT/iterator_range.h>
 #include <llvm/Support/Casting.h>
-#include <range/v3/action/action.hpp>
-#include <range/v3/action/insert.hpp>
-#include <range/v3/action/remove.hpp>
-#include <range/v3/action/reverse.hpp>
-#include <range/v3/action/sort.hpp>
 #include <range/v3/action/unique.hpp>
-#include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/mismatch.hpp>
-#include <range/v3/algorithm/transform.hpp>
-#include <range/v3/range/conversion.hpp>
-#include <range/v3/range/traits.hpp>
-#include <range/v3/view/all.hpp>
-#include <range/v3/view/cache1.hpp>
-#include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
-#include <range/v3/view/join.hpp>
 #include <range/v3/view/move.hpp>
-#include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/zip.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
@@ -74,6 +44,7 @@
 #include "get_me/type_set.hpp"
 #include "support/ranges/projections.hpp"
 #include "support/ranges/ranges.hpp"
+#include "support/variant.hpp"
 
 template <typename T>
 [[nodiscard]] TransitionType toTransitionType(const T *const Transition,

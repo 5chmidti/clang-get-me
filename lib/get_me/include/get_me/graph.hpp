@@ -1,11 +1,7 @@
 #ifndef get_me_lib_get_me_include_get_me_graph_hpp
 #define get_me_lib_get_me_include_get_me_graph_hpp
 
-#include <compare>
 #include <cstddef>
-#include <optional>
-#include <set>
-#include <string>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -16,6 +12,7 @@
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
+#include <boost/pending/property.hpp>
 
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/query.hpp"

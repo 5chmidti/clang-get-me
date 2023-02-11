@@ -1,15 +1,12 @@
 #ifndef get_me_lib_support_include_support_get_me_exception_hpp
 #define get_me_lib_support_include_support_get_me_exception_hpp
 
-#include <concepts>
 #include <exception>
 #include <string>
 #include <string_view>
 
 #include <fmt/core.h>
 #include <fmt/format.h>
-#include <fmt/ranges.h>
-#include <fmt/std.h>
 #include <spdlog/spdlog.h>
 
 class GetMeException : public std::exception {

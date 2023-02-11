@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include <ftxui/component/component.hpp>
+#include <ftxui/component/component_base.hpp>
 
 [[nodiscard]] ftxui::Component
 buildQueryComponent(std::string *QueriedName,

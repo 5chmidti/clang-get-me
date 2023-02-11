@@ -1,14 +1,14 @@
 #ifndef get_me_get_me_tests_hpp
 #define get_me_get_me_tests_hpp
 
+#include <functional>
 #include <memory>
 #include <set>
 #include <source_location>
 #include <string>
 #include <string_view>
-#include <vector>
+#include <utility>
 
-#include <catch2/catch_test_macros.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <get_me/config.hpp>
 #include <range/v3/algorithm/for_each.hpp>

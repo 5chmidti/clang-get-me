@@ -1,13 +1,22 @@
 #include "get_me/query.hpp"
 
-#include <boost/algorithm/string/erase.hpp>
-#include <boost/algorithm/string/trim.hpp>
+#include <memory>
+#include <string>
+#include <utility>
+#include <variant>
+
+#include <fmt/ranges.h>
 #include <range/v3/functional/not_fn.hpp>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
 #include <range/v3/view/filter.hpp>
+#include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
+#include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
+#include "get_me/transitions.hpp"
+#include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/variant.hpp"
 

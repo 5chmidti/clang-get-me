@@ -1,9 +1,17 @@
 #include "tui/components/query.hpp"
 
-#include <fmt/format.h>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include <fmt/core.h>
+#include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/component_options.hpp>
 #include <ftxui/dom/elements.hpp>
+#include <ftxui/screen/string.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 
 #include "tui/fuzzy_search_state.hpp"

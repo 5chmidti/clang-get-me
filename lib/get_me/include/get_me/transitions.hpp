@@ -1,7 +1,10 @@
 #ifndef get_me_lib_get_me_include_get_me_transitions_hpp
 #define get_me_lib_get_me_include_get_me_transitions_hpp
 
+#include <tuple>
 #include <type_traits>
+#include <utility>
+#include <variant>
 
 #include <boost/container/container_fwd.hpp>
 #include <boost/container/flat_map.hpp>

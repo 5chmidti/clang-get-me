@@ -1,6 +1,14 @@
 #include "tui/components/paths_menu.hpp"
 
+#include <memory>
+#include <string>
+#include <vector>
+
 #include <ftxui/component/component.hpp>
+#include <ftxui/component/component_base.hpp>
+#include <ftxui/dom/elements.hpp>
+
+#include "ftxui/dom/elements.hpp"
 
 class PathsComponent : public ftxui::ComponentBase {
 public:

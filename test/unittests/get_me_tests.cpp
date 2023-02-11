@@ -1,35 +1,39 @@
 #include "get_me_tests.hpp"
 
 #include <functional>
-#include <iterator>
 #include <memory>
+#include <set>
 #include <source_location>
 #include <string>
 #include <string_view>
+#include <tuple>
+#include <utility>
 #include <vector>
 
+#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
+#include <fmt/core.h>
 #include <fmt/format.h>
+#include <fmt/ranges.h>
 #include <get_me/formatting.hpp>
 #include <get_me/graph.hpp>
 #include <get_me/tooling.hpp>
-#include <llvm/ADT/StringRef.h>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/algorithm/permutation.hpp>
-#include <range/v3/algorithm/set_algorithm.hpp>
-#include <range/v3/algorithm/sort.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
-#include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
+#include "get_me/path_traversal.hpp"
+#include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
+#include "support/ranges/projections.hpp"
 
 namespace {
 [[nodiscard]] std::string toString(const std::source_location &Loc) {

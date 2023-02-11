@@ -1,11 +1,17 @@
 #include "tui/components/config_editor.hpp"
 
+#include <memory>
+
 #include <fmt/format.h>
 #include <ftxui/component/component.hpp>
+#include <ftxui/component/component_base.hpp>
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/util/ref.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/transform.hpp>
 
+#include "get_me/config.hpp"
 #include "tui/components/boolean_toggle.hpp"
 #include "tui/components/size_t_input.hpp"
 

@@ -1,45 +1,37 @@
 #include "get_me/graph.hpp"
 
-#include <deque>
-#include <exception>
-#include <functional>
 #include <iterator>
-#include <string>
-#include <type_traits>
+#include <set>
 #include <utility>
+#include <vector>
 
-#include <boost/algorithm/string/erase.hpp>
-#include <boost/algorithm/string/trim.hpp>
-#include <boost/container/flat_set.hpp>
-#include <clang/AST/Type.h>
 #include <fmt/core.h>
+#include <fmt/ranges.h>
 #include <range/v3/action/push_back.hpp>
 #include <range/v3/algorithm/all_of.hpp>
-#include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
-#include <range/v3/algorithm/find_if.hpp>
+#include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/fold_left.hpp>
 #include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/algorithm/transform.hpp>
 #include <range/v3/range/conversion.hpp>
-#include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
-#include <range/v3/view/for_each.hpp>
 #include <range/v3/view/indices.hpp>
+#include <range/v3/view/move.hpp>
 #include <range/v3/view/remove.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
-#include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
 #include "get_me/indexed_graph_sets.hpp"
+#include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/functional.hpp"
+#include "support/ranges/projections.hpp"
 
 bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,

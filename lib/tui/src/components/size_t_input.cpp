@@ -1,7 +1,13 @@
 #include "tui/components/size_t_input.hpp"
 
+#include <cstddef>
+#include <string>
+#include <string_view>
+
 #include <ctre.hpp>
-#include <fmt/format.h>
+#include <fmt/core.h>
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/component_base.hpp>
 
 namespace {
 void parser(std::size_t &Value, std::string_view Str) {

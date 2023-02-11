@@ -8,11 +8,12 @@
 
 #include <clang/AST/Decl.h>
 #include <clang/AST/Type.h>
+#include <fmt/core.h>
 #include <fmt/format.h>
-#include <fmt/ranges.h>
 
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
+#include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/variant.hpp"
 

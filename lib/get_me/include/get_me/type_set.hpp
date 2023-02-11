@@ -1,16 +1,12 @@
 #ifndef get_me_lib_get_me_include_get_me_type_set_hpp
 #define get_me_lib_get_me_include_get_me_type_set_hpp
 
-#include <compare>
-#include <functional>
-#include <set>
 #include <utility>
 #include <variant>
 
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/Type.h>
-#include <range/v3/algorithm/all_of.hpp>
 
 #include "get_me/config.hpp"
 

@@ -21,6 +21,7 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/os.h>
+#include <fmt/ranges.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/CommandLine.h>
@@ -49,6 +50,7 @@
 #include "get_me/query.hpp"
 #include "get_me/tooling.hpp"
 #include "get_me/transitions.hpp"
+#include "query_all/query_all.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/ranges.hpp"
 #include "tui/tui.hpp"

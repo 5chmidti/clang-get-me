@@ -1,22 +1,33 @@
-#include "get_me/propagate_inheritance.hpp"
+#include <functional>
+#include <utility>
+#include <vector>
 
 #include <boost/graph/breadth_first_search.hpp>
 #include <clang/AST/DeclCXX.h>
+#include <clang/AST/Type.h>
 #include <range/v3/action/reverse.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/not_fn.hpp>
+#include <range/v3/range/access.hpp>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/cache1.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/set_algorithm.hpp>
+#include <range/v3/view/transform.hpp>
 #include <range/v3/view/unique.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/graph.hpp"
+#include "get_me/indexed_graph_sets.hpp"
+#include "get_me/transitions.hpp"
+#include "get_me/type_set.hpp"
 #include "support/ranges/functional.hpp"
+#include "support/ranges/projections.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 

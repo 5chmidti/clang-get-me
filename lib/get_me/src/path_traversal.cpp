@@ -1,29 +1,25 @@
 #include "get_me/path_traversal.hpp"
 
-#include <algorithm>
 #include <compare>
-#include <cstddef>
 #include <functional>
-#include <initializer_list>
-#include <limits>
-#include <list>
-#include <memory>
 #include <set>
 #include <stack>
-#include <type_traits>
 #include <utility>
-#include <variant>
 #include <vector>
 
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/properties.hpp>
+#include <boost/property_map/property_map.hpp>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/permutation.hpp>
+#include <range/v3/functional/comparisons.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/filter.hpp>
-#include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"

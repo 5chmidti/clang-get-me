@@ -1,6 +1,10 @@
 #include <string>
 #include <vector>
 
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/component_base.hpp>
+#include <ftxui/component/component_options.hpp>
+
 #include "tui/components/boolean_toggle.hpp"
 
 namespace {

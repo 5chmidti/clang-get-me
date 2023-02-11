@@ -1,7 +1,9 @@
 #ifndef get_me_tool_include_tool_tui_fuzzy_search_state_hpp
 #define get_me_tool_include_tool_tui_fuzzy_search_state_hpp
 
+#include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <range/v3/algorithm/sort.hpp>

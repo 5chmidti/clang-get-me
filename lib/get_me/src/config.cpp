@@ -2,12 +2,14 @@
 
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <string>
 #include <system_error>
 
+#include <fmt/std.h>
+#include <llvm/Support/YAMLTraits.h>
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
-#include <spdlog/spdlog.h>
 
 #include "support/get_me_exception.hpp"
 
