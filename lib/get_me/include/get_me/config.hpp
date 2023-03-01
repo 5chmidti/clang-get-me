@@ -18,8 +18,12 @@ public:
   using BooleanMappingType = MappingType<bool Config::*>;
   using SizeTMappingType = MappingType<std::size_t Config::*>;
 
-  [[nodiscard]] static consteval std::pair<std::array<BooleanMappingType, 5>,
-                                           std::array<SizeTMappingType, 4>>
+  static constexpr std::size_t NumBooleanFlags = 5;
+  static constexpr std::size_t NumSizeTValues = 4;
+
+  [[nodiscard]] static consteval std::pair<
+      std::array<BooleanMappingType, NumBooleanFlags>,
+      std::array<SizeTMappingType, NumSizeTValues>>
   getConfigMapping() {
     constexpr auto BooleanMappings = std::array{
         BooleanMappingType{"EnableFilterOverloads",
