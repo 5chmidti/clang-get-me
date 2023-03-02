@@ -87,10 +87,11 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
   const auto SortedComponentMap = ComponentMap | ranges::views::enumerate |
                                   ranges::to_vector |
                                   ranges::actions::sort(std::less{}, Value);
-  return ranges::views::chunk_by(SortedComponentMap,
-                                 [](const auto &Lhs, const auto &Rhs) {
-                                   return Value(Lhs) == Value(Rhs);
-                                 }) |
+  const auto IsSameGroup = [](const auto &Lhs, const auto &Rhs) {
+    return Value(Lhs) == Value(Rhs);
+  };
+  return SortedComponentMap | ranges::views::chunk_by(IsSameGroup) |
+         ranges::views::cache1 |
          ranges::views::filter(Greater(1), ranges::size) |
          ranges::views::transform([&GraphData](const auto &ComponentGroup) {
            return ComponentGroup |
