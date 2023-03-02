@@ -3,15 +3,14 @@
 #include <cstddef>
 #include <filesystem>
 #include <memory>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/properties.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/ArgumentsAdjusters.h>
@@ -22,19 +21,17 @@
 #include <fmt/format.h>
 #include <fmt/os.h>
 #include <fmt/ranges.h>
-#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/algorithm/partial_sort.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
-#include <range/v3/view/concat.hpp>
 #include <range/v3/view/enumerate.hpp>
-#include <range/v3/view/single.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/view.hpp>
