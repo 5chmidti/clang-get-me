@@ -34,11 +34,9 @@ using TypeAliasingGroups = std::vector<TypeAliasingGroup>;
 
 class TypeAliasingGraphBuilder {
 public:
-  void visit(const clang::TypedefNameDecl *const Typedef) {
-    const auto *const AliasType = launderType(Typedef->getTypeForDecl());
-    const auto *const BaseType =
-        launderType(Typedef->getUnderlyingType().getTypePtr());
-    addEdge(DTDGraphData::EdgeType{addType(AliasType), addType(BaseType)});
+  void visit(const TypeAlias &Typedef) {
+    addEdge(
+        DTDGraphData::EdgeType{addType(Typedef.Alias), addType(Typedef.Base)});
   };
 
   [[nodiscard]] DTDGraphData getResult() {
@@ -71,13 +69,11 @@ private:
   indexed_set<DTDGraphData::EdgeType> Edges_{};
 };
 
-[[nodiscard]] TypeAliasingGroups createTypeAliasingGroups(
-    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls) {
+[[nodiscard]] TypeAliasingGroups
+createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
   auto Builder = TypeAliasingGraphBuilder{};
 
-  const auto Visitor = [&Builder](const auto *const Value) {
-    Builder.visit(Value);
-  };
+  const auto Visitor = [&Builder](const auto &Value) { Builder.visit(Value); };
 
   ranges::for_each(TypedefNameDecls, Visitor);
 
@@ -184,9 +180,8 @@ void mergeTransitions(TransitionCollector &Transitions,
 }
 } // namespace
 
-void propagateTypeAliasing(
-    TransitionCollector &Transitions,
-    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls) {
+void propagateTypeAliasing(TransitionCollector &Transitions,
+                           const std::vector<TypeAlias> &TypedefNameDecls) {
   const auto Groups = createTypeAliasingGroups(TypedefNameDecls);
 
   mergeTransitions(

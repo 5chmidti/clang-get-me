@@ -18,8 +18,7 @@ DTDGraphType createGraph(const DTDGraphData &Data) {
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
-    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls,
-    const Config &Conf) {
+    const std::vector<TypeAlias> &TypedefNameDecls, const Config &Conf) {
   if (Conf.EnablePropagateInheritance) {
     propagateInheritance(Transitions, CXXRecords);
   }

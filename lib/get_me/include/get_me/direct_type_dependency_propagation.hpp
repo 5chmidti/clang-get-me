@@ -12,6 +12,7 @@
 #include <range/v3/view/for_each.hpp>
 
 #include "get_me/graph.hpp"
+#include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 
@@ -43,7 +44,6 @@ template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
-    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls,
-    const Config &Conf);
+    const std::vector<TypeAlias> &TypedefNameDecls, const Config &Conf);
 
 #endif

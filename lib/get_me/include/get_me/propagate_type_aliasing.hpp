@@ -7,8 +7,12 @@
 
 #include "get_me/transitions.hpp"
 
-void propagateTypeAliasing(
-    TransitionCollector &Transitions,
-    const std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls);
+struct TypeAlias {
+  const clang::Type *Base;
+  const clang::Type *Alias;
+};
+
+void propagateTypeAliasing(TransitionCollector &Transitions,
+                           const std::vector<TypeAlias> &TypedefNameDecls);
 
 #endif

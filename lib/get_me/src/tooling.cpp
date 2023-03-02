@@ -39,6 +39,7 @@
 #include "get_me/config.hpp"
 #include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/formatting.hpp"
+#include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -187,7 +188,7 @@ class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
   GetMeVisitor(const Config &Configuration, TransitionCollector &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
-               std::vector<const clang::TypedefNameDecl *> &TypedefNameDeclsRef,
+               std::vector<TypeAlias> &TypedefNameDeclsRef,
                clang::Sema &SemaRef)
       : Conf_{Configuration},
         Transitions_{TransitionsRef},
@@ -311,18 +312,23 @@ public:
     if (NDecl->isTemplateDecl()) {
       return true;
     }
-    // FIXME: use this to explicitly create the type
-    assert(NDecl->getASTContext()
-               .getTypedefType(NDecl, NDecl->getUnderlyingType())
-               .getTypePtr());
-    if (NDecl->getTypeForDecl() == nullptr ||
+    // explicitly create the type even if it is not used
+    const auto *const AliasType =
+        launderType(NDecl->getASTContext()
+                        .getTypedefType(NDecl, NDecl->getUnderlyingType())
+                        .getTypePtr());
+    if (AliasType == nullptr ||
         NDecl->getUnderlyingType().getTypePtr() == nullptr) {
       return true;
     }
     if (hasReservedIdentifierNameOrType(NDecl)) {
       return true;
     }
-    TypedefNameDecls_.push_back(NDecl);
+
+    const auto *const BaseType =
+        launderType(NDecl->getUnderlyingType().getTypePtr());
+
+    TypedefNameDecls_.emplace_back(BaseType, AliasType);
     return true;
   }
 
@@ -335,13 +341,13 @@ private:
   const Config &Conf_;
   TransitionCollector &Transitions_;
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
-  std::vector<const clang::TypedefNameDecl *> &TypedefNameDecls_;
+  std::vector<TypeAlias> &TypedefNameDecls_;
   clang::Sema &Sema_;
 };
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
-  std::vector<const clang::TypedefNameDecl *> TypedefNameDecls{};
+  std::vector<TypeAlias> TypedefNameDecls{};
   GetMeVisitor Visitor{Conf_, *Transitions_, CXXRecords, TypedefNameDecls,
                        Sema_};
 
