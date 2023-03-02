@@ -20,6 +20,7 @@
 #include <get_me/formatting.hpp>
 #include <get_me/graph.hpp>
 #include <get_me/tooling.hpp>
+#include <oneapi/tbb/parallel_for_each.h>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
@@ -134,10 +135,8 @@ void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
             Transitions, fmt::format("{}", QueriedType), CurrentConfig));
   };
 
-  ranges::for_each(*Transitions |
-                       ranges::views::filter(ranges::empty, Element<1>) |
-                       ranges::views::transform(ToAcquired),
-                   Run);
+  tbb::parallel_for_each(*Transitions | ranges::views::transform(ToAcquired),
+                         Run);
   spdlog::disable_backtrace();
 }
 
