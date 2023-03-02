@@ -49,7 +49,7 @@ hasReservedIdentifierTypeOrReturnType(const T *const Decl)
 }
 
 template <typename T>
-[[nodiscard]] static bool hasReservedIdentifierNameOrType(const T *const Decl)
+[[nodiscard]] bool hasReservedIdentifierNameOrType(const T *const Decl)
   requires IsAnyOf<T, clang::FunctionDecl, clang::VarDecl, clang::FieldDecl,
                    clang::TypedefNameDecl> ||
            std::derived_from<T, clang::RecordDecl>
@@ -69,14 +69,14 @@ template <typename T>
 [[nodiscard]] bool
 isReturnTypeInParameterList(const clang::FunctionDecl *FDecl);
 
-[[nodiscard]] static bool containsAny(const std::string &Str,
-                                      ranges::range auto RangeOfNames) {
+[[nodiscard]] bool containsAny(const std::string &Str,
+                               ranges::range auto RangeOfNames) {
   return ranges::any_of(RangeOfNames, [&Str](const auto &Name) {
     return Str.find(Name) != std::string::npos;
   });
 }
 
-[[nodiscard]] static bool
+[[nodiscard]] bool
 hasAnyParameterOrReturnTypeWithName(const clang::FunctionDecl *const FDecl,
                                     ranges::forward_range auto RangeOfNames) {
   return containsAny(FDecl->getReturnType().getAsString(), RangeOfNames) ||
@@ -88,9 +88,8 @@ hasAnyParameterOrReturnTypeWithName(const clang::FunctionDecl *const FDecl,
              });
 }
 
-[[nodiscard]] static bool
-hasNameContainingAny(const clang::NamedDecl *const NDecl,
-                     ranges::range auto RangeOfNames) {
+[[nodiscard]] bool hasNameContainingAny(const clang::NamedDecl *const NDecl,
+                                        ranges::range auto RangeOfNames) {
   return containsAny(NDecl->getNameAsString(), RangeOfNames);
 }
 
