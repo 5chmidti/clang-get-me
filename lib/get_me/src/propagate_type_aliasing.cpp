@@ -109,9 +109,15 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
 }
 
 [[nodiscard]] StrippedTransitionsSet
-getTransitionsToPropagateForAcquired(TransitionCollector &Transitions,
+getTransitionsToPropagateForAcquired(const TransitionCollector &Transitions,
                                      const TypeAliasingGroup &Group) {
-  return Group | ranges::views::for_each(Lookup(Transitions)) |
+  return Group |
+         ranges::views::transform([&Transitions](const TypeSetValueType &Type) {
+           return Transitions.find(Type);
+         }) |
+         ranges::views::cache1 |
+         ranges::views::filter(NotEqualTo(Transitions.end())) |
+         ranges::views::indirect | ranges::views::values | ranges::views::join |
          ranges::to<StrippedTransitionsSet>;
 }
 
