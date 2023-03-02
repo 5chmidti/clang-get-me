@@ -48,9 +48,9 @@
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
 #include "get_me/query.hpp"
+#include "get_me/query_all.hpp"
 #include "get_me/tooling.hpp"
 #include "get_me/transitions.hpp"
-#include "query_all/query_all.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/ranges.hpp"
 #include "tui/tui.hpp"
@@ -59,14 +59,17 @@
 using namespace llvm::cl;
 
 static OptionCategory ToolCategory("get_me");
-static opt<std::string> TypeName("t", desc("Name of the type to get"), Required,
-                                 ValueRequired, cat(ToolCategory));
-static opt<std::string> ConfigPath("config", desc("Config file path"), Optional,
-                                   ValueRequired, cat(ToolCategory));
-static opt<bool> Verbose("v", desc("Verbose output"), Optional,
-                         cat(ToolCategory));
-static opt<bool> Interactive("i", desc("Run with interactive gui"), Optional,
-                             cat(ToolCategory));
+const static opt<std::string> TypeName("t", desc("Name of the type to get"),
+                                       ValueRequired, cat(ToolCategory));
+const static opt<std::string> ConfigPath("config", desc("Config file path"),
+                                         ValueRequired, cat(ToolCategory));
+const static opt<bool> Verbose("v", desc("Verbose output"), cat(ToolCategory));
+const static opt<bool> Interactive("i", desc("Run with interactive gui"),
+                                   cat(ToolCategory));
+const static opt<bool>
+    QueryAll("query-all",
+             desc("Query every type available (that has a transition)"),
+             cat(ToolCategory));
 // NOLINTEND
 
 namespace {
@@ -145,6 +148,11 @@ int main(int argc, const char **argv) {
 
   for (const auto &AST : ASTs) {
     collectTransitions(TypeSetTransitionData, *AST, Conf);
+  }
+
+  if (QueryAll) {
+    queryAll(TypeSetTransitionData, Conf);
+    return 0;
   }
 
   const auto &QueriedType = TypeName.getValue();

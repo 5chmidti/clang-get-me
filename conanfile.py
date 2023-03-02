@@ -37,5 +37,6 @@ class TemplateProject(ConanFile):
         "ftxui/3.0.0",
         "rapidfuzz/cci.20210513",
         "ctre/3.7.1",
+        "onetbb/2021.7.0",
     )
     generators = "cmake_find_package"

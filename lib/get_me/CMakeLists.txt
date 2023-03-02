@@ -9,6 +9,7 @@ target_sources(
           src/propagate_inheritance.cpp
           src/propagate_type_aliasing.cpp
           src/query.cpp
+          src/query_all.cpp
           src/tooling.cpp
           src/tooling_filters.cpp
           src/type_set.cpp)
@@ -20,6 +21,7 @@ target_include_directories(get_me_lib
 target_link_libraries(get_me_lib PUBLIC project_libraries project_options)
 target_link_libraries(get_me_lib PUBLIC get_me_support)
 target_link_libraries(get_me_lib PUBLIC Boost::graph)
+target_link_libraries(get_me_lib PUBLIC TBB::tbb)
 target_link_libraries(
   get_me_lib
   PUBLIC LLVMSupport
