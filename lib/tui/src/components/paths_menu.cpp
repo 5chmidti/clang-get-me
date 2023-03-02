@@ -8,8 +8,6 @@
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/dom/elements.hpp>
 
-#include "ftxui/dom/elements.hpp"
-
 class PathsComponent : public ftxui::ComponentBase {
 public:
   explicit PathsComponent(std::vector<std::string> *const Paths)
