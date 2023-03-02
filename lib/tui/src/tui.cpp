@@ -151,6 +151,7 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
       TabToggle,
       Tabs,
   });
+  // NOLINTNEXTLINE(performance-unnecessary-value-param)
   const auto EventCallback = [&Screen, &CollectionState](ftxui::Event Event) {
     if (Event.character() == "q") {
       Screen.ExitLoopClosure()();
