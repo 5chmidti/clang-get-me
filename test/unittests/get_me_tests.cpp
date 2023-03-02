@@ -36,8 +36,10 @@
 #include "support/ranges/projections.hpp"
 
 namespace {
+constexpr auto BacktraceSize = 1024U;
+
 [[nodiscard]] std::string toString(const std::source_location &Loc) {
-  return fmt::format("Test location ({}:{}:{})", Loc.file_name(), Loc.line(),
+  return fmt::format("Source: {}:{}:{}", Loc.file_name(), Loc.line(),
                      Loc.column());
 }
 
@@ -65,6 +67,7 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
 }
 } // namespace
 
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define LOG_LOC(Loc)                                                           \
   spdlog::trace(toString(Loc));                                                \
   INFO(toString(Loc));
@@ -80,11 +83,13 @@ void testSuccess(const std::string_view Code,
                  const std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
                  const Config &CurrentConfig, const std::source_location Loc) {
+  spdlog::enable_backtrace(BacktraceSize);
   LOG_LOC(Loc);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
   verify(true, FoundPathsAsString, ExpectedPaths);
+  spdlog::disable_backtrace();
 }
 
 void testFailure(const std::string_view Code,
@@ -92,6 +97,7 @@ void testFailure(const std::string_view Code,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
                  const Config &CurrentConfig, const std::source_location Loc) {
   LOG_LOC(Loc);
+  spdlog::enable_backtrace(BacktraceSize);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
@@ -101,11 +107,15 @@ void testFailure(const std::string_view Code,
 void testNoThrow(const std::string_view Code,
                  const std::string_view QueriedType,
                  const Config &CurrentConfig, const std::source_location Loc) {
-  const auto Test = [&Loc, &Code, &QueriedType, &CurrentConfig]() {
+  spdlog::enable_backtrace(BacktraceSize);
+  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+  spdlog::disable_backtrace();
+  const auto Test = [&Loc, &Transitions, &QueriedType, &CurrentConfig]() {
+    spdlog::enable_backtrace(BacktraceSize);
     LOG_LOC(Loc);
-    const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
     std::ignore =
         buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+    spdlog::disable_backtrace();
   };
 
   REQUIRE_NOTHROW(Test());
@@ -113,24 +123,22 @@ void testNoThrow(const std::string_view Code,
 
 void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
                   const std::source_location Loc) {
+  spdlog::enable_backtrace(BacktraceSize);
   LOG_LOC(Loc);
 
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
 
   const auto Run = [&Transitions, &CurrentConfig](const auto &QueriedType) {
-    const auto RunImpl = [&Transitions, &CurrentConfig,
-                          QueriedType = fmt::format("{}", QueriedType)]() {
-      std::ignore =
-          buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
-    };
-
-    REQUIRE_NOTHROW(RunImpl());
+    REQUIRE_NOTHROW(
+        std::ignore = buildGraphAndFindPaths(
+            Transitions, fmt::format("{}", QueriedType), CurrentConfig));
   };
 
   ranges::for_each(*Transitions |
                        ranges::views::filter(ranges::empty, Element<1>) |
                        ranges::views::transform(ToAcquired),
                    Run);
+  spdlog::disable_backtrace();
 }
 
 std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionCollector>>
