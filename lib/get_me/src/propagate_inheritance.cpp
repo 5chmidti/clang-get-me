@@ -22,10 +22,12 @@
 #include <range/v3/view/unique.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
+#include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
+#include "support/get_me_exception.hpp"
 #include "support/ranges/functional.hpp"
 #include "support/ranges/projections.hpp"
 #include "support/ranges/ranges.hpp"
@@ -133,7 +135,7 @@ class InheritanceGraphBuilder {
 public:
   void visit(const clang::CXXRecordDecl *const Record) {
     const auto RecordIndex = addType(launderType(Record->getTypeForDecl()));
-    visitCXXRecordDeclImpl(Record, RecordIndex);
+    visitCXXRecordDecl(Record, RecordIndex);
   }
 
   [[nodiscard]] DTDGraphData getResult() {
@@ -153,8 +155,11 @@ private:
     return BaseVertexIndex;
   }
 
-  void visitCXXRecordDeclImpl(const clang::CXXRecordDecl *const Derived,
-                              const VertexDescriptor DerivedIndex) {
+  void visitCXXRecordDecl(const clang::CXXRecordDecl *const Derived,
+                          const VertexDescriptor DerivedIndex) {
+    if (Derived == nullptr) {
+      return;
+    }
     ranges::for_each(
         Derived->bases(),
         [this, DerivedIndex](const clang::CXXBaseSpecifier &BaseSpec) {
@@ -162,8 +167,7 @@ private:
           const auto BaseVertexIndex = addType(launderType(QType.getTypePtr()));
 
           if (addEdge(DTDGraphData::EdgeType{BaseVertexIndex, DerivedIndex})) {
-            visitCXXRecordDeclImpl(QType->getAsCXXRecordDecl(),
-                                   BaseVertexIndex);
+            visitCXXRecordDecl(QType->getAsCXXRecordDecl(), BaseVertexIndex);
           }
         });
   }
@@ -188,6 +192,7 @@ private:
   auto Builder = InheritanceGraphBuilder{};
 
   const auto Visitor = [&Builder](const auto *const Value) {
+    GetMeException::verify(Value != nullptr, "starts with nullptr");
     Builder.visit(Value);
   };
 
