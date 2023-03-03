@@ -32,6 +32,7 @@
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/enumerate.hpp>
+#include <range/v3/view/indirect.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/view.hpp>
@@ -143,9 +144,9 @@ int main(int argc, const char **argv) {
   const auto BuildASTsResult = Tool.buildASTs(ASTs);
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
-  for (const auto &AST : ASTs) {
-    collectTransitions(TypeSetTransitionData, *AST, Conf);
-  }
+  ranges::for_each(ASTs | ranges::views::indirect, [&](auto &AST) {
+    ::collectTransitions(TypeSetTransitionData, AST, Conf);
+  });
 
   if (QueryAll) {
     queryAll(TypeSetTransitionData, Conf);
