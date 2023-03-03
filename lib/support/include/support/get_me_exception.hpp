@@ -25,8 +25,8 @@ public:
   [[nodiscard]] const char *what() const noexcept final { return ""; }
 
   template <typename... Ts>
-  static void verify(const bool Condition,
-                     const std::string_view FormatString = "", Ts &&...Args) {
+  static void verify(const bool Condition, const std::string_view FormatString,
+                     Ts &&...Args) {
     if (!Condition) {
       fail(FormatString, std::forward<Ts>(Args)...);
     }
