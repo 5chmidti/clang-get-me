@@ -93,12 +93,8 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
   return SortedComponentMap | ranges::views::chunk_by(IsSameGroup) |
          ranges::views::cache1 |
          ranges::views::filter(Greater(1), ranges::size) |
-         ranges::views::transform([&GraphData](const auto &ComponentGroup) {
-           return ComponentGroup |
-                  ranges::views::transform(
-                      Lookup(GraphData.VertexData, Index)) |
-                  ranges::to<TypeAliasingGroup>;
-         }) |
+         ranges::views::transform(
+             ranges::views::transform(Lookup(GraphData.VertexData, Index))) |
          ranges::to<TypeAliasingGroups>;
 }
 
