@@ -71,7 +71,7 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define LOG_LOC(Loc)                                                           \
   spdlog::trace(toString(Loc));                                                \
-  INFO(toString(Loc));
+  INFO(toString(Loc))
 
 void test(const std::string_view Code, const std::string_view QueriedType,
           const std::set<std::string, std::less<>> &ExpectedPaths,
