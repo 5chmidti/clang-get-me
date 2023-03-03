@@ -8,7 +8,9 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/screen_interactive.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/view/enumerate.hpp>
+#include <range/v3/view/indirect.hpp>
 
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
@@ -67,9 +69,9 @@ private:
     const auto BuildASTsResult = Tool_.buildASTs(ASTs_);
     GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
-    for (const auto &AST : ASTs_) {
-      ::collectTransitions(Transitions_, *AST, Conf_);
-    }
+    ranges::for_each(ASTs_ | ranges::views::indirect, [this](auto &AST) {
+      ::collectTransitions(Transitions_, AST, Conf_);
+    });
   }
 
   Config &Conf_;
