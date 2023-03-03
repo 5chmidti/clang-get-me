@@ -7,7 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/algorithm/string/replace.hpp>
 #include <boost/container/flat_set.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/properties.hpp>
@@ -28,14 +27,11 @@
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/partial_sort.hpp>
-#include <range/v3/range/access.hpp>
-#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/indirect.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
-#include <range/v3/view/view.hpp>
 #include <spdlog/cfg/env.h>
 #include <spdlog/common.h>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -69,33 +65,6 @@ const static opt<bool>
              desc("Query every type available (that has a transition)"),
              cat(ToolCategory));
 // NOLINTEND
-
-namespace {
-void dumpToDotFile(const GraphData &Data) {
-  const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
-
-  auto DotFile = fmt::output_file("graph.dot");
-  DotFile.print("digraph D {{\n  layout = \"sfdp\";\n");
-
-  for (const auto &Edge : toRange(boost::edges(Data.Graph))) {
-    const auto SourceNode = Source(Edge);
-    const auto TargetNode = Target(Edge);
-
-    const auto Transition =
-        ToTransition(Data.EdgeWeights[boost::get(IndexMap, Edge)]);
-    const auto TargetVertex = Data.VertexData[TargetNode];
-    const auto SourceVertex = Data.VertexData[SourceNode];
-
-    auto EdgeWeightAsString = fmt::format("{}", Transition);
-    boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
-    DotFile.print(
-        R"(  "{}" -> "{}"[label="{}"]
-)",
-        SourceVertex, TargetVertex, EdgeWeightAsString);
-  }
-  DotFile.print("}}\n");
-}
-} // namespace
 
 int main(int argc, const char **argv) {
   llvm::sys::PrintStackTraceOnErrorSignal(argv[0]);
@@ -163,7 +132,8 @@ int main(int argc, const char **argv) {
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
-  dumpToDotFile(Data);
+  auto DotFile = fmt::output_file("graph.dot");
+  DotFile.print("{:d}", Data);
 
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
