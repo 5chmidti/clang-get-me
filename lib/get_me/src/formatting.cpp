@@ -118,11 +118,10 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
 }
 
 std::vector<std::string> toString(const std::vector<PathType> &Paths,
-                                  const GraphType &Graph,
                                   const GraphData &Data) {
-  const auto FormatPath = [&Graph, &Data](const PathType &Path) {
+  const auto FormatPath = [&Data](const PathType &Path) {
     const auto GetTransition =
-        [&Data, IndexMap = boost::get(boost::edge_index, Graph)](
+        [&Data, IndexMap = boost::get(boost::edge_index, Data.Graph)](
             const EdgeDescriptor &Edge) {
           return Data.EdgeWeights[boost::get(IndexMap, Edge)];
         };

@@ -32,8 +32,7 @@ getTransitionRequiredTypeNames(const TransitionDataType &Data);
 [[nodiscard]] std::string toString(const clang::Type *Type);
 [[nodiscard]] std::string toString(const clang::NamedDecl *NDecl);
 [[nodiscard]] std::vector<std::string>
-toString(const std::vector<PathType> &Paths, const GraphType &Graph,
-         const GraphData &Data);
+toString(const std::vector<PathType> &Paths, const GraphData &Data);
 
 template <> struct fmt::formatter<EdgeDescriptor> {
   template <typename FormatContext>

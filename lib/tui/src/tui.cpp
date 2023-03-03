@@ -97,14 +97,12 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
     const auto Query =
         QueryType{CollectionState.getTransitionsPtr(), QueriedName, Conf};
     // workaround for lmdba captures in clang
-    const auto GraphAndData = createGraph(Query);
-    const auto &Graph = GraphAndData.first;
-    const auto &Data = GraphAndData.second;
+    const auto Data = createGraph(Query);
 
     const auto SourceVertexDesc =
         getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
     const auto Paths =
-        pathTraversal(Graph, Data, Conf, SourceVertexDesc) |
+        pathTraversal(Data, Conf, SourceVertexDesc) |
         ranges::actions::sort([&Data](const PathType &Lhs,
                                       const PathType &Rhs) {
           if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
@@ -116,7 +114,7 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
           return Data.VertexData[Target(Lhs.back())].size() <
                  Data.VertexData[Target(Rhs.back())].size();
         });
-    const auto IndexMap = boost::get(boost::edge_index, Graph);
+    const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
     PathsStr =
         Paths | ranges::views::enumerate |
         ranges::views::transform([&Data, &IndexMap](const auto IndexedPath) {

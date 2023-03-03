@@ -48,17 +48,17 @@ private:
   };
 
 public:
-  PathFinder(const GraphType &Graph, const GraphData &Data, const Config &Conf,
+  PathFinder(const GraphData &Data, const Config &Conf,
              const VertexDescriptor SourceVertex)
-      : Graph_(Graph),
-        Data_(Data),
+      : Data_(Data),
         Conf_(Conf),
         SourceVertex_(SourceVertex),
         State_{SourceVertex},
-        Paths_{IsPermutationComparator{Graph_, Data_}} {}
+        Paths_{IsPermutationComparator{Data_}} {}
 
   void operator()() {
-    ranges::for_each(toRange(out_edges(SourceVertex_, Graph_)), addToStack());
+    ranges::for_each(toRange(out_edges(SourceVertex_, Data_.Graph)),
+                     addToStack());
 
     const auto IsValidPath = createIsValidPathPredicate(Conf_);
     const auto ContinuePathSearch =
@@ -69,7 +69,7 @@ public:
       EdgesStack_.pop();
 
       State_.rollbackPathIfRequired(Source(Edge));
-      State_.setCurrentVertex(target(Edge, Graph_));
+      State_.setCurrentVertex(target(Edge, Data_.Graph));
       State_.addEdge(Edge);
 
       if (!IsValidPath(State_.getCurrentPath())) {
@@ -92,17 +92,16 @@ private:
 
   class IsPermutationComparator {
   public:
-    IsPermutationComparator(const GraphType &Graph, const GraphData &Data)
-        : Graph_(Graph),
-          Data_(Data) {}
+    explicit IsPermutationComparator(const GraphData &Data)
+        : Data_(Data) {}
 
     [[nodiscard]] bool operator()(const PathType &Lhs,
                                   const PathType &Rhs) const {
       if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
         return std::is_lt(Comp);
       }
-      const auto ToEdgeWeight = [this,
-                                 IndexMap = get(boost::edge_index, Graph_)](
+      const auto ToEdgeWeight = [this, IndexMap =
+                                           get(boost::edge_index, Data_.Graph)](
                                     const EdgeDescriptor &Edge) {
         return Data_.EdgeWeights[get(IndexMap, Edge)];
       };
@@ -111,7 +110,6 @@ private:
     }
 
   private:
-    const GraphType &Graph_;
     const GraphData &Data_;
   };
 
@@ -171,7 +169,7 @@ private:
     };
     const auto VertexToAdd = State_.getCurrentVertex();
     auto FilteredOutEdges =
-        toRange(out_edges(VertexToAdd, Graph_)) |
+        toRange(out_edges(VertexToAdd, Data_.Graph)) |
         ranges::views::filter(State_.currentPathContainsVertex(), Target) |
         ranges::to_vector;
     if (ranges::empty(FilteredOutEdges)) {
@@ -183,7 +181,6 @@ private:
     return true;
   }
 
-  const GraphType &Graph_;
   const GraphData &Data_;
   const Config &Conf_;
   VertexDescriptor SourceVertex_{};
@@ -193,10 +190,9 @@ private:
   std::set<PathType, IsPermutationComparator> Paths_;
 };
 
-std::vector<PathType> pathTraversal(const GraphType &Graph,
-                                    const GraphData &Data, const Config &Conf,
+std::vector<PathType> pathTraversal(const GraphData &Data, const Config &Conf,
                                     const VertexDescriptor SourceVertex) {
-  auto Finder = PathFinder{Graph, Data, Conf, SourceVertex};
+  auto Finder = PathFinder{Data, Conf, SourceVertex};
   Finder();
   return Finder.commit();
 }

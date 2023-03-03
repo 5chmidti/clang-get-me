@@ -71,13 +71,13 @@ const static opt<bool>
 // NOLINTEND
 
 namespace {
-void dumpToDotFile(const GraphType &Graph, const GraphData &Data) {
-  const auto IndexMap = boost::get(boost::edge_index, Graph);
+void dumpToDotFile(const GraphData &Data) {
+  const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
 
   auto DotFile = fmt::output_file("graph.dot");
   DotFile.print("digraph D {{\n  layout = \"sfdp\";\n");
 
-  for (const auto &Edge : toRange(boost::edges(Graph))) {
+  for (const auto &Edge : toRange(boost::edges(Data.Graph))) {
     const auto SourceNode = Source(Edge);
     const auto TargetNode = Target(Edge);
 
@@ -157,20 +157,17 @@ int main(int argc, const char **argv) {
   const auto Query =
       QueryType{std::move(TypeSetTransitionData), QueriedType, Conf};
 
-  // workaround for lmdba captures in clang
-  const auto GraphAndData = createGraph(Query);
-  const auto &Graph = GraphAndData.first;
-  const auto &Data = GraphAndData.second;
-  const auto IndexMap = boost::get(boost::edge_index, Graph);
+  const auto Data = createGraph(Query);
+  const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
 
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
-  dumpToDotFile(Graph, Data);
+  dumpToDotFile(Data);
 
   const auto SourceVertexDesc =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-  auto Paths = pathTraversal(Graph, Data, Conf, SourceVertexDesc);
+  auto Paths = pathTraversal(Data, Conf, SourceVertexDesc);
   spdlog::info(
       "path length distribution: {}",
       Paths |

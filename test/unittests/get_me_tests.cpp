@@ -154,7 +154,7 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const Config &CurrentConfig) {
   const auto Query =
       QueryType{Transitions, std::string{QueriedType}, CurrentConfig};
-  const auto [Graph, Data] = createGraph(Query);
+  const auto Data = createGraph(Query);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   const auto VertexDataSize = Data.VertexData.size();
@@ -167,8 +167,6 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
     return {};
   }
 
-  const auto FoundPaths =
-      pathTraversal(Graph, Data, CurrentConfig, SourceVertex);
-
-  return toString(FoundPaths, Graph, Data) | ranges::to<std::set>;
+  return toString(pathTraversal(Data, CurrentConfig, SourceVertex), Data) |
+         ranges::to<std::set>;
 }

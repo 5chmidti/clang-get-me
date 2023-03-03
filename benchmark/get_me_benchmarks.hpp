@@ -23,12 +23,12 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
       static_cast<double>(TypeSetTransitionData->size());
   const auto Query =
       QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString, Conf};
-  const auto [Graph, Data] = createGraph(Query);
+  const auto Data = createGraph(Query);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
-  const auto FoundPaths = pathTraversal(Graph, Data, Conf, SourceVertex);
+  const auto FoundPaths = pathTraversal(Data, Conf, SourceVertex);
   State.counters["paths"] = static_cast<double>(FoundPaths.size());
 }
 
@@ -46,10 +46,10 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   const auto Query =                                                           \
       QueryType{TypeSetTransitionData, QueriedTypeAsString, Conf};
 
-#define BENCHMARK_GRAPH const auto [Graph, Data] = createGraph(Query);
+#define BENCHMARK_GRAPH const auto Data = createGraph(Query);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
-  const auto FoundPaths = pathTraversal(Graph, Data, Conf, SourceVertex);
+  const auto FoundPaths = pathTraversal(Data, Conf, SourceVertex);
 
 #define BENCHMARK_GET_SOURCE_VERTEX                                            \
   const auto SourceVertex =                                                    \
@@ -62,7 +62,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_BODY_GRAPH                                                   \
   BENCHMARK_GRAPH                                                              \
-  benchmark::DoNotOptimize(Graph);                                             \
+  benchmark::DoNotOptimize(Data.Graph);                                        \
   benchmark::DoNotOptimize(Data.VertexData.data());                            \
   benchmark::DoNotOptimize(Data.Edges.data());                                 \
   benchmark::DoNotOptimize(Data.EdgeIndices.data());                           \

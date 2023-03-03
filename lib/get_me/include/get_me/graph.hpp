@@ -13,6 +13,7 @@
 #include <boost/graph/graph_traits.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/pending/property.hpp>
+#include <range/v3/view/indices.hpp>
 
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/query.hpp"
@@ -49,16 +50,29 @@ struct GraphData {
   using VertexDataType = TypeSet;
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
-  // edges
-  std::vector<EdgeType> Edges{};
-
-  // index property of an edge, allows mapping other properties (e.g. weight)
-  std::vector<size_t> EdgeIndices{};
-  // all possible edge weights
-  std::vector<EdgeWeightType> EdgeWeights{};
+  GraphData(std::vector<VertexDataType> VertexData, std::vector<EdgeType> Edges,
+            std::vector<EdgeWeightType> EdgeWeights)
+      : VertexData{std::move(VertexData)},
+        Edges{std::move(Edges)},
+        EdgeIndices{ranges::views::indices(this->Edges.size()) |
+                    ranges::to_vector},
+        EdgeWeights{std::move(EdgeWeights)},
+        Graph{this->Edges.data(), this->Edges.data() + this->Edges.size(),
+              this->EdgeIndices.data(), this->EdgeIndices.size()} {}
 
   // vertices
-  std::vector<VertexDataType> VertexData{};
+  std::vector<VertexDataType> VertexData;
+
+  // edges
+  std::vector<EdgeType> Edges;
+
+  // index property of an edge, allows mapping other properties (e.g. weight)
+  std::vector<size_t> EdgeIndices;
+  // all possible edge weights
+  std::vector<EdgeWeightType> EdgeWeights;
+
+  // graph
+  GraphType Graph;
 };
 
 inline constexpr auto Source = []<typename T>(const T &Edge)
@@ -103,7 +117,7 @@ public:
   [[nodiscard]] bool buildStepFor(const VertexType &InterestingVertex);
   [[nodiscard]] bool buildStepFor(VertexSet InterestingVertices);
 
-  [[nodiscard]] std::pair<GraphType, GraphData> commit();
+  [[nodiscard]] GraphData commit();
 
 private:
   struct StepState {
@@ -159,8 +173,7 @@ private:
   StepState CurrentState_{};
 };
 
-[[nodiscard]] std::pair<GraphType, GraphData>
-createGraph(const QueryType &Query);
+[[nodiscard]] GraphData createGraph(const QueryType &Query);
 
 [[nodiscard]] TransitionCollector
 getTypeSetTransitionData(const TransitionCollector &Collector);

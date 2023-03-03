@@ -140,19 +140,13 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
       });
 }
 
-std::pair<GraphType, GraphData> GraphBuilder::commit() {
-  GraphData Data{};
-  Data.VertexData = getIndexedSetSortedByIndex(std::move(VertexData_));
-  Data.Edges = getIndexedSetSortedByIndex(std::move(EdgesData_));
-  Data.EdgeIndices =
-      ranges::views::indices(Data.Edges.size()) | ranges::to_vector;
-  Data.EdgeWeights = std::move(EdgeWeights_);
-  return {GraphType(Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
-                    Data.EdgeIndices.data(), Data.EdgeIndices.size()),
-          std::move(Data)};
+GraphData GraphBuilder::commit() {
+  return {getIndexedSetSortedByIndex(std::move(VertexData_)),
+          getIndexedSetSortedByIndex(std::move(EdgesData_)),
+          std::move(EdgeWeights_)};
 }
 
-std::pair<GraphType, GraphData> createGraph(const QueryType &Query) {
+GraphData createGraph(const QueryType &Query) {
   auto Builder = GraphBuilder{Query};
   Builder.build();
   return Builder.commit();

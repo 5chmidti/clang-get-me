@@ -34,7 +34,7 @@ void buildGraphAndFindPaths(std::shared_ptr<TransitionCollector> Transitions,
                             const Config &Conf) {
   const auto Query =
       QueryType{std::move(Transitions), std::string{QueriedType}, Conf};
-  const auto [Graph, Data] = createGraph(Query);
+  const auto Data = createGraph(Query);
   const auto SourceVertex =
       getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
   const auto VertexDataSize = Data.VertexData.size();
@@ -51,7 +51,7 @@ void buildGraphAndFindPaths(std::shared_ptr<TransitionCollector> Transitions,
     return;
   }
 
-  std::ignore = pathTraversal(Graph, Data, Conf, SourceVertex);
+  std::ignore = pathTraversal(Data, Conf, SourceVertex);
 }
 } // namespace
 
