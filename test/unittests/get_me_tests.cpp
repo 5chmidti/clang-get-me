@@ -163,8 +163,6 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
 
   // return instead of requires because querying all might query a type with no
   // edges/transitions that acquire it
-  // FIXME: TransitionCollector should not contain entries with an empty set of
-  // transitions for an acquired type
   if (Data.Edges.empty()) {
     return {};
   }
