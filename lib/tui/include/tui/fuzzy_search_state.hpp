@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/sort.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/move.hpp>
@@ -26,8 +27,7 @@ public:
           return std::pair{SearchListElement,
                            rapidfuzz::fuzz::ratio(Query, SearchListElement)};
         }) |
-        ranges::to_vector;
-    ranges::sort(ScoredValues, std::greater{}, Element<1>);
+        ranges::to_vector | ranges::actions::sort(std::greater{}, Element<1>);
     Values_ = ScoredValues | ranges::views::move |
               ranges::views::transform(Element<0>) | ranges::to_vector;
   }
