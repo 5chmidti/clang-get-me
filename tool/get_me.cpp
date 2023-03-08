@@ -113,9 +113,10 @@ int main(int argc, const char **argv) {
   const auto BuildASTsResult = Tool.buildASTs(ASTs);
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
-  ranges::for_each(ASTs | ranges::views::indirect, [&](auto &AST) {
-    ::collectTransitions(TypeSetTransitionData, AST, Conf);
-  });
+  ranges::for_each(ASTs | ranges::views::indirect,
+                   [&TypeSetTransitionData, &Conf](auto &AST) {
+                     ::collectTransitions(TypeSetTransitionData, AST, Conf);
+                   });
 
   if (QueryAll) {
     queryAll(TypeSetTransitionData, Conf);
