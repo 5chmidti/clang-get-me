@@ -126,10 +126,21 @@ struct B : public A {
 }
 
 TEST_CASE("templates") {
-  test(R"(
+  testFailure(R"(
+  struct B {};
   template <typename T>
-  struct A {};
+  struct A {
+    A() = default;
+    B getB();
+  };
   A<int> getA();
   )",
-       "A<int>", {"(A<int>, A<int> getA(), {})"});
+              "A<int>", {"(A<int>, A A(), {})", "(A<int>, A<int> getA(), {})"});
+
+  testFailure(R"(
+  template <typename T>
+  struct A { A() = default; };
+  A<int> getA();
+  )",
+              "A<int>", {"(A<int>, A A(), {})", "(A<int>, A<int> getA(), {})"});
 }
