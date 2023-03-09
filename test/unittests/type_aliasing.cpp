@@ -65,4 +65,120 @@ TEST_CASE("propagate type aliasing") {
            "(C, C getC(B), {B}), (B, A A(), {})",
        },
        PropagateTypeAliasConfig);
+
+  test(R"(
+  struct A {};
+  using B = A;
+  using C = A;
+  using D = B;
+  B getB();
+  )",
+       "B",
+       {
+           "(B, A A(), {})",
+           "(B, B getB(), {})",
+       },
+       PropagateTypeAliasConfig);
+
+  test(R"(
+  struct A {};
+  using B = A;
+  using C = A;
+  using D = B;
+  B getB();
+  )",
+       "C",
+       {
+           "(C, A A(), {})",
+           "(C, B getB(), {})",
+       },
+       PropagateTypeAliasConfig);
+
+  test(R"(
+  struct A {};
+  using B = A;
+  using D = A;
+  using E = D;
+  struct C {};
+  C getC(B);
+  )",
+       "C",
+       {
+           "(C, C C(), {})",
+           "(C, C getC(B), {A}), (A, A A(), {})",
+           "(C, C getC(B), {B}), (B, A A(), {})",
+           "(C, C getC(B), {D}), (D, A A(), {})",
+           "(C, C getC(B), {E}), (E, A A(), {})",
+       },
+       PropagateTypeAliasConfig);
+}
+
+TEST_CASE("propagate type aliasing with member aliases") {
+  test(R"(
+       struct A {};
+       struct B {
+            using Other = A;
+       };
+    )",
+       "A", {"(A, A A(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       struct B {
+            using Other = A;
+       };
+    )",
+       "B::Other", {"(B::Other, A A(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       struct B : public A {
+            using Base = A;
+       };
+    )",
+       "A", {"(A, A A(), {})", "(A, B B(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       struct B : public A {
+            using Base = A;
+       };
+    )",
+       "B::Base", {"(B::Base, A A(), {})", "(B::Base, B B(), {})"},
+       PropagateTypeAliasConfig);
+
+  testFailure(R"(
+       template <typename T>
+       struct A {};
+       struct B {
+            using Other = A<int>;
+       };
+    )",
+              "A<int>", {"(A, A A(), {})"}, PropagateTypeAliasConfig);
+
+  testFailure(R"(
+       template <typename T>
+       struct A {};
+       struct B {
+            using Other = A<int>;
+       };
+    )",
+              "B::Other", {"(B::Other, A A(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       struct B : public A {
+            using Base = A;
+       };
+    )",
+       "A", {"(A, A A(), {})", "(A, B B(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       struct B : public A {
+            using Base = A;
+       };
+    )",
+       "B::Base", {"(B::Base, A A(), {})", "(B::Base, B B(), {})"},
+       PropagateTypeAliasConfig);
 }
