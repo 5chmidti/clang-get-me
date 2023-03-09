@@ -17,13 +17,11 @@
 inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
                           const std::string &QueriedTypeAsString) {
   const auto Conf = Config{};
-  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
-  collectTransitions(TypeSetTransitionData, Ast, Conf);
-  State.counters["transitions"] =
-      static_cast<double>(TypeSetTransitionData->size());
-  const auto Query =
-      getQueriedTypeForInput(*TypeSetTransitionData, QueriedTypeAsString);
-  const auto Data = createGraph(*TypeSetTransitionData, Query, Conf);
+  auto Transitions = std::make_shared<TransitionCollector>();
+  collectTransitions(Transitions, Ast, Conf);
+  State.counters["transitions"] = static_cast<double>(Transitions->size());
+  const auto Query = getQueriedTypeForInput(*Transitions, QueriedTypeAsString);
+  const auto Data = createGraph(*Transitions, Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
@@ -40,13 +38,13 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   setupCounters(State, *Ast, QueriedTypeAsString);
 
 #define BENCHMARK_TRANSITIONS                                                  \
-  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();        \
-  collectTransitions(TypeSetTransitionData, *Ast, Conf);
+  auto Transitions = std::make_shared<TransitionCollector>();                  \
+  collectTransitions(Transitions, *Ast, Conf);
 
 #define BENCHMARK_GRAPH                                                        \
   const auto Query =                                                           \
-      getQueriedTypeForInput(*TypeSetTransitionData, QueriedTypeAsString);     \
-  const auto Data = createGraph(*TypeSetTransitionData, Query, Conf);
+      getQueriedTypeForInput(*Transitions, QueriedTypeAsString);               \
+  const auto Data = createGraph(*Transitions, Query, Conf);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
   const auto FoundPaths = pathTraversal(Data, Conf, SourceVertex);
@@ -56,7 +54,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_BODY_TRANSITIONS                                             \
   BENCHMARK_TRANSITIONS                                                        \
-  benchmark::DoNotOptimize(TypeSetTransitionData->begin());                    \
+  benchmark::DoNotOptimize(Transitions->begin());                              \
   benchmark::ClobberMemory();
 
 #define BENCHMARK_BODY_GRAPH                                                   \

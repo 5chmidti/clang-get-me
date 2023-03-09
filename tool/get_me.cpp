@@ -108,26 +108,25 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
-  auto TypeSetTransitionData = std::make_shared<TransitionCollector>();
+  auto Transitions = std::make_shared<TransitionCollector>();
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
   const auto BuildASTsResult = Tool.buildASTs(ASTs);
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
   ranges::for_each(ASTs | ranges::views::indirect,
-                   [&TypeSetTransitionData, &Conf](auto &AST) {
-                     ::collectTransitions(TypeSetTransitionData, AST, Conf);
+                   [&Transitions, &Conf](auto &AST) {
+                     ::collectTransitions(Transitions, AST, Conf);
                    });
 
   if (QueryAll) {
-    queryAll(*TypeSetTransitionData, Conf);
+    queryAll(*Transitions, Conf);
     return 0;
   }
 
   const auto &QueriedType = TypeName.getValue();
-  const auto Query =
-      getQueriedTypeForInput(*TypeSetTransitionData, QueriedType);
+  const auto Query = getQueriedTypeForInput(*Transitions, QueriedType);
 
-  const auto Data = createGraph(*TypeSetTransitionData, Query, Conf);
+  const auto Data = createGraph(*Transitions, Query, Conf);
   const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
 
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),

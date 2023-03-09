@@ -178,9 +178,6 @@ private:
                                     const TypeSetValueType &Query,
                                     const Config &Conf);
 
-[[nodiscard]] TransitionCollector
-getTypeSetTransitionData(const TransitionCollector &Collector);
-
 [[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
                                    const TypeSetValueType &QueriedType);
