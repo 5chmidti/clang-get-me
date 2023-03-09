@@ -42,7 +42,6 @@ public:
           return fmt::format("{}", Acquired);
         }) |
         ranges::to_vector;
-    AcquiredTypeNames_.emplace_back("asdf");
   }
 
   [[nodiscard]] std::vector<std::string> &getAqcuiredTypeNames() {

@@ -8,6 +8,7 @@
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/dom/elements.hpp>
 
+namespace {
 class PathsComponent : public ftxui::ComponentBase {
 public:
   explicit PathsComponent(std::vector<std::string> *const Paths)
@@ -19,6 +20,7 @@ private:
   int SelectedPath_{0};
   std::vector<std::string> *Paths_{};
 };
+} // namespace
 
 ftxui::Component buildPathsComponent(std::vector<std::string> *const Paths) {
   const auto PathsMenu = ftxui::Make<PathsComponent>(Paths);

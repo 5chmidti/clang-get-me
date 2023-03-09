@@ -16,6 +16,7 @@
 
 #include "tui/fuzzy_search_state.hpp"
 
+namespace {
 class QueryCommitState {
 
 public:
@@ -43,11 +44,11 @@ private:
   std::vector<CallbackType> OnCommitCallbacks_{};
 };
 
-class Query : public ftxui::ComponentBase {
+class QueryComponent : public ftxui::ComponentBase {
 public:
-  Query(std::string *const QueryStr,
-        const std::vector<std::string> *const Entries,
-        std::function<void()> Callback)
+  QueryComponent(std::string *const QueryStr,
+                 const std::vector<std::string> *const Entries,
+                 std::function<void()> Callback)
       : SearchState_{Entries},
         QueryState_(QueryStr) {
     Add(buildQueryComponent());
@@ -145,10 +146,11 @@ private:
 
   ftxui::ButtonOption CommitButtonOptions_{ftxui::ButtonOption::Ascii()};
 };
+} // namespace
 
 ftxui::Component
 buildQueryComponent(std::string *QueriedName,
                     const std::vector<std::string> *const Entries,
                     std::function<void()> Callback) {
-  return ftxui::Make<Query>(QueriedName, Entries, std::move(Callback));
+  return ftxui::Make<QueryComponent>(QueriedName, Entries, std::move(Callback));
 }
