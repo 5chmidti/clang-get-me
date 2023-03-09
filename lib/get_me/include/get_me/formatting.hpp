@@ -16,6 +16,7 @@
 
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
+#include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/ranges/ranges.hpp"
@@ -148,6 +149,21 @@ private:
   }
 
   char Presentation_{};
+};
+
+template <> class fmt::formatter<TypeAlias> {
+public:
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
+      -> decltype(Ctx.begin()) {
+    return Ctx.begin();
+  }
+
+  template <typename FormatContext>
+  [[nodiscard]] auto format(const TypeAlias &Val, FormatContext &Ctx) const
+      -> decltype(Ctx.out()) {
+    return fmt::format_to(Ctx.out(), "({}, {})", toString(Val.Base),
+                          toString(Val.Alias));
+  }
 };
 
 #endif
