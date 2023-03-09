@@ -40,8 +40,7 @@ getTransitionRequiredTypeNames(const TransitionDataType &Data);
 toString(const std::vector<PathType> &Paths, const GraphData &Data);
 
 template <> struct fmt::formatter<EdgeDescriptor> {
-  template <typename FormatContext>
-  [[nodiscard]] constexpr auto parse(FormatContext &Ctx)
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
       -> decltype(Ctx.begin()) {
     return Ctx.begin();
   }
@@ -55,8 +54,7 @@ template <> struct fmt::formatter<EdgeDescriptor> {
 };
 
 template <> struct fmt::formatter<TransitionDataType> {
-  template <typename FormatContext>
-  [[nodiscard]] constexpr auto parse(FormatContext &Ctx)
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
       -> decltype(Ctx.begin()) {
     return Ctx.begin();
   }
@@ -71,8 +69,7 @@ template <> struct fmt::formatter<TransitionDataType> {
 };
 
 template <> struct fmt::formatter<TypeSetValueType> {
-  template <typename FormatContext>
-  [[nodiscard]] constexpr auto parse(FormatContext &Ctx)
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
       -> decltype(Ctx.begin()) {
     return Ctx.begin();
   }
@@ -116,7 +113,7 @@ public:
   }
 
 private:
-  static std::string toDotFormat(const GraphData &Data) {
+  [[nodiscard]] static std::string toDotFormat(const GraphData &Data) {
     const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
 
     const auto ToString = [&Data, &IndexMap](const auto &Edge) {

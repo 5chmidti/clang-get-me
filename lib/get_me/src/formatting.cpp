@@ -86,7 +86,6 @@ constexpr auto DeclaratorDeclToString =
         auto NonIdentifierString =
             fmt::format("non-identifier {}({})", DDecl->getDeclKindName(),
                         static_cast<const void *>(DDecl));
-        spdlog::warn(NonIdentifierString);
         return NonIdentifierString;
       }
       return DDecl->getNameAsString();
