@@ -14,7 +14,7 @@ public:
       : Selector_{static_cast<int>(*Flag)} {
     Add(Menu(&OffOn, &Selector_, [this, Flag] {
       auto Option = ftxui::MenuOption::Toggle();
-      Option.on_change = [this, Flag]() mutable { *Flag = Selector_ == 1; };
+      Option.on_change = [this, Flag]() { *Flag = Selector_ == 1; };
       Option.focused_entry = Selector_;
       return Option;
     }()));
