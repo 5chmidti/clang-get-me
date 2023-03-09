@@ -119,7 +119,7 @@ int main(int argc, const char **argv) {
                    });
 
   if (QueryAll) {
-    queryAll(TypeSetTransitionData, Conf);
+    queryAll(*TypeSetTransitionData, Conf);
     return 0;
   }
 

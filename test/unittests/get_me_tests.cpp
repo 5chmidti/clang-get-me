@@ -88,7 +88,7 @@ void testSuccess(const std::string_view Code,
   LOG_LOC(Loc);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
-      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+      buildGraphAndFindPaths(*Transitions, QueriedType, CurrentConfig);
   verify(true, FoundPathsAsString, ExpectedPaths);
   spdlog::disable_backtrace();
 }
@@ -101,7 +101,7 @@ void testFailure(const std::string_view Code,
   spdlog::enable_backtrace(BacktraceSize);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
-      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+      buildGraphAndFindPaths(*Transitions, QueriedType, CurrentConfig);
   verify(false, FoundPathsAsString, ExpectedPaths);
 }
 
@@ -115,7 +115,7 @@ void testNoThrow(const std::string_view Code,
     spdlog::enable_backtrace(BacktraceSize);
     LOG_LOC(Loc);
     std::ignore =
-        buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+        buildGraphAndFindPaths(*Transitions, QueriedType, CurrentConfig);
     spdlog::disable_backtrace();
   };
 
@@ -132,7 +132,7 @@ void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
   const auto Run = [&Transitions, &CurrentConfig](const auto &QueriedType) {
     REQUIRE_NOTHROW(
         std::ignore = buildGraphAndFindPaths(
-            Transitions, fmt::format("{}", QueriedType), CurrentConfig));
+            *Transitions, fmt::format("{}", QueriedType), CurrentConfig));
   };
 
   tbb::parallel_for_each(*Transitions | ranges::views::transform(ToAcquired),
@@ -149,11 +149,11 @@ collectTransitions(const std::string_view Code, const Config &CurrentConfig) {
 }
 
 std::set<std::string>
-buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
+buildGraphAndFindPaths(const TransitionCollector &Transitions,
                        const std::string_view QueriedType,
                        const Config &CurrentConfig) {
-  const auto Query = getQueriedTypeForInput(*Transitions, QueriedType);
-  const auto Data = createGraph(*Transitions, Query, CurrentConfig);
+  const auto Query = getQueriedTypeForInput(Transitions, QueriedType);
+  const auto Data = createGraph(Transitions, Query, CurrentConfig);
   const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);

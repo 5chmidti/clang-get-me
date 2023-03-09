@@ -29,11 +29,11 @@
 #include "support/ranges/projections.hpp"
 
 namespace {
-void buildGraphAndFindPaths(std::shared_ptr<TransitionCollector> Transitions,
+void buildGraphAndFindPaths(const TransitionCollector &Transitions,
                             const std::string_view QueriedType,
                             const Config &Conf) {
-  const auto Query = getQueriedTypeForInput(*Transitions, QueriedType);
-  const auto Data = createGraph(*Transitions, Query, Conf);
+  const auto Query = getQueriedTypeForInput(Transitions, QueriedType);
+  const auto Data = createGraph(Transitions, Query, Conf);
   const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   GetMeException::verify(VertexDataSize != 0,
@@ -53,14 +53,13 @@ void buildGraphAndFindPaths(std::shared_ptr<TransitionCollector> Transitions,
 }
 } // namespace
 
-void queryAll(const std::shared_ptr<TransitionCollector> &Transitions,
-              const Config &Conf) {
+void queryAll(const TransitionCollector &Transitions, const Config &Conf) {
   const auto Run = [Transitions, &Conf](const auto &QueriedType) {
     buildGraphAndFindPaths(Transitions, fmt::format("{}", QueriedType), Conf);
   };
 
   spdlog::info("Running with {} threads",
                tbb::this_task_arena::max_concurrency());
-  tbb::parallel_for_each(*Transitions | ranges::views::transform(ToAcquired),
+  tbb::parallel_for_each(Transitions | ranges::views::transform(ToAcquired),
                          Run);
 }
