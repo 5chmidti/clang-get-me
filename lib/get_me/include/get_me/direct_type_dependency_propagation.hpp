@@ -16,14 +16,6 @@
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 
-using DTDGraphType =
-    boost::adjacency_list<boost::listS, boost::vecS, boost::directedS>;
-
-using EdgeDescriptor =
-    typename boost::graph_traits<DTDGraphType>::edge_descriptor;
-using VertexDescriptor =
-    typename boost::graph_traits<DTDGraphType>::vertex_descriptor;
-
 struct DTDGraphData {
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
@@ -38,8 +30,6 @@ template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
         return ranges::views::concat(Propagators(Value)...);
       });
 }
-
-[[nodiscard]] DTDGraphType createGraph(const DTDGraphData &Data);
 
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,

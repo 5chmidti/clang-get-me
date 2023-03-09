@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <boost/graph/connected_components.hpp>
+#include <boost/graph/graph_selectors.hpp>
 #include <clang/AST/Decl.h>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -23,6 +24,7 @@
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
+#include "get_me/formatting.hpp"
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -31,6 +33,14 @@
 namespace {
 using TypeAliasingGroup = TypeSet;
 using TypeAliasingGroups = std::vector<TypeAliasingGroup>;
+
+using TypeAliasingGraph =
+    boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS>;
+
+using EdgeDescriptor =
+    typename boost::graph_traits<TypeAliasingGraph>::edge_descriptor;
+using VertexDescriptor =
+    typename boost::graph_traits<TypeAliasingGraph>::vertex_descriptor;
 
 class TypeAliasingGraphBuilder {
 public:
@@ -68,6 +78,11 @@ private:
   indexed_set<TypeSetValueType> Vertices_{};
   indexed_set<DTDGraphData::EdgeType> Edges_{};
 };
+
+[[nodiscard]] TypeAliasingGraph createGraph(const DTDGraphData &Data) {
+  return {Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
+          Data.VertexData.size()};
+}
 
 [[nodiscard]] TypeAliasingGroups
 createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {

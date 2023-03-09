@@ -34,6 +34,14 @@
 #include "support/variant.hpp"
 
 namespace {
+using InheritanceGraph =
+    boost::adjacency_list<boost::listS, boost::vecS, boost::directedS>;
+
+using EdgeDescriptor =
+    typename boost::graph_traits<InheritanceGraph>::edge_descriptor;
+using VertexDescriptor =
+    typename boost::graph_traits<InheritanceGraph>::vertex_descriptor;
+
 [[nodiscard]] auto getVerticesWithNoInEdges(const DTDGraphData &Data) {
   return ranges::views::indices(Data.VertexData.size()) |
          ranges::views::set_difference(Data.Edges |
@@ -131,6 +139,11 @@ overridesConstructor(const TypeSetValueType &TypeValue,
   };
 }
 
+[[nodiscard]] InheritanceGraph createGraph(const DTDGraphData &Data) {
+  return {Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
+          Data.VertexData.size()};
+}
+
 class InheritanceGraphBuilder {
 public:
   void visit(const clang::CXXRecordDecl *const Record) {
@@ -216,14 +229,14 @@ private:
 }
 
 [[nodiscard]] std::vector<VertexDescriptor>
-getVerticesToVisit(ranges::range auto Sources, const DTDGraphType &Graph) {
+getVerticesToVisit(ranges::range auto Sources, const InheritanceGraph &Graph) {
   class BFSEdgeCollector : public boost::default_bfs_visitor {
   public:
     explicit BFSEdgeCollector(std::vector<VertexDescriptor> &Collector)
         : Collector_{Collector} {}
 
     void examine_vertex(VertexDescriptor Vertex,
-                        const DTDGraphType & /*Graph*/) {
+                        const InheritanceGraph & /*Graph*/) {
       Collector_.emplace_back(Vertex);
     }
 
@@ -336,7 +349,7 @@ public:
 private:
   TransitionCollector &Transitions_;
   DTDGraphData Data_;
-  DTDGraphType Graph_;
+  InheritanceGraph Graph_;
   std::vector<bool> VertexVisited_ = std::vector<bool>(Data_.VertexData.size());
 };
 } // namespace

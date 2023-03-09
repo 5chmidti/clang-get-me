@@ -10,11 +10,6 @@
 #include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/transitions.hpp"
 
-DTDGraphType createGraph(const DTDGraphData &Data) {
-  return {Data.Edges.data(), Data.Edges.data() + Data.Edges.size(),
-          Data.VertexData.size()};
-}
-
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
