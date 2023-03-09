@@ -102,8 +102,7 @@ constructVertexAndTransitionsPairVector(
 } // namespace
 
 void GraphBuilder::build() {
-  while (CurrentState_.IterationIndex < Query_.getConfig().MaxGraphDepth &&
-         buildStep()) {
+  while (CurrentState_.IterationIndex < Conf_.MaxGraphDepth && buildStep()) {
     // complete build
   }
 }
@@ -146,16 +145,17 @@ GraphData GraphBuilder::commit() {
           std::move(EdgeWeights_)};
 }
 
-GraphData createGraph(const QueryType &Query) {
-  auto Builder = GraphBuilder{Query};
+GraphData createGraph(const TransitionCollector &Transitions,
+                      const TypeSetValueType &Query, const Config &Conf) {
+  auto Builder = GraphBuilder{Transitions, Query, Conf};
   Builder.build();
   return Builder.commit();
 }
 
 VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const TypeSet &QueriedType) {
-  const auto SourceVertex = ranges::find(Data.VertexData, QueriedType);
+                                   const TypeSetValueType &QueriedType) {
+  const auto SourceVertex = ranges::find(Data.VertexData, TypeSet{QueriedType});
 
   if (SourceVertex == Data.VertexData.end()) {
     throw GetMeException(fmt::format("found no type matching {}", QueriedType));

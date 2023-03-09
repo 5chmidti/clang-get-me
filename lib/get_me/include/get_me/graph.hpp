@@ -105,10 +105,11 @@ public:
   using VertexType = TypeSet;
   using VertexSet = indexed_set<VertexType>;
 
-  explicit GraphBuilder(QueryType Query)
-      : Query_(std::move(Query)),
-        TransitionsForQuery_{Query_.getTransitionsForQuery()},
-        VertexData_{{0U, Query_.getQueriedType()}},
+  explicit GraphBuilder(const TransitionCollector &Transitions,
+                        const TypeSetValueType &Query, const Config &Conf)
+      : TransitionsForQuery_{getTransitionsForQuery(Transitions, Query)},
+        VertexData_{{0U, TypeSet{Query}}},
+        Conf_{Conf},
         CurrentState_{0U, VertexData_} {}
 
   void build();
@@ -164,22 +165,24 @@ private:
         };
   }
 
-  QueryType Query_;
   TransitionCollector TransitionsForQuery_{};
   VertexSet VertexData_{};
   indexed_set<GraphData::EdgeType> EdgesData_{};
   std::vector<GraphData::EdgeWeightType> EdgeWeights_{};
+  Config Conf_{};
 
   StepState CurrentState_{};
 };
 
-[[nodiscard]] GraphData createGraph(const QueryType &Query);
+[[nodiscard]] GraphData createGraph(const TransitionCollector &Transitions,
+                                    const TypeSetValueType &Query,
+                                    const Config &Conf);
 
 [[nodiscard]] TransitionCollector
 getTypeSetTransitionData(const TransitionCollector &Collector);
 
 [[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const TypeSet &QueriedType);
+                                   const TypeSetValueType &QueriedType);
 
 #endif

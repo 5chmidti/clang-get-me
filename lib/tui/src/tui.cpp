@@ -94,13 +94,14 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
   // initialized (aka filled)
   const auto CommitCallback = [&Conf, &PathsStr, &CollectionState,
                                &QueriedName]() {
-    const auto Query =
-        QueryType{CollectionState.getTransitionsPtr(), QueriedName, Conf};
-    // workaround for lmdba captures in clang
-    const auto Data = createGraph(Query);
+    const auto Query = getQueriedTypeForInput(
+        *CollectionState.getTransitionsPtr(), QueriedName);
+
+    const auto Data =
+        createGraph(*CollectionState.getTransitionsPtr(), Query, Conf);
 
     const auto SourceVertexDesc =
-        getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+        getSourceVertexMatchingQueriedType(Data, Query);
     const auto Paths =
         pathTraversal(Data, Conf, SourceVertexDesc) |
         ranges::actions::sort([&Data](const PathType &Lhs,

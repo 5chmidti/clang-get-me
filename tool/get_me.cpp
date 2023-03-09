@@ -125,9 +125,9 @@ int main(int argc, const char **argv) {
 
   const auto &QueriedType = TypeName.getValue();
   const auto Query =
-      QueryType{std::move(TypeSetTransitionData), QueriedType, Conf};
+      getQueriedTypeForInput(*TypeSetTransitionData, QueriedType);
 
-  const auto Data = createGraph(Query);
+  const auto Data = createGraph(*TypeSetTransitionData, Query, Conf);
   const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
 
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
@@ -136,8 +136,7 @@ int main(int argc, const char **argv) {
   auto DotFile = fmt::output_file("graph.dot");
   DotFile.print("{:d}", Data);
 
-  const auto SourceVertexDesc =
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+  const auto SourceVertexDesc = getSourceVertexMatchingQueriedType(Data, Query);
   auto Paths = pathTraversal(Data, Conf, SourceVertexDesc);
   spdlog::info(
       "path length distribution: {}",

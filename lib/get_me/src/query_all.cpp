@@ -32,18 +32,16 @@ namespace {
 void buildGraphAndFindPaths(std::shared_ptr<TransitionCollector> Transitions,
                             const std::string_view QueriedType,
                             const Config &Conf) {
-  const auto Query =
-      QueryType{std::move(Transitions), std::string{QueriedType}, Conf};
-  const auto Data = createGraph(Query);
-  const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+  const auto Query = getQueriedTypeForInput(*Transitions, QueriedType);
+  const auto Data = createGraph(*Transitions, Query, Conf);
+  const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   GetMeException::verify(VertexDataSize != 0,
                          "Error finding source vertex for queried type {}",
-                         Query.getQueriedTypeAsString());
+                         QueriedType);
   GetMeException::verify(SourceVertex < VertexDataSize,
                          "Source vertex for queried type {} is out of range",
-                         Query.getQueriedTypeAsString());
+                         QueriedType);
 
   // return because querying all might query a type with no
   // edges/transitions that acquire it

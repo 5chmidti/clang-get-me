@@ -22,12 +22,11 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   State.counters["transitions"] =
       static_cast<double>(TypeSetTransitionData->size());
   const auto Query =
-      QueryType{std::move(TypeSetTransitionData), QueriedTypeAsString, Conf};
-  const auto Data = createGraph(Query);
+      getQueriedTypeForInput(*TypeSetTransitionData, QueriedTypeAsString);
+  const auto Data = createGraph(*TypeSetTransitionData, Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
-  const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+  const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto FoundPaths = pathTraversal(Data, Conf, SourceVertex);
   State.counters["paths"] = static_cast<double>(FoundPaths.size());
 }
@@ -42,18 +41,18 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_TRANSITIONS                                                  \
   auto TypeSetTransitionData = std::make_shared<TransitionCollector>();        \
-  collectTransitions(TypeSetTransitionData, *Ast, Conf);                       \
-  const auto Query =                                                           \
-      QueryType{TypeSetTransitionData, QueriedTypeAsString, Conf};
+  collectTransitions(TypeSetTransitionData, *Ast, Conf);
 
-#define BENCHMARK_GRAPH const auto Data = createGraph(Query);
+#define BENCHMARK_GRAPH                                                        \
+  const auto Query =                                                           \
+      getQueriedTypeForInput(*TypeSetTransitionData, QueriedTypeAsString);     \
+  const auto Data = createGraph(*TypeSetTransitionData, Query, Conf);
 
 #define BENCHMARK_PATHTRAVERSAL                                                \
   const auto FoundPaths = pathTraversal(Data, Conf, SourceVertex);
 
 #define BENCHMARK_GET_SOURCE_VERTEX                                            \
-  const auto SourceVertex =                                                    \
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+  const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
 
 #define BENCHMARK_BODY_TRANSITIONS                                             \
   BENCHMARK_TRANSITIONS                                                        \

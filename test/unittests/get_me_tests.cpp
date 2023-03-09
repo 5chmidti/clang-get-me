@@ -152,11 +152,9 @@ std::set<std::string>
 buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const std::string_view QueriedType,
                        const Config &CurrentConfig) {
-  const auto Query =
-      QueryType{Transitions, std::string{QueriedType}, CurrentConfig};
-  const auto Data = createGraph(Query);
-  const auto SourceVertex =
-      getSourceVertexMatchingQueriedType(Data, Query.getQueriedType());
+  const auto Query = getQueriedTypeForInput(*Transitions, QueriedType);
+  const auto Data = createGraph(*Transitions, Query, CurrentConfig);
+  const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);
   REQUIRE(SourceVertex < VertexDataSize);
