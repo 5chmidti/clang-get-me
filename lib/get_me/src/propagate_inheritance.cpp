@@ -1,3 +1,5 @@
+#include "get_me/propagate_inheritance.hpp"
+
 #include <functional>
 #include <utility>
 #include <vector>
