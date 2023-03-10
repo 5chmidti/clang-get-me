@@ -45,6 +45,22 @@ B getB();
        {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
         "(A, A MemberA(B), {B}), (B, B getB(), {})",
         "(A, A MemberA(B), {B}), (B, B B(), {})"});
+
+  test(R"(
+    struct A {};
+    void foo() {
+      A localA{};
+    }
+  )",
+       "A", {"(A, A A(), {})"});
+
+  testFailure(R"(
+    struct A {};
+    void foo() {
+      struct B {};
+    }
+  )",
+              "B", {});
 }
 
 TEST_CASE("overloads") {
