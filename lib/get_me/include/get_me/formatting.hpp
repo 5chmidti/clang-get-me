@@ -68,7 +68,22 @@ template <> struct fmt::formatter<TransitionDataType> {
   }
 };
 
-template <> struct fmt::formatter<TypeSetValueType> {
+template <> class fmt::formatter<ArithmeticType> {
+public:
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
+      -> decltype(Ctx.begin()) {
+    return Ctx.begin();
+  }
+
+  template <typename FormatContext>
+  [[nodiscard]] auto format(const ArithmeticType &, FormatContext &Ctx) const
+      -> decltype(Ctx.out()) {
+    return fmt::format_to(Ctx.out(), "arithmetic");
+  }
+};
+
+template <> class fmt::formatter<TypeSetValueType> {
+public:
   [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
       -> decltype(Ctx.begin()) {
     return Ctx.begin();
@@ -82,8 +97,9 @@ template <> struct fmt::formatter<TypeSetValueType> {
         std::visit(Overloaded{[](const clang::Type *const Type) {
                                 return toString(Type);
                               },
-                              [](const ArithmeticType & /*Arithmetic*/)
-                                  -> std::string { return "arithmetic"; }},
+                              [](const ArithmeticType &Arithmetic) {
+                                return fmt::format("{}", Arithmetic);
+                              }},
                    Val));
   }
 };
