@@ -160,3 +160,19 @@ TEST_CASE("templates") {
   )",
               "A<int>", {"(A<int>, A A(), {})", "(A<int>, A<int> getA(), {})"});
 }
+
+TEST_CASE("arithmetic") {
+  test(R"(
+    struct A { A(int); };
+    int getInt();
+  )",
+       "A", {"(A, A A(int), {arithmetic}), (arithmetic, int getInt(), {})"},
+       Config{.EnableTruncateArithmetic = true});
+
+  test(R"(
+    struct A { A(int); };
+    float getFloat();
+  )",
+       "A", {"(A, A A(int), {arithmetic}), (arithmetic, float getFloat(), {})"},
+       Config{.EnableTruncateArithmetic = true});
+}
