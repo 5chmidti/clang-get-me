@@ -149,16 +149,14 @@ private:
           SourceVertex, TargetVertex, EdgeWeightAsString);
     };
 
-    auto Res = ranges::fold_left(
-        toRange(boost::edges(Data.Graph)) | ranges::views::transform(ToString),
-        std::string{"digraph D {{\n  layout = \"sfdp\";\n"},
-        [](std::string Result, auto Line) {
-          Result.append(std::move(Line));
-          return Result;
-        });
-    Res.append("}}\n");
-
-    return Res;
+    return ranges::fold_left(toRange(boost::edges(Data.Graph)) |
+                                 ranges::views::transform(ToString),
+                             std::string{"digraph D {\n  layout = \"sfdp\";\n"},
+                             [](std::string Result, auto Line) {
+                               Result.append(std::move(Line));
+                               return Result;
+                             }) +
+           "}\n";
   }
 
   char Presentation_{};
