@@ -214,3 +214,16 @@ std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
                            }) +
          "}\n";
 }
+
+std::int64_t GraphBuilder::getVertexDepthDifference(const size_t SourceDepth,
+                                                    const size_t TargetDepth) {
+  GetMeException::verify(TargetDepth <=
+                             std::numeric_limits<std::int64_t>::max(),
+                         "TargetDepth is to large for cast to int64_t");
+  GetMeException::verify(SourceDepth <=
+                             std::numeric_limits<std::int64_t>::max(),
+                         "SourceDepth is to large for cast to int64_t");
+
+  return static_cast<std::int64_t>(TargetDepth) -
+         static_cast<std::int64_t>(SourceDepth);
+}

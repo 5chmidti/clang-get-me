@@ -2,6 +2,7 @@
 #define get_me_lib_get_me_include_get_me_graph_hpp
 
 #include <cstddef>
+#include <cstdint>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -180,6 +181,9 @@ private:
 
   [[nodiscard]] size_t getVertexDepth(size_t VertexIndex) const;
 
+  [[nodiscard]] static std::int64_t
+  getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
+
   [[nodiscard]] auto
   maybeAddEdgeFrom(const indexed_value<VertexType> &IndexedSourceVertex) {
     const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
@@ -197,25 +201,16 @@ private:
           const auto EdgeToAdd = GraphData::EdgeType{Index(IndexedSourceVertex),
                                                      TargetVertexIndex};
 
-          if (TargetVertexExists &&
-              edgeWithTransitionExistsInContainer(
-                  EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
-            return AddedTransitions;
-          }
-
           if (TargetVertexExists) {
-            const auto TargetDepth = getVertexDepth(TargetVertexIndex);
-            GetMeException::verify(
-                TargetDepth <= std::numeric_limits<std::int64_t>::max(),
-                "TargetDepth is to large for cast to int64_t");
-            GetMeException::verify(
-                SourceDepth <= std::numeric_limits<std::int64_t>::max(),
-                "SourceDepth is to large for cast to int64_t");
+            if (edgeWithTransitionExistsInContainer(
+                    EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
+              return AddedTransitions;
+            }
 
-            if (const auto Diff = static_cast<std::int64_t>(TargetDepth) -
-                                  static_cast<std::int64_t>(SourceDepth);
-                !ranges::empty(TargetVertexIter->second) &&
-                Diff < Conf_.GraphVertexDepthDifferenceThreshold) {
+            if (!ranges::empty(TargetVertexIter->second) &&
+                getVertexDepthDifference(SourceDepth,
+                                         getVertexDepth(TargetVertexIndex)) <
+                    Conf_.GraphVertexDepthDifferenceThreshold) {
               return AddedTransitions;
             }
             CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
