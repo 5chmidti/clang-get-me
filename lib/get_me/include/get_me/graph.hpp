@@ -70,6 +70,8 @@ struct GraphData {
         Graph{this->Edges.data(), this->Edges.data() + this->Edges.size(),
               this->EdgeIndices.data(), this->EdgeIndices.size()} {}
 
+  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+
   // vertices
   std::vector<VertexDataType> VertexData;
 
@@ -86,6 +88,7 @@ struct GraphData {
 
   // graph
   GraphType Graph;
+  // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
 inline constexpr auto Source = []<typename T>(const T &Edge)
