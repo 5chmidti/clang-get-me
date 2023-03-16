@@ -43,8 +43,8 @@ public:
   }
 
   template <typename FormatContext>
-  [[nodiscard]] auto format(const ArithmeticType &, FormatContext &Ctx) const
-      -> decltype(Ctx.out()) {
+  [[nodiscard]] auto format(const ArithmeticType & /*unused*/,
+                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(Ctx.out(), "arithmetic");
   }
 };
