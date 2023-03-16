@@ -111,6 +111,31 @@ TEST_CASE("propagate type aliasing") {
            "(C, C getC(B), {E}), (E, A A(), {})",
        },
        PropagateTypeAliasConfig);
+
+  test(R"(
+  struct A1 {};
+  using B1 = A1;
+  using D1 = A1;
+  using E1 = D1;
+  struct C1 {};
+  C1 getC(B1);
+
+  struct A2 {};
+  using B2 = A2;
+  using D2 = A2;
+  using E2 = D2;
+  struct C2 {};
+  C2 getC(B2);
+  )",
+       "C1",
+       {
+           "(C1, C1 C1(), {})",
+           "(C1, C1 getC(B1), {A1}), (A1, A1 A1(), {})",
+           "(C1, C1 getC(B1), {B1}), (B1, A1 A1(), {})",
+           "(C1, C1 getC(B1), {D1}), (D1, A1 A1(), {})",
+           "(C1, C1 getC(B1), {E1}), (E1, A1 A1(), {})",
+       },
+       PropagateTypeAliasConfig);
 }
 
 TEST_CASE("propagate type aliasing with member aliases") {

@@ -8,6 +8,7 @@
 #include <boost/graph/graph_selectors.hpp>
 #include <clang/AST/Decl.h>
 #include <range/v3/action/sort.hpp>
+#include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/conversion.hpp>
@@ -132,14 +133,15 @@ getTransitionsToPropagateForAcquired(const TransitionCollector &Transitions,
 }
 
 [[nodiscard]] auto
-propagateAcquiredTransitions(TransitionCollector &Transitions) {
+propagateAcquiredTransitions(const TransitionCollector &Transitions) {
   return [&Transitions](const TypeAliasingGroup &Group) {
     const auto PairTypeWithGroupsTransitions =
         [TransitionsOfGroupMembers = getTransitionsToPropagateForAcquired(
              Transitions, Group)](const TypeSetValueType &Type) {
           return BundeledTransitionType{Type, TransitionsOfGroupMembers};
         };
-    return Group | ranges::views::transform(PairTypeWithGroupsTransitions);
+    return Group | ranges::views::transform(PairTypeWithGroupsTransitions) |
+           ranges::to<TransitionCollector>;
   };
 }
 
@@ -163,7 +165,7 @@ substituteGroupMembersFromRequired(const TypeAliasingGroup &Group) {
 }
 
 [[nodiscard]] auto
-propagateRequiredTransitions(TransitionCollector &Transitions) {
+propagateRequiredTransitions(const TransitionCollector &Transitions) {
   return [&Transitions](const TypeAliasingGroup &Group) {
     return Transitions |
            ranges::views::transform(
@@ -181,8 +183,13 @@ propagateRequiredTransitions(TransitionCollector &Transitions) {
   };
 }
 
-void mergeTransitions(TransitionCollector &Transitions,
-                      TransitionCollector NewTransitions) {
+void propgagateAcquiredTransitions(const TypeAliasingGroups &Groups,
+                                   TransitionCollector &Transitions) {
+  const auto TransitionsVector =
+      Groups |
+      ranges::views::transform(propagateAcquiredTransitions(Transitions)) |
+      ranges::to_vector;
+
   const auto PairWithExistingForAcquired =
       [&Transitions](const BundeledTransitionType &New) {
         return std::pair{std::ref(Transitions[ToAcquired(New)]), New};
@@ -191,8 +198,24 @@ void mergeTransitions(TransitionCollector &Transitions,
     auto &[Current, New] = Pair;
     Current.get().merge(New.second);
   };
-  ranges::for_each(NewTransitions |
+  ranges::for_each(TransitionsVector | ranges::views::join |
                        ranges::views::transform(PairWithExistingForAcquired),
+                   MergeExistingWithNew);
+}
+
+void propgagateRequiredTransitions(const TypeAliasingGroups &Groups,
+                                   TransitionCollector &Transitions) {
+  const auto TransitionsVector =
+      Groups |
+      ranges::views::transform(propagateRequiredTransitions(Transitions)) |
+      ranges::to_vector;
+
+  const auto MergeExistingWithNew =
+      [&Transitions](BundeledTransitionType Transition) {
+        Transitions[ToAcquired(Transition)].merge(Transition.second);
+      };
+  ranges::for_each(TransitionsVector | ranges::views::join |
+                       ranges::views::move,
                    MergeExistingWithNew);
 }
 } // namespace
@@ -201,15 +224,6 @@ void propagateTypeAliasing(TransitionCollector &Transitions,
                            const std::vector<TypeAlias> &TypedefNameDecls) {
   const auto Groups = createTypeAliasingGroups(TypedefNameDecls);
 
-  mergeTransitions(
-      Transitions,
-      Groups |
-          ranges::views::for_each(propagateAcquiredTransitions(Transitions)) |
-          ranges::to<TransitionCollector>);
-
-  mergeTransitions(
-      Transitions,
-      Groups |
-          ranges::views::for_each(propagateRequiredTransitions(Transitions)) |
-          ranges::to<TransitionCollector>);
+  propgagateAcquiredTransitions(Groups, Transitions);
+  propgagateRequiredTransitions(Groups, Transitions);
 }
