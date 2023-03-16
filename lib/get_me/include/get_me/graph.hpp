@@ -16,11 +16,7 @@
 #include <boost/pending/property.hpp>
 #include <fmt/ranges.h>
 #include <range/v3/algorithm/fold_left.hpp>
-#include <range/v3/range/operations.hpp>
-#include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
-#include <range/v3/view/map.hpp>
-#include <range/v3/view/take.hpp>
 
 #include "get_me/indexed_set.hpp"
 #include "get_me/query.hpp"
@@ -218,13 +214,11 @@ private:
     VertexSet InterestingVertices{};
   };
 
+  [[nodiscard]] size_t getVertexDepth(size_t VertexIndex) const;
+
   [[nodiscard]] auto
   maybeAddEdgeFrom(const indexed_value<VertexType> &IndexedSourceVertex) {
-    const auto SourceDepth =
-        VertexDepth_ |
-        ranges::views::filter(EqualTo(Index(IndexedSourceVertex)), Index) |
-        ranges::views::take(1) | ranges::views::values | ranges::to_vector |
-        actions::FrontOr(0U);
+    const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
     return
         [this, &IndexedSourceVertex, SourceDepth](
             bool AddedTransitions,
@@ -246,11 +240,7 @@ private:
           }
 
           if (TargetVertexExists) {
-            const auto TargetDepth =
-                VertexDepth_ |
-                ranges::views::filter(EqualTo(TargetVertexIndex), Index) |
-                ranges::views::take(1) | ranges::views::values |
-                ranges::to_vector | actions::FrontOr(0U);
+            const auto TargetDepth = getVertexDepth(TargetVertexIndex);
             GetMeException::verify(
                 TargetDepth <= std::numeric_limits<std::int64_t>::max(),
                 "TargetDepth is to large for cast to int64_t");

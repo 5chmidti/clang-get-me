@@ -16,10 +16,12 @@
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/remove.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/subrange.hpp>
+#include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 
@@ -162,4 +164,10 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   }
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));
+}
+
+size_t GraphBuilder::getVertexDepth(const size_t VertexIndex) const {
+  return VertexDepth_ | ranges::views::filter(EqualTo(VertexIndex), Index) |
+         ranges::views::take(1) | ranges::views::values | ranges::to_vector |
+         actions::FrontOr(0U);
 }
