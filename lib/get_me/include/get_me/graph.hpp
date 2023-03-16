@@ -58,15 +58,7 @@ struct GraphData {
 
   GraphData(std::vector<VertexDataType> VertexData,
             std::vector<size_t> VertexDepth, std::vector<EdgeType> Edges,
-            std::vector<TransitionType> EdgeTransitions)
-      : VertexData{std::move(VertexData)},
-        VertexDepth{std::move(VertexDepth)},
-        Edges{std::move(Edges)},
-        EdgeIndices{ranges::views::indices(this->Edges.size()) |
-                    ranges::to_vector},
-        EdgeTransitions{std::move(EdgeTransitions)},
-        Graph{this->Edges.data(), this->Edges.data() + this->Edges.size(),
-              this->EdgeIndices.data(), this->EdgeIndices.size()} {}
+            std::vector<TransitionType> EdgeTransitions);
 
   // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
 
@@ -149,35 +141,7 @@ public:
   }
 
 private:
-  [[nodiscard]] static std::string toDotFormat(const GraphData &Data) {
-    const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
-
-    const auto ToString = [&Data, &IndexMap](const auto &Edge) {
-      const auto SourceNode = Source(Edge);
-      const auto TargetNode = Target(Edge);
-
-      const auto Transition =
-          ToTransition(Data.EdgeTransitions[boost::get(IndexMap, Edge)]);
-      const auto TargetVertex = Data.VertexData[TargetNode];
-      const auto SourceVertex = Data.VertexData[SourceNode];
-
-      auto EdgeWeightAsString = fmt::format("{}", Transition);
-      boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
-      return fmt::format(
-          R"(  "{}" -> "{}"[label="{}"]
-)",
-          SourceVertex, TargetVertex, EdgeWeightAsString);
-    };
-
-    return ranges::fold_left(toRange(boost::edges(Data.Graph)) |
-                                 ranges::views::transform(ToString),
-                             std::string{"digraph D {\n  layout = \"sfdp\";\n"},
-                             [](std::string Result, auto Line) {
-                               Result.append(std::move(Line));
-                               return Result;
-                             }) +
-           "}\n";
-  }
+  [[nodiscard]] static std::string toDotFormat(const GraphData &Data);
 
   char Presentation_{};
 };
