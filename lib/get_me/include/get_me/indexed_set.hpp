@@ -1,5 +1,5 @@
-#ifndef get_me_lib_get_me_include_get_me_indexed_graph_sets_hpp
-#define get_me_lib_get_me_include_get_me_indexed_graph_sets_hpp
+#ifndef get_me_lib_get_me_include_get_me_indexed_set_hpp
+#define get_me_lib_get_me_include_get_me_indexed_set_hpp
 
 #include <functional>
 #include <set>

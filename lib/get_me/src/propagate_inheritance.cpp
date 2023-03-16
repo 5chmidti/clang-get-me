@@ -25,7 +25,7 @@
 
 #include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/graph.hpp"
-#include "get_me/indexed_graph_sets.hpp"
+#include "get_me/indexed_set.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"

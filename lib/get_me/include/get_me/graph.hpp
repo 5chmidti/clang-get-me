@@ -21,7 +21,7 @@
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/map.hpp>
 
-#include "get_me/indexed_graph_sets.hpp"
+#include "get_me/indexed_set.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
