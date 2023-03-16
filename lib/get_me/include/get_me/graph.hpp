@@ -20,6 +20,7 @@
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/map.hpp>
+#include <range/v3/view/take.hpp>
 
 #include "get_me/indexed_set.hpp"
 #include "get_me/query.hpp"
@@ -27,6 +28,7 @@
 #include "get_me/type_set.hpp"
 #include "support/concepts.hpp"
 #include "support/get_me_exception.hpp"
+#include "support/ranges/front.hpp"
 #include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
 
@@ -218,13 +220,11 @@ private:
 
   [[nodiscard]] auto
   maybeAddEdgeFrom(const indexed_value<VertexType> &IndexedSourceVertex) {
-    const auto SourceDepthVector =
+    const auto SourceDepth =
         VertexDepth_ |
         ranges::views::filter(EqualTo(Index(IndexedSourceVertex)), Index) |
-        ranges::views::values | ranges::to_vector;
-    const auto SourceDepth = ranges::empty(SourceDepthVector)
-                                 ? 0U
-                                 : ranges::front(SourceDepthVector);
+        ranges::views::take(1) | ranges::views::values | ranges::to_vector |
+        actions::FrontOr(0U);
     return
         [this, &IndexedSourceVertex, SourceDepth](
             bool AddedTransitions,
@@ -246,13 +246,11 @@ private:
           }
 
           if (TargetVertexExists) {
-            const auto TargetDepthVector =
+            const auto TargetDepth =
                 VertexDepth_ |
                 ranges::views::filter(EqualTo(TargetVertexIndex), Index) |
-                ranges::views::values | ranges::to_vector;
-            const auto TargetDepth = ranges::empty(TargetDepthVector)
-                                         ? 0U
-                                         : ranges::front(TargetDepthVector);
+                ranges::views::take(1) | ranges::views::values |
+                ranges::to_vector | actions::FrontOr(0U);
             GetMeException::verify(
                 TargetDepth <= std::numeric_limits<std::int64_t>::max(),
                 "TargetDepth is to large for cast to int64_t");
