@@ -202,17 +202,18 @@ private:
                                                      TargetVertexIndex};
 
           if (TargetVertexExists) {
-            if (edgeWithTransitionExistsInContainer(
-                    EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
-              return AddedTransitions;
-            }
-
             if (!ranges::empty(TargetVertexIter->second) &&
                 getVertexDepthDifference(SourceDepth,
                                          getVertexDepth(TargetVertexIndex)) <
                     Conf_.GraphVertexDepthDifferenceThreshold) {
               return AddedTransitions;
             }
+
+            if (edgeWithTransitionExistsInContainer(
+                    EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
+              return AddedTransitions;
+            }
+
             CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
           } else {
             CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
