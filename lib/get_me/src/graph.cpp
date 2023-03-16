@@ -35,11 +35,11 @@
 bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,
     const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
-    const std::vector<GraphData::EdgeWeightType> &EdgeWeights) {
+    const std::vector<TransitionType> &EdgeTransitions) {
   return ranges::contains(
       ranges::subrange(Edges.lower_bound(EdgeToAdd),
                        Edges.upper_bound(EdgeToAdd)) |
-          ranges::views::transform(Lookup(EdgeWeights, Index)),
+          ranges::views::transform(Lookup(EdgeTransitions, Index)),
       Transition);
 }
 
@@ -142,7 +142,7 @@ GraphData GraphBuilder::commit() {
   return {getIndexedSetSortedByIndex(std::move(VertexData_)),
           getIndexedSetSortedByIndex(std::move(VertexDepth_)),
           getIndexedSetSortedByIndex(std::move(EdgesData_)),
-          std::move(EdgeWeights_)};
+          std::move(EdgeTransitions_)};
 }
 
 GraphData createGraph(const TransitionCollector &Transitions,

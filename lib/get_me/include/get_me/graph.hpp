@@ -55,19 +55,18 @@ using VertexDescriptor =
     typename boost::graph_traits<GraphType>::vertex_descriptor;
 
 struct GraphData {
-  using EdgeWeightType = TransitionType;
   using VertexDataType = TypeSet;
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
   GraphData(std::vector<VertexDataType> VertexData,
             std::vector<size_t> VertexDepth, std::vector<EdgeType> Edges,
-            std::vector<TransitionType> EdgeWeights)
+            std::vector<TransitionType> EdgeTransitions)
       : VertexData{std::move(VertexData)},
         VertexDepth{std::move(VertexDepth)},
         Edges{std::move(Edges)},
         EdgeIndices{ranges::views::indices(this->Edges.size()) |
                     ranges::to_vector},
-        EdgeWeights{std::move(EdgeWeights)},
+        EdgeTransitions{std::move(EdgeTransitions)},
         Graph{this->Edges.data(), this->Edges.data() + this->Edges.size(),
               this->EdgeIndices.data(), this->EdgeIndices.size()} {}
 
@@ -82,8 +81,8 @@ struct GraphData {
 
   // index property of an edge, allows mapping other properties (e.g. weight)
   std::vector<size_t> EdgeIndices;
-  // all possible edge weights
-  std::vector<EdgeWeightType> EdgeWeights;
+  // all possible edge transitions
+  std::vector<TransitionType> EdgeTransitions;
 
   // graph
   GraphType Graph;
@@ -157,7 +156,7 @@ private:
       const auto TargetNode = Target(Edge);
 
       const auto Transition =
-          ToTransition(Data.EdgeWeights[boost::get(IndexMap, Edge)]);
+          ToTransition(Data.EdgeTransitions[boost::get(IndexMap, Edge)]);
       const auto TargetVertex = Data.VertexData[TargetNode];
       const auto SourceVertex = Data.VertexData[SourceNode];
 
@@ -185,7 +184,7 @@ private:
 [[nodiscard]] bool edgeWithTransitionExistsInContainer(
     const indexed_set<GraphData::EdgeType> &Edges,
     const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
-    const std::vector<GraphData::EdgeWeightType> &EdgeWeights);
+    const std::vector<TransitionType> &EdgeTransitions);
 
 class GraphBuilder {
 public:
@@ -238,8 +237,8 @@ private:
                                                      TargetVertexIndex};
 
           if (TargetVertexExists &&
-              edgeWithTransitionExistsInContainer(EdgesData_, EdgeToAdd,
-                                                  Transition, EdgeWeights_)) {
+              edgeWithTransitionExistsInContainer(
+                  EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
             return AddedTransitions;
           }
 
@@ -275,7 +274,7 @@ private:
           if (const auto [_, EdgeAdded] =
                   EdgesData_.emplace(EdgesData_.size(), EdgeToAdd);
               EdgeAdded) {
-            EdgeWeights_.push_back(Transition);
+            EdgeTransitions_.push_back(Transition);
             AddedTransitions = true;
           }
           return AddedTransitions;
@@ -286,7 +285,7 @@ private:
   VertexSet VertexData_{};
   indexed_set<size_t> VertexDepth_{};
   indexed_set<GraphData::EdgeType> EdgesData_{};
-  std::vector<GraphData::EdgeWeightType> EdgeWeights_{};
+  std::vector<TransitionType> EdgeTransitions_{};
   Config Conf_{};
 
   StepState CurrentState_{};

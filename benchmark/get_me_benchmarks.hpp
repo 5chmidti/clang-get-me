@@ -63,7 +63,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   benchmark::DoNotOptimize(Data.VertexData.data());                            \
   benchmark::DoNotOptimize(Data.Edges.data());                                 \
   benchmark::DoNotOptimize(Data.EdgeIndices.data());                           \
-  benchmark::DoNotOptimize(Data.EdgeWeights.data());                           \
+  benchmark::DoNotOptimize(Data.EdgeTransitions.data());                       \
   benchmark::ClobberMemory();
 
 #define BENCHMARK_BODY_PATHTRAVERSAL                                           \

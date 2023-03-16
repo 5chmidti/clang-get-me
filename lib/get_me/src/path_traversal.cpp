@@ -48,7 +48,7 @@ std::vector<std::string> toString(const std::vector<PathType> &Paths,
     const auto GetTransition =
         [&Data, IndexMap = boost::get(boost::edge_index, Data.Graph)](
             const EdgeDescriptor &Edge) {
-          return Data.EdgeWeights[boost::get(IndexMap, Edge)];
+          return Data.EdgeTransitions[boost::get(IndexMap, Edge)];
         };
 
     return fmt::format(
@@ -120,7 +120,7 @@ private:
       const auto ToEdgeWeight = [this, IndexMap =
                                            get(boost::edge_index, Data_.Graph)](
                                     const EdgeDescriptor &Edge) {
-        return Data_.EdgeWeights[get(IndexMap, Edge)];
+        return Data_.EdgeTransitions[get(IndexMap, Edge)];
       };
       return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{}, ToEdgeWeight,
                                      ToEdgeWeight);
