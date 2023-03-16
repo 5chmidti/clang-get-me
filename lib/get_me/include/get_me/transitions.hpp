@@ -9,6 +9,7 @@
 #include <boost/container/container_fwd.hpp>
 #include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
+#include <fmt/core.h>
 
 #include "get_me/type_set.hpp"
 #include "support/concepts.hpp"
@@ -16,6 +17,30 @@
 using TransitionDataType =
     std::variant<const clang::FunctionDecl *, const clang::FieldDecl *,
                  const clang::VarDecl *>;
+
+[[nodiscard]] std::string getTransitionName(const TransitionDataType &Data);
+
+[[nodiscard]] std::string
+getTransitionAcquiredTypeNames(const TransitionDataType &Data);
+
+[[nodiscard]] std::string
+getTransitionRequiredTypeNames(const TransitionDataType &Data);
+
+template <> class fmt::formatter<TransitionDataType> {
+public:
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
+      -> decltype(Ctx.begin()) {
+    return Ctx.begin();
+  }
+
+  template <typename FormatContext>
+  [[nodiscard]] auto format(const TransitionDataType &Val,
+                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
+    return fmt::format_to(
+        Ctx.out(), "{} {}({})", getTransitionAcquiredTypeNames(Val),
+        getTransitionName(Val), getTransitionRequiredTypeNames(Val));
+  }
+};
 
 using TransitionType =
     std::tuple<TypeSetValueType, TransitionDataType, TypeSet>;

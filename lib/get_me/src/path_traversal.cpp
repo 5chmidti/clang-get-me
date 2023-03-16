@@ -10,6 +10,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/property_map/property_map.hpp>
+#include <fmt/ranges.h>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find.hpp>
@@ -40,6 +41,22 @@ namespace {
   };
 }
 } // namespace
+
+std::vector<std::string> toString(const std::vector<PathType> &Paths,
+                                  const GraphData &Data) {
+  const auto FormatPath = [&Data](const PathType &Path) {
+    const auto GetTransition =
+        [&Data, IndexMap = boost::get(boost::edge_index, Data.Graph)](
+            const EdgeDescriptor &Edge) {
+          return Data.EdgeWeights[boost::get(IndexMap, Edge)];
+        };
+
+    return fmt::format(
+        "{}", fmt::join(Path | ranges::views::transform(GetTransition), ", "));
+  };
+
+  return Paths | ranges::views::transform(FormatPath) | ranges::to_vector;
+};
 
 class PathFinder {
 private:

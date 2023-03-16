@@ -38,7 +38,6 @@
 
 #include "get_me/config.hpp"
 #include "get_me/direct_type_dependency_propagation.hpp"
-#include "get_me/formatting.hpp"
 #include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"

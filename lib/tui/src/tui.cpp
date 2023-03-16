@@ -13,7 +13,6 @@
 #include <range/v3/view/indirect.hpp>
 
 #include "get_me/config.hpp"
-#include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/path_traversal.hpp"
 #include "get_me/query.hpp"

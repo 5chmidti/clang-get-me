@@ -17,7 +17,6 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
-#include <get_me/formatting.hpp>
 #include <get_me/graph.hpp>
 #include <get_me/tooling.hpp>
 #include <oneapi/tbb/parallel_for_each.h>

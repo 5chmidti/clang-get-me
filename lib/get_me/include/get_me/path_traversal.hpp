@@ -9,6 +9,9 @@ class Config;
 
 using PathType = std::vector<EdgeDescriptor>;
 
+[[nodiscard]] std::vector<std::string>
+toString(const std::vector<PathType> &Paths, const GraphData &Data);
+
 [[nodiscard]] std::vector<PathType>
 pathTraversal(const GraphData &Data, const Config &Conf,
               VertexDescriptor SourceVertex);

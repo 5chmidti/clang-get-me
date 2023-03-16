@@ -14,7 +14,6 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
-#include "get_me/formatting.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
@@ -37,7 +36,9 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
             }
             return EquivalentName;
           },
-          [](const ArithmeticType &) { return false; }},
+          [&](const ArithmeticType &) {
+            return QueriedTypeAsString == fmt::format("{}", ArithmeticType{});
+          }},
       Val);
 }
 } // namespace

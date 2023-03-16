@@ -12,6 +12,7 @@ target_sources(
           src/query_all.cpp
           src/tooling.cpp
           src/tooling_filters.cpp
+          src/transitions.cpp
           src/type_set.cpp)
 
 target_compile_options(get_me_lib PUBLIC -fno-rtti)

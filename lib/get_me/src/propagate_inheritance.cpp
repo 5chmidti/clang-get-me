@@ -24,7 +24,6 @@
 #include <range/v3/view/unique.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
-#include "get_me/formatting.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/transitions.hpp"
