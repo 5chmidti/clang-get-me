@@ -5,6 +5,7 @@ target_sources(
           src/components/query.cpp
           src/components/boolean_toogle.cpp
           src/components/size_t_input.cpp
+          src/components/int64_input.cpp
           src/components/paths_menu.cpp
           src/components/config_editor.cpp)
 target_include_directories(get_me_tui

@@ -140,6 +140,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
 GraphData GraphBuilder::commit() {
   return {getIndexedSetSortedByIndex(std::move(VertexData_)),
+          getIndexedSetSortedByIndex(std::move(VertexDepth_)),
           getIndexedSetSortedByIndex(std::move(EdgesData_)),
           std::move(EdgeWeights_)};
 }

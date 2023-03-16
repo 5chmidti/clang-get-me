@@ -16,13 +16,19 @@
 #include <boost/pending/property.hpp>
 #include <fmt/ranges.h>
 #include <range/v3/algorithm/fold_left.hpp>
+#include <range/v3/range/operations.hpp>
+#include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
+#include <range/v3/view/map.hpp>
 
 #include "get_me/indexed_graph_sets.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/concepts.hpp"
+#include "support/get_me_exception.hpp"
+#include "support/ranges/functional.hpp"
+#include "support/ranges/ranges.hpp"
 
 namespace clang {
 class CXXRecordDecl;
@@ -53,9 +59,11 @@ struct GraphData {
   using VertexDataType = TypeSet;
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
-  GraphData(std::vector<VertexDataType> VertexData, std::vector<EdgeType> Edges,
-            std::vector<EdgeWeightType> EdgeWeights)
+  GraphData(std::vector<VertexDataType> VertexData,
+            std::vector<size_t> VertexDepth, std::vector<EdgeType> Edges,
+            std::vector<TransitionType> EdgeWeights)
       : VertexData{std::move(VertexData)},
+        VertexDepth{std::move(VertexDepth)},
         Edges{std::move(Edges)},
         EdgeIndices{ranges::views::indices(this->Edges.size()) |
                     ranges::to_vector},
@@ -65,6 +73,9 @@ struct GraphData {
 
   // vertices
   std::vector<VertexDataType> VertexData;
+
+  // depth the vertex was first visited
+  std::vector<size_t> VertexDepth;
 
   // edges
   std::vector<EdgeType> Edges;
@@ -185,6 +196,7 @@ public:
                         const TypeSetValueType &Query, const Config &Conf)
       : TransitionsForQuery_{getTransitionsForQuery(Transitions, Query)},
         VertexData_{{0U, TypeSet{Query}}},
+        VertexDepth_{{0U, 0U}},
         Conf_{Conf},
         CurrentState_{0U, VertexData_} {}
 
@@ -204,12 +216,19 @@ private:
 
   [[nodiscard]] auto
   maybeAddEdgeFrom(const indexed_value<VertexType> &IndexedSourceVertex) {
+    const auto SourceDepthVector =
+        VertexDepth_ |
+        ranges::views::filter(EqualTo(Index(IndexedSourceVertex)), Index) |
+        ranges::views::values | ranges::to_vector;
+    const auto SourceDepth = ranges::empty(SourceDepthVector)
+                                 ? 0U
+                                 : ranges::front(SourceDepthVector);
     return
-        [this, &IndexedSourceVertex](
+        [this, &IndexedSourceVertex, SourceDepth](
             bool AddedTransitions,
             const std::pair<TransitionType, TypeSet> &TransitionAndTargetTS) {
           const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
-          auto TargetVertexIter = VertexData_.find(TargetTypeSet);
+          const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
           const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
           const auto TargetVertexIndex = TargetVertexExists
                                              ? Index(*TargetVertexIter)
@@ -225,11 +244,33 @@ private:
           }
 
           if (TargetVertexExists) {
+            const auto TargetDepthVector =
+                VertexDepth_ |
+                ranges::views::filter(EqualTo(TargetVertexIndex), Index) |
+                ranges::views::values | ranges::to_vector;
+            const auto TargetDepth = ranges::empty(TargetDepthVector)
+                                         ? 0U
+                                         : ranges::front(TargetDepthVector);
+            GetMeException::verify(
+                TargetDepth <= std::numeric_limits<std::int64_t>::max(),
+                "TargetDepth is to large for cast to int64_t");
+            GetMeException::verify(
+                SourceDepth <= std::numeric_limits<std::int64_t>::max(),
+                "SourceDepth is to large for cast to int64_t");
+
+            if (const auto Diff = static_cast<std::int64_t>(TargetDepth) -
+                                  static_cast<std::int64_t>(SourceDepth);
+                !ranges::empty(TargetVertexIter->second) &&
+                Diff < Conf_.GraphVertexDepthDifferenceThreshold) {
+              return AddedTransitions;
+            }
             CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
           } else {
             CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
                                                       TargetTypeSet);
             VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
+            VertexDepth_.emplace(TargetVertexIndex,
+                                 CurrentState_.IterationIndex);
           }
           if (const auto [_, EdgeAdded] =
                   EdgesData_.emplace(EdgesData_.size(), EdgeToAdd);
@@ -243,6 +284,7 @@ private:
 
   TransitionCollector TransitionsForQuery_{};
   VertexSet VertexData_{};
+  indexed_set<size_t> VertexDepth_{};
   indexed_set<GraphData::EdgeType> EdgesData_{};
   std::vector<GraphData::EdgeWeightType> EdgeWeights_{};
   Config Conf_{};

@@ -49,7 +49,9 @@ void llvm::yaml::MappingTraits<Config>::mapping(llvm::yaml::IO &YamlIO,
         YamlIO.mapOptional(ValueName.data(), std::invoke(ValueAddress, Conf));
       };
 
-  const auto [BooleanMapping, SizeTMapping] = Config::getConfigMapping();
+  const auto [BooleanMapping, SizeTMapping, Int64Mapping] =
+      Config::getConfigMapping();
   ranges::for_each(BooleanMapping, MapOptional);
   ranges::for_each(SizeTMapping, MapOptional);
+  ranges::for_each(Int64Mapping, MapOptional);
 }

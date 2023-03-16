@@ -13,10 +13,12 @@
 
 #include "get_me/config.hpp"
 #include "tui/components/boolean_toggle.hpp"
+#include "tui/components/int64_input.hpp"
 #include "tui/components/size_t_input.hpp"
 
 ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf) {
-  const auto [BooleanMapping, SizeTMapping] = Config::getConfigMapping();
+  const auto [BooleanMapping, SizeTMapping, Int64Mapping] =
+      Config::getConfigMapping();
 
   const auto CreateEntry =
       [&Conf]<typename ValueType>(
@@ -32,7 +34,8 @@ ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf) {
   const auto ConfigElements = ftxui::Container::Vertical(
       ranges::views::concat(
           BooleanMapping | ranges::views::transform(CreateEntry),
-          SizeTMapping | ranges::views::transform(CreateEntry)) |
+          SizeTMapping | ranges::views::transform(CreateEntry),
+          Int64Mapping | ranges::views::transform(CreateEntry)) |
       ranges::to_vector);
   return Renderer(ConfigElements, [ConfigElements] {
     return ftxui::vbox({

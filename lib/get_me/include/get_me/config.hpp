@@ -3,6 +3,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <limits>
 #include <string_view>
@@ -17,13 +18,16 @@ public:
 
   using BooleanMappingType = MappingType<bool Config::*>;
   using SizeTMappingType = MappingType<std::size_t Config::*>;
+  using Int64MappingType = MappingType<std::int64_t Config::*>;
 
   static constexpr std::size_t NumBooleanFlags = 5;
   static constexpr std::size_t NumSizeTValues = 4;
+  static constexpr std::size_t NumInt64Values = 1;
 
-  [[nodiscard]] static consteval std::pair<
+  [[nodiscard]] static consteval std::tuple<
       std::array<BooleanMappingType, NumBooleanFlags>,
-      std::array<SizeTMappingType, NumSizeTValues>>
+      std::array<SizeTMappingType, NumSizeTValues>,
+      std::array<Int64MappingType, NumInt64Values>>
   getConfigMapping() {
     constexpr auto BooleanMappings = std::array{
         BooleanMappingType{"EnableFilterOverloads",
@@ -42,7 +46,10 @@ public:
         SizeTMappingType{"MinPathCount", &Config::MinPathCount},
         SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
     };
-    return {BooleanMappings, SizeTMappings};
+    constexpr auto Int64Mappings = std::array{
+        Int64MappingType{"GraphVertexDepthDifferenceThreshold",
+                         &Config::GraphVertexDepthDifferenceThreshold}};
+    return {BooleanMappings, SizeTMappings, Int64Mappings};
   }
 
   [[nodiscard]] static Config parse(const std::filesystem::path &File);
@@ -60,6 +67,8 @@ public:
   std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
   std::size_t MinPathCount = 0U;
   std::size_t MaxPathCount = std::numeric_limits<std::size_t>::max();
+
+  std::int64_t GraphVertexDepthDifferenceThreshold = 1;
   // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
