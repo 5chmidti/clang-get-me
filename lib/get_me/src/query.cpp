@@ -11,6 +11,7 @@
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
 #include <range/v3/view/filter.hpp>
+#include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
