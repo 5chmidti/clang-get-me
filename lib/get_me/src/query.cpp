@@ -37,7 +37,7 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
             }
             return EquivalentName;
           },
-          [&](const ArithmeticType &) {
+          [QueriedTypeAsString](const ArithmeticType &) {
             return QueriedTypeAsString == fmt::format("{}", ArithmeticType{});
           }},
       Val);
