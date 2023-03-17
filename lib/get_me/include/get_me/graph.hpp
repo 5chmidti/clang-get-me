@@ -184,54 +184,6 @@ private:
   [[nodiscard]] static std::int64_t
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
-  [[nodiscard]] auto
-  maybeAddEdgeFrom(const indexed_value<VertexType> &IndexedSourceVertex) {
-    const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
-    return
-        [this, &IndexedSourceVertex, SourceDepth](
-            bool AddedTransitions,
-            const std::pair<TransitionType, TypeSet> &TransitionAndTargetTS) {
-          const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
-          const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
-          const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
-          const auto TargetVertexIndex = TargetVertexExists
-                                             ? Index(*TargetVertexIter)
-                                             : VertexData_.size();
-
-          const auto EdgeToAdd = GraphData::EdgeType{Index(IndexedSourceVertex),
-                                                     TargetVertexIndex};
-
-          if (TargetVertexExists) {
-            if (!ranges::empty(TargetVertexIter->second) &&
-                getVertexDepthDifference(SourceDepth,
-                                         getVertexDepth(TargetVertexIndex)) <
-                    Conf_.GraphVertexDepthDifferenceThreshold) {
-              return AddedTransitions;
-            }
-
-            if (edgeWithTransitionExistsInContainer(
-                    EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
-              return AddedTransitions;
-            }
-
-            CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
-          } else {
-            CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
-                                                      TargetTypeSet);
-            VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
-            VertexDepth_.emplace(TargetVertexIndex,
-                                 CurrentState_.IterationIndex);
-          }
-          if (const auto [_, EdgeAdded] =
-                  EdgesData_.emplace(EdgesData_.size(), EdgeToAdd);
-              EdgeAdded) {
-            EdgeTransitions_.push_back(Transition);
-            AddedTransitions = true;
-          }
-          return AddedTransitions;
-        };
-  }
-
   TransitionCollector TransitionsForQuery_{};
   VertexSet VertexData_{};
   indexed_set<size_t> VertexDepth_{};
