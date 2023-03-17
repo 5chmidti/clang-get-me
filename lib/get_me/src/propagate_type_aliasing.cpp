@@ -148,19 +148,16 @@ propagateAcquiredTransitions(const TransitionCollector &Transitions) {
 [[nodiscard]] auto
 substituteGroupMembersFromRequired(const TypeAliasingGroup &Group) {
   return [&Group](const StrippedTransitionType &Transition) {
-    const auto TransitionWithoutGroupMembers = StrippedTransitionType{
-        ToTransition(Transition), ToRequired(Transition) |
-                                      ranges::views::set_difference(Group) |
-                                      ranges::to<TypeSet>};
-
-    return Group |
-           ranges::views::transform(
-               [&TransitionWithoutGroupMembers](const auto &Type) {
-                 auto NewTransition = TransitionWithoutGroupMembers;
-                 NewTransition.second.emplace(Type);
-                 return NewTransition;
-               }) |
-           ranges::to<StrippedTransitionsSet>;
+    return Group | ranges::views::transform(
+                       [TransitionWithoutGroupMembers = StrippedTransitionType{
+                            ToTransition(Transition),
+                            ToRequired(Transition) |
+                                ranges::views::set_difference(Group) |
+                                ranges::to<TypeSet>}](const auto &Type) {
+                         auto NewTransition = TransitionWithoutGroupMembers;
+                         NewTransition.second.emplace(Type);
+                         return NewTransition;
+                       });
   };
 }
 

@@ -136,6 +136,43 @@ TEST_CASE("propagate type aliasing") {
            "(C1, C1 getC(B1), {E1}), (E1, A1 A1(), {})",
        },
        PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       template <typename T>
+       struct B {};
+
+       using A2 = A;
+       using B2 = B<int>;
+       template <typename T>
+       using B3 = B<T>;
+    )",
+       "A", {"(A, A A(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       template <typename T>
+       struct B {};
+
+       using A2 = A;
+       using B2 = B<int>;
+       template <typename T>
+       using B3 = B<T>;
+    )",
+       "A2", {"(A2, A A(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       using A = int;
+       using B = unsigned int;
+       using C = A;
+       using D = C;
+       using E = B;
+
+       int getInt();
+       D getD();
+    )",
+       "int", {"(int, D getD(), {})", "(int, int getInt(), {})"},
+       PropagateTypeAliasConfig);
 }
 
 TEST_CASE("propagate type aliasing with member aliases") {
@@ -206,4 +243,42 @@ TEST_CASE("propagate type aliasing with member aliases") {
     )",
        "B::Base", {"(B::Base, A A(), {})", "(B::Base, B B(), {})"},
        PropagateTypeAliasConfig);
+}
+
+TEST_CASE("propagate type aliasing with templates") {
+  test(R"(
+       struct A {};
+       template <typename T>
+       struct B {};
+
+       using A2 = A;
+       using B2 = B<int>;
+       template <typename T>
+       using B3 = B<T>;
+    )",
+       "B<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       template <typename T>
+       struct B {};
+
+       using A2 = A;
+       using B2 = B<int>;
+       template <typename T>
+       using B3 = B<T>;
+    )",
+       "B2", {"(B<int>, B B(), {})"}, PropagateTypeAliasConfig);
+
+  test(R"(
+       struct A {};
+       template <typename T>
+       struct B {};
+
+       using A2 = A;
+       using B2 = B<int>;
+       template <typename T>
+       using B3 = B<T>;
+    )",
+       "B3<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
 }
