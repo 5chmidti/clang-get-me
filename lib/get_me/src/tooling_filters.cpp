@@ -70,11 +70,6 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
   if (isReturnTypeInParameterList(FDecl)) {
     return true;
   }
-  // FIXME: support templates
-  if (FDecl->isTemplateDecl()) {
-    return true;
-  }
-
   return false;
 }
 
@@ -137,9 +132,6 @@ bool filterOut(const clang::CXXRecordDecl *const RDecl, const Config &Conf) {
     return true;
   }
   if (RDecl->isTemplateDecl()) {
-    return true;
-  }
-  if (RDecl->isTemplated()) {
     return true;
   }
   if (hasNameContainingAny(RDecl, std::array{"FILE"sv, "exception"sv,
