@@ -7,13 +7,12 @@
 #include <vector>
 
 #include <range/v3/action/sort.hpp>
-#include <range/v3/algorithm/sort.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
 #include <rapidfuzz/fuzz.hpp>
 
-#include "support/ranges/projections.hpp"
+#include "support/ranges/functional.hpp"
 
 class FuzzySearchState {
 public:

@@ -1,6 +1,5 @@
 #include "tui/components/int64_input.hpp"
 
-#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>

@@ -1,11 +1,11 @@
 add_library(get_me_lib STATIC)
 target_sources(
   get_me_lib
-  PRIVATE src/config.cpp
+  PRIVATE src/backwards_path_finding.cpp
+          src/config.cpp
           src/direct_type_dependency_propagation.cpp
           src/formatting.cpp
           src/graph.cpp
-          src/path_traversal.cpp
           src/propagate_inheritance.cpp
           src/propagate_type_aliasing.cpp
           src/query.cpp

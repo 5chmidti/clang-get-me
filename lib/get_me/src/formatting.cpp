@@ -1,5 +1,7 @@
 #include "get_me/formatting.hpp"
 
+#include <string>
+
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclBase.h>

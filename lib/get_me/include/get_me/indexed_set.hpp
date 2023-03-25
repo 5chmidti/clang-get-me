@@ -1,25 +1,24 @@
 #ifndef get_me_lib_get_me_include_get_me_indexed_set_hpp
 #define get_me_lib_get_me_include_get_me_indexed_set_hpp
 
+#include <cstddef>
 #include <functional>
 #include <set>
 #include <utility>
 
-#include <llvm/Support/Compiler.h>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include "support/ranges/projections.hpp"
+#include "support/ranges/functional.hpp"
 
 template <typename ValueType>
 using indexed_value = std::pair<size_t, ValueType>;
 
-constexpr auto Value = Element<1>;
-constexpr auto Index = Element<0>;
-
-template <typename ValueType> struct IndexedSetComparator {
+template <typename ValueType>
+  requires std::relation<std::less<>, ValueType, ValueType>
+struct IndexedSetComparator {
   using is_transparent = void;
   using indexed_value_type = indexed_value<ValueType>;
 

@@ -21,19 +21,14 @@
 #include <get_me/tooling.hpp>
 #include <oneapi/tbb/parallel_for_each.h>
 #include <range/v3/algorithm/equal.hpp>
-#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
-#include <range/v3/range/primitives.hpp>
-#include <range/v3/view/filter.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
-#include "get_me/path_traversal.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "support/ranges/projections.hpp"
 
 namespace {
 constexpr auto BacktraceSize = 1024U;
@@ -57,11 +52,19 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
                                          ToString) |
            ranges::to<std::set>;
   };
-  INFO(fmt::format("Expected:\t{}\nFound:\t{}\nNot found:\t{}\nNot "
-                   "expected:\t{}",
-                   ExpectedPaths, FoundPathsAsString,
-                   ToSetDifference(ExpectedPaths, FoundPathsAsString),
-                   ToSetDifference(FoundPathsAsString, ExpectedPaths)));
+  static constexpr auto Indentation = 14;
+  static const auto Seperator = fmt::format("\n{0: <{1}}  ", "", Indentation);
+  INFO(fmt::format(
+      "{1: <{0}}: {2}\n"
+      "{3: <{0}}: {4}\n"
+      "{5: <{0}}: {6}\n"
+      "{7: <{0}}: {8}\n",
+      Indentation, "Expected", fmt::join(ExpectedPaths, Seperator), "Found",
+      fmt::join(FoundPathsAsString, Seperator), "Not found",
+      fmt::join(ToSetDifference(ExpectedPaths, FoundPathsAsString), Seperator),
+      "Not expected",
+      fmt::join(ToSetDifference(FoundPathsAsString, ExpectedPaths),
+                Seperator)));
   REQUIRE(ExpectedEqualityResult ==
           ranges::equal(FoundPathsAsString, ExpectedPaths));
 }
@@ -87,7 +90,7 @@ void testSuccess(const std::string_view Code,
   LOG_LOC(Loc);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
-      buildGraphAndFindPaths(*Transitions, QueriedType, CurrentConfig);
+      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
   verify(true, FoundPathsAsString, ExpectedPaths);
   spdlog::disable_backtrace();
 }
@@ -100,8 +103,9 @@ void testFailure(const std::string_view Code,
   spdlog::enable_backtrace(BacktraceSize);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
   const auto FoundPathsAsString =
-      buildGraphAndFindPaths(*Transitions, QueriedType, CurrentConfig);
+      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
   verify(false, FoundPathsAsString, ExpectedPaths);
+  spdlog::disable_backtrace();
 }
 
 void testNoThrow(const std::string_view Code,
@@ -109,12 +113,10 @@ void testNoThrow(const std::string_view Code,
                  const Config &CurrentConfig, const std::source_location Loc) {
   spdlog::enable_backtrace(BacktraceSize);
   const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
-  spdlog::disable_backtrace();
   const auto Test = [&Loc, &Transitions, &QueriedType, &CurrentConfig]() {
-    spdlog::enable_backtrace(BacktraceSize);
     LOG_LOC(Loc);
     std::ignore =
-        buildGraphAndFindPaths(*Transitions, QueriedType, CurrentConfig);
+        buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
     spdlog::disable_backtrace();
   };
 
@@ -131,11 +133,11 @@ void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
   const auto Run = [&Transitions, &CurrentConfig](const auto &QueriedType) {
     REQUIRE_NOTHROW(
         std::ignore = buildGraphAndFindPaths(
-            *Transitions, fmt::format("{}", QueriedType), CurrentConfig));
+            Transitions, fmt::format("{}", QueriedType), CurrentConfig));
   };
 
-  tbb::parallel_for_each(*Transitions | ranges::views::transform(ToAcquired),
-                         Run);
+  tbb::parallel_for_each(
+      Transitions->Data | ranges::views::transform(ToAcquired), Run);
   spdlog::disable_backtrace();
 }
 
@@ -148,11 +150,11 @@ collectTransitions(const std::string_view Code, const Config &CurrentConfig) {
 }
 
 std::set<std::string>
-buildGraphAndFindPaths(const TransitionCollector &Transitions,
+buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const std::string_view QueriedType,
                        const Config &CurrentConfig) {
-  const auto Query = getQueriedTypeForInput(Transitions, QueriedType);
-  const auto Data = createGraph(Transitions, Query, CurrentConfig);
+  const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
+  auto Data = runGraphBuildingAndPathFinding(Transitions, Query, CurrentConfig);
   const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);
@@ -164,6 +166,5 @@ buildGraphAndFindPaths(const TransitionCollector &Transitions,
     return {};
   }
 
-  return toString(pathTraversal(Data, CurrentConfig, SourceVertex), Data) |
-         ranges::to<std::set>;
+  return toString(Data.Paths, Data) | ranges::to<std::set>;
 }

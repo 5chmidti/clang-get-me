@@ -8,34 +8,37 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/util/ref.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/utility/tuple_algorithm.hpp>
 #include <range/v3/view/concat.hpp>
+#include <range/v3/view/empty.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/config.hpp"
 #include "tui/components/boolean_toggle.hpp"
+#include "tui/components/enum_seletion.hpp"
 #include "tui/components/int64_input.hpp"
 #include "tui/components/size_t_input.hpp"
 
 ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf) {
-  const auto [BooleanMapping, SizeTMapping, Int64Mapping] =
-      Config::getConfigMapping();
+  const auto ToEntry = [&Conf]<typename ValueType>(
+                           const Config::MappingType<ValueType> &MappingValue) {
+    const auto &[Name, MemberAddress] = MappingValue;
+    const auto Flag1 = configEntry(&std::invoke(MemberAddress, Conf));
+    return Renderer(Flag1, [Name, Flag1] {
+      return hbox(ftxui::text(fmt::format("{:35}: ", Name)), Flag1->Render());
+    });
+  };
 
-  const auto CreateEntry =
-      [&Conf]<typename ValueType>(
-          const Config::MappingType<ValueType> &MappingValue) {
-        const auto &[Name, MemberAddress] = MappingValue;
-        const auto Flag1 = configEntry(&std::invoke(MemberAddress, Conf));
-        return Renderer(Flag1, [Name, Flag1] {
-          return hbox(ftxui::text(fmt::format("{:35}: ", Name)),
-                      Flag1->Render());
-        });
-      };
+  const auto TransformToEntriesAndConcat = [&ToEntry](const auto Range,
+                                                      auto Mappings) {
+    return ranges::views::concat(Range,
+                                 Mappings | ranges::views::transform(ToEntry));
+  };
 
   const auto ConfigElements = ftxui::Container::Vertical(
-      ranges::views::concat(
-          BooleanMapping | ranges::views::transform(CreateEntry),
-          SizeTMapping | ranges::views::transform(CreateEntry),
-          Int64Mapping | ranges::views::transform(CreateEntry)) |
+      ranges::tuple_foldl(Config::getConfigMapping(),
+                          ranges::views::empty<ftxui::Component>,
+                          TransformToEntriesAndConcat) |
       ranges::to_vector);
   return Renderer(ConfigElements, [ConfigElements] {
     return ftxui::vbox({

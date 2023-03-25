@@ -1,22 +1,31 @@
+#include <compare>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
-#include <boost/graph/properties.hpp>
-#include <boost/property_map/property_map.hpp>
+#include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
+#include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>
 #include <ftxui/component/screen_interactive.hpp>
+#include <ftxui/dom/elements.hpp>
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/indirect.hpp>
+#include <range/v3/view/transform.hpp>
 
+#include "ftxui/dom/elements.hpp"
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
-#include "get_me/path_traversal.hpp"
 #include "get_me/query.hpp"
 #include "get_me/tooling.hpp"
+#include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
 #include "tui/components/config_editor.hpp"
@@ -36,7 +45,7 @@ public:
     collectTransitions();
 
     AcquiredTypeNames_ =
-        *Transitions_ | ranges::views::transform(ToAcquired) |
+        Transitions_->Data | ranges::views::transform(ToAcquired) |
         ranges::views::transform([](const TypeSetValueType Acquired) {
           return fmt::format("{}", Acquired);
         }) |
@@ -62,7 +71,7 @@ public:
 
 private:
   void collectTransitions() {
-    Transitions_->clear();
+    Transitions_->Data.clear();
 
     const auto BuildASTsResult = Tool_.buildASTs(ASTs_);
     GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
@@ -93,15 +102,13 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
   const auto CommitCallback = [&Conf, &PathsStr, &CollectionState,
                                &QueriedName]() {
     const auto Query = getQueriedTypeForInput(
-        *CollectionState.getTransitionsPtr(), QueriedName);
+        CollectionState.getTransitionsPtr()->Data, QueriedName);
 
-    const auto Data =
-        createGraph(*CollectionState.getTransitionsPtr(), Query, Conf);
+    auto Data = runGraphBuildingAndPathFinding(
+        CollectionState.getTransitionsPtr(), Query, Conf);
 
-    const auto SourceVertexDesc =
-        getSourceVertexMatchingQueriedType(Data, Query);
     const auto Paths =
-        pathTraversal(Data, Conf, SourceVertexDesc) |
+        Data.Paths | ranges::to_vector |
         ranges::actions::sort([&Data](const PathType &Lhs,
                                       const PathType &Rhs) {
           if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
@@ -113,20 +120,20 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
           return Data.VertexData[Target(Lhs.back())].size() <
                  Data.VertexData[Target(Rhs.back())].size();
         });
-    const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
     PathsStr =
         Paths | ranges::views::enumerate |
-        ranges::views::transform([&Data, &IndexMap](const auto IndexedPath) {
+        ranges::views::transform([&Data](const auto IndexedPath) {
           const auto &[Number, Path] = IndexedPath;
           return fmt::format(
               "path #{}: {} -> remaining: {}", Number,
               fmt::join(
                   Path | ranges::views::transform(
-                             [&Data, &IndexMap](const EdgeDescriptor &Edge) {
+                             [&Data](const TransitionEdgeType &Edge) {
                                return fmt::format(
                                    "{}",
-                                   ToTransition(Data.EdgeTransitions[boost::get(
-                                       IndexMap, Edge)]));
+                                   ToTransition(
+                                       Data.Transitions
+                                           ->FlatData[Edge.TransitionIndex]));
                              }),
                   ", "),
               Data.VertexData[Target(Path.back())]);

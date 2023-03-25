@@ -2,8 +2,6 @@
 
 #include <vector>
 
-#include <clang/AST/Decl.h>
-
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/propagate_inheritance.hpp"

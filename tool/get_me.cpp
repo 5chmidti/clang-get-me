@@ -7,10 +7,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/container/flat_set.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/properties.hpp>
-#include <boost/property_map/property_map.hpp>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/ArgumentsAdjusters.h>
 #include <clang/Tooling/CommonOptionsParser.h>
@@ -27,6 +23,9 @@
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/partial_sort.hpp>
+#include <range/v3/range/access.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/indirect.hpp>
@@ -39,13 +38,11 @@
 
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
-#include "get_me/path_traversal.hpp"
 #include "get_me/query.hpp"
 #include "get_me/query_all.hpp"
 #include "get_me/tooling.hpp"
 #include "get_me/transitions.hpp"
 #include "support/get_me_exception.hpp"
-#include "support/ranges/ranges.hpp"
 #include "tui/tui.hpp"
 
 // NOLINTBEGIN
@@ -118,24 +115,20 @@ int main(int argc, const char **argv) {
                    });
 
   if (QueryAll) {
-    queryAll(*Transitions, Conf);
+    queryAll(Transitions, Conf);
     return 0;
   }
 
   const auto &QueriedType = TypeName.getValue();
-  const auto Query = getQueriedTypeForInput(*Transitions, QueriedType);
+  const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
 
-  const auto Data = createGraph(*Transitions, Query, Conf);
-  const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
+  auto Data = runGraphBuildingAndPathFinding(Transitions, Query, Conf);
+  // spdlog::trace("Data: {}", Data);
 
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
-  auto DotFile = fmt::output_file("graph.dot");
-  DotFile.print("{:d}", Data);
-
-  const auto SourceVertexDesc = getSourceVertexMatchingQueriedType(Data, Query);
-  auto Paths = pathTraversal(Data, Conf, SourceVertexDesc);
+  auto Paths = Data.Paths | ranges::to_vector;
   spdlog::info(
       "path length distribution: {}",
       Paths |
@@ -148,7 +141,7 @@ int main(int argc, const char **argv) {
   auto PreIndepPathsSize = Paths.size();
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
-  const auto OutputPathCount = std::min<size_t>(Paths.size(), 10U);
+  const auto OutputPathCount = std::min<size_t>(Paths.size(), Conf.NumPaths);
   ranges::partial_sort(
       Paths,
       Paths.begin() +
@@ -166,19 +159,22 @@ int main(int argc, const char **argv) {
 
   ranges::for_each(
       Paths | ranges::views::take(OutputPathCount) | ranges::views::enumerate,
-      [&Data, &IndexMap](const auto IndexedPath) {
+      [&Data](const auto IndexedPath) {
         const auto &[Number, Path] = IndexedPath;
         spdlog::info(
             "path #{}: {} -> remaining: {}", Number,
             fmt::join(
-                Path | ranges::views::transform(
-                           [&Data, &IndexMap](const EdgeDescriptor &Edge) {
-                             return fmt::format(
-                                 "{}",
-                                 ToTransition(Data.EdgeTransitions[boost::get(
-                                     IndexMap, Edge)]));
-                           }),
+                Path | ranges::views::transform([&Data](const TransitionEdgeType
+                                                            &Edge) {
+                  return fmt::format(
+                      "{}",
+                      ToTransition(
+                          Data.Transitions->FlatData[Edge.TransitionIndex]));
+                }),
                 ", "),
             Data.VertexData[Target(Path.back())]);
       });
+
+  auto DotFile = fmt::output_file("graph.dot");
+  DotFile.print("{:d}", Data);
 }

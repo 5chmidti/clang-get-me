@@ -7,49 +7,45 @@
 #include <filesystem>
 #include <limits>
 #include <string_view>
+#include <tuple>
 #include <utility>
 
+#include <fmt/core.h>
 #include <llvm/Support/YAMLTraits.h>
+#include <range/v3/algorithm/for_each.hpp>
 
 class Config {
 public:
   template <typename ValueType>
-  using MappingType = std::pair<std::string_view, ValueType>;
+  using MappingType = std::pair<std::string_view, ValueType Config::*>;
 
-  using BooleanMappingType = MappingType<bool Config::*>;
-  using SizeTMappingType = MappingType<std::size_t Config::*>;
-  using Int64MappingType = MappingType<std::int64_t Config::*>;
+  using BooleanMappingType = MappingType<bool>;
+  using SizeTMappingType = MappingType<std::size_t>;
+  using Int64MappingType = MappingType<std::int64_t>;
 
-  static constexpr std::size_t NumBooleanFlags = 5;
-  static constexpr std::size_t NumSizeTValues = 4;
-  static constexpr std::size_t NumInt64Values = 1;
-
-  [[nodiscard]] static consteval std::tuple<
-      std::array<BooleanMappingType, NumBooleanFlags>,
-      std::array<SizeTMappingType, NumSizeTValues>,
-      std::array<Int64MappingType, NumInt64Values>>
-  getConfigMapping() {
-    constexpr auto BooleanMappings = std::array{
-        BooleanMappingType{"EnableFilterOverloads",
-                           &Config::EnableFilterOverloads},
-        BooleanMappingType{"EnablePropagateInheritance",
-                           &Config::EnablePropagateInheritance},
-        BooleanMappingType{"EnablePropagateTypeAlias",
-                           &Config::EnablePropagateTypeAlias},
-        BooleanMappingType{"EnableTruncateArithmetic",
-                           &Config::EnableTruncateArithmetic},
-        BooleanMappingType{"EnableFilterStd", &Config::EnableFilterStd},
-    };
-    constexpr auto SizeTMappings = std::array{
-        SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
-        SizeTMappingType{"MaxPathLength", &Config::MaxPathLength},
-        SizeTMappingType{"MinPathCount", &Config::MinPathCount},
-        SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
-    };
-    constexpr auto Int64Mappings = std::array{
-        Int64MappingType{"GraphVertexDepthDifferenceThreshold",
-                         &Config::GraphVertexDepthDifferenceThreshold}};
-    return {BooleanMappings, SizeTMappings, Int64Mappings};
+  [[nodiscard]] static consteval auto getConfigMapping() {
+    return std::tuple{
+        std::array{
+            BooleanMappingType{"EnableFilterOverloads",
+                               &Config::EnableFilterOverloads},
+            BooleanMappingType{"EnablePropagateInheritance",
+                               &Config::EnablePropagateInheritance},
+            BooleanMappingType{"EnablePropagateTypeAlias",
+                               &Config::EnablePropagateTypeAlias},
+            BooleanMappingType{"EnableTruncateArithmetic",
+                               &Config::EnableTruncateArithmetic},
+            BooleanMappingType{"EnableFilterStd", &Config::EnableFilterStd},
+        },
+        std::array{
+            SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
+            SizeTMappingType{"MaxPathLength", &Config::MaxPathLength},
+            SizeTMappingType{"MinPathCount", &Config::MinPathCount},
+            SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
+            SizeTMappingType{"NumPaths", &Config::NumPaths},
+        },
+        std::array{
+            Int64MappingType{"GraphVertexDepthDifferenceThreshold",
+                             &Config::GraphVertexDepthDifferenceThreshold}}};
   }
 
   [[nodiscard]] static Config parse(const std::filesystem::path &File);
@@ -66,6 +62,7 @@ public:
   std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
   std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
   std::size_t MinPathCount = 0U;
+  std::size_t NumPaths = 10U;
   std::size_t MaxPathCount = std::numeric_limits<std::size_t>::max();
 
   std::int64_t GraphVertexDepthDifferenceThreshold = 1;

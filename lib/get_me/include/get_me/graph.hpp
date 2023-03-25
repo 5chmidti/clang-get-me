@@ -1,33 +1,28 @@
 #ifndef get_me_lib_get_me_include_get_me_graph_hpp
 #define get_me_lib_get_me_include_get_me_graph_hpp
 
+#include <compare>
 #include <cstddef>
 #include <cstdint>
-#include <tuple>
-#include <type_traits>
+#include <memory>
+#include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
-#include <boost/algorithm/string/replace.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graph_selectors.hpp>
-#include <boost/graph/graph_traits.hpp>
-#include <boost/graph/properties.hpp>
-#include <boost/pending/property.hpp>
+#include <boost/container/flat_set.hpp>
+#include <fmt/core.h>
 #include <fmt/ranges.h>
-#include <range/v3/algorithm/fold_left.hpp>
-#include <range/v3/view/indices.hpp>
+#include <range/v3/algorithm/lexicographical_compare.hpp>
+#include <range/v3/algorithm/permutation.hpp>
+#include <range/v3/functional/comparisons.hpp>
+#include <range/v3/range/traits.hpp>
+#include <range/v3/view/transform.hpp>
 
 #include "get_me/indexed_set.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "support/concepts.hpp"
-#include "support/get_me_exception.hpp"
-#include "support/ranges/front.hpp"
 #include "support/ranges/functional.hpp"
-#include "support/ranges/ranges.hpp"
 
 namespace clang {
 class CXXRecordDecl;
@@ -38,71 +33,27 @@ class VarDecl;
 
 class Config;
 
-using GraphType =
-    boost::adjacency_list<boost::listS, boost::vecS, boost::directedS,
-                          boost::no_property,
-                          boost::property<boost::edge_index_t, size_t>>;
+using VertexDescriptor = size_t;
 
-static_assert(
-    std::is_same_v<boost::allow_parallel_edge_tag,
-                   boost::graph_traits<GraphType>::edge_parallel_category>,
-    "GraphType is required to allow parallel edges");
+using EdgeType = std::pair<size_t, size_t>;
+// make size_t the index of the transition for the permutation comparator
 
-using EdgeDescriptor = typename boost::graph_traits<GraphType>::edge_descriptor;
+struct TransitionEdgeType {
+  EdgeType Edge{};
+  size_t TransitionIndex{};
 
-using VertexDescriptor =
-    typename boost::graph_traits<GraphType>::vertex_descriptor;
-
-struct GraphData {
-  using VertexDataType = TypeSet;
-  using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
-
-  GraphData(std::vector<VertexDataType> VertexData,
-            std::vector<size_t> VertexDepth, std::vector<EdgeType> Edges,
-            std::vector<TransitionType> EdgeTransitions);
-
-  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
-
-  // vertices
-  std::vector<VertexDataType> VertexData;
-
-  // depth the vertex was first visited
-  std::vector<size_t> VertexDepth;
-
-  // edges
-  std::vector<EdgeType> Edges;
-
-  // index property of an edge, allows mapping other properties (e.g. weight)
-  std::vector<size_t> EdgeIndices;
-  // all possible edge transitions
-  std::vector<TransitionType> EdgeTransitions;
-
-  // graph
-  GraphType Graph;
-  // NOLINTEND(misc-non-private-member-variables-in-classes)
+  [[nodiscard]] friend constexpr auto
+  operator<=>(const TransitionEdgeType &, const TransitionEdgeType &) = default;
 };
 
-inline constexpr auto Source = []<typename T>(const T &Edge)
-  requires IsAnyOf<T, EdgeDescriptor, GraphData::EdgeType>
-{
-  if constexpr (std::same_as<T, EdgeDescriptor>) {
-    return Edge.m_source;
-  } else if constexpr (std::same_as<T, GraphData::EdgeType>) {
-    return std::get<0>(Edge);
-  }
-};
+// FIXME: can combine multiple edges by storing all indices belonging to those
+// edges in a vector
+// this would also implement the edges as transition independent transitions
+// (saves on duplicate paths and others)
+// the problem with this would be that of rendering paths as strings (or just
+// use views::for_each)
 
-inline constexpr auto Target = []<typename T>(const T &Edge)
-  requires IsAnyOf<T, EdgeDescriptor, GraphData::EdgeType>
-{
-  if constexpr (std::same_as<T, EdgeDescriptor>) {
-    return Edge.m_target;
-  } else if constexpr (std::same_as<T, GraphData::EdgeType>) {
-    return std::get<1>(Edge);
-  }
-};
-
-template <> class fmt::formatter<EdgeDescriptor> {
+template <> class fmt::formatter<TransitionEdgeType> {
 public:
   [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
       -> decltype(Ctx.begin()) {
@@ -110,10 +61,85 @@ public:
   }
 
   template <typename FormatContext>
-  [[nodiscard]] auto format(const EdgeDescriptor &Edge,
+  [[nodiscard]] auto format(const TransitionEdgeType &Val,
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
-    return fmt::format_to(Ctx.out(), "{}",
-                          std::pair{Source(Edge), Target(Edge)});
+    return fmt::format_to(Ctx.out(), "({}, {})", Val.Edge, Val.TransitionIndex);
+  }
+};
+
+using PathType = std::vector<TransitionEdgeType>;
+
+struct IsPermutationComparator {
+  [[nodiscard]] bool operator()(const PathType &Lhs,
+                                const PathType &Rhs) const {
+    if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
+      return std::is_lt(Comp);
+    }
+
+    return !ranges::is_permutation(Lhs, Rhs, ranges::equal_to{},
+                                   &TransitionEdgeType::TransitionIndex,
+                                   &TransitionEdgeType::TransitionIndex) &&
+           ranges::lexicographical_compare(
+               Lhs, Rhs, ranges::less{}, &TransitionEdgeType::TransitionIndex,
+               &TransitionEdgeType::TransitionIndex);
+  }
+};
+
+struct GraphData {
+  using EdgeContainer = boost::container::flat_set<TransitionEdgeType>;
+  using PathContainer =
+      boost::container::flat_set<PathType, IsPermutationComparator>;
+
+  GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
+            EdgeContainer Edges,
+            std::shared_ptr<TransitionCollector> Transitions);
+
+  GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
+            EdgeContainer Edges,
+            std::shared_ptr<TransitionCollector> Transitions,
+            PathContainer Paths);
+
+  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+
+  std::vector<TypeSet> VertexData;
+
+  // depth the vertex was first visited
+  std::vector<size_t> VertexDepth;
+
+  EdgeContainer Edges;
+
+  PathContainer Paths{};
+
+  std::shared_ptr<TransitionCollector> Transitions{};
+
+  // NOLINTEND(misc-non-private-member-variables-in-classes)
+};
+
+inline constexpr auto Source = []<typename T>(const T &Edge) -> VertexDescriptor
+// requires IsAnyOf<T, EdgeDescriptor, EdgeType>
+{
+  if constexpr (requires(T Val) { Val.m_source; }) {
+    return Edge.m_source;
+  } else if constexpr (std::same_as<T, EdgeType>) {
+    return std::get<0>(Edge);
+  } else if constexpr (std::same_as<T, TransitionEdgeType>) {
+    return std::get<0>(Edge.Edge);
+  } else {
+    static_assert(std::same_as<void, T>);
+  }
+};
+
+inline constexpr auto Target = []<typename T>(const T &Edge) -> VertexDescriptor
+// requires IsAnyOf<T, EdgeDescriptor, EdgeType>
+{
+  if constexpr (requires(T Val) { Val.m_target; }) {
+    return Edge.m_target;
+  } else if constexpr (std::same_as<T, EdgeType>) {
+    return std::get<1>(Edge);
+  } else if constexpr (std::same_as<T, TransitionEdgeType>) {
+    return std::get<1>(Edge.Edge);
+  } else {
+    static_assert(std::same_as<void, T>);
   }
 };
 
@@ -138,7 +164,13 @@ public:
     case 'd':
       return fmt::format_to(Ctx.out(), "{}", toDotFormat(Val));
     }
-    return fmt::format_to(Ctx.out(), "{}", Val);
+    return fmt::format_to(Ctx.out(), R"(
+  VertexData: {}
+  VertexDepth: {}
+  Edges: {}
+  Paths: {})",
+                          Val.VertexData, Val.VertexDepth, Val.Edges,
+                          Val.Paths);
   }
 
 private:
@@ -147,21 +179,36 @@ private:
   char Presentation_{};
 };
 
-[[nodiscard]] bool edgeWithTransitionExistsInContainer(
-    const indexed_set<GraphData::EdgeType> &Edges,
-    const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
-    const std::vector<TransitionType> &EdgeTransitions);
+[[nodiscard]] std::vector<VertexDescriptor> getRootVertices(GraphData &Data);
+
+[[nodiscard]] std::vector<VertexDescriptor> getLeafVertices(GraphData &Data);
+
+template <typename RangeType>
+  requires std::same_as<ranges::range_value_t<RangeType>, PathType>
+[[nodiscard]] auto toString(RangeType &&Paths, const GraphData &Data) {
+  const auto FormatPath = [&Data](const PathType &Path) {
+    const auto GetTransition = [&Data](const TransitionEdgeType &Edge) {
+      return Value(Data.Transitions->FlatData[Edge.TransitionIndex]);
+    };
+
+    return fmt::format(
+        "{}", fmt::join(Path | ranges::views::transform(GetTransition), ", "));
+  };
+
+  return std::forward<RangeType>(Paths) | ranges::views::transform(FormatPath);
+};
 
 class GraphBuilder {
 public:
   using VertexType = TypeSet;
   using VertexSet = indexed_set<VertexType>;
 
-  explicit GraphBuilder(const TransitionCollector &Transitions,
+  explicit GraphBuilder(std::shared_ptr<TransitionCollector> Transitions,
                         const TypeSetValueType &Query, const Config &Conf)
-      : TransitionsForQuery_{getTransitionsForQuery(Transitions, Query)},
-        VertexData_{{0U, TypeSet{Query}}},
-        VertexDepth_{{0U, 0U}},
+      : Transitions_{std::move(Transitions)},
+        Query_{Query},
+        VertexData_{{0U, TypeSet{Query}}, {1U, TypeSet{}}},
+        VertexDepth_{{0U, 0U}, {1U, 0U}},
         Conf_{Conf},
         CurrentState_{0U, VertexData_} {}
 
@@ -184,19 +231,20 @@ private:
   [[nodiscard]] static std::int64_t
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
-  TransitionCollector TransitionsForQuery_{};
+  std::shared_ptr<TransitionCollector> Transitions_;
+  TypeSetValueType Query_;
   VertexSet VertexData_{};
   indexed_set<size_t> VertexDepth_{};
-  indexed_set<GraphData::EdgeType> EdgesData_{};
-  std::vector<TransitionType> EdgeTransitions_{};
+  GraphData::EdgeContainer Edges_{};
   Config Conf_{};
+  boost::container::flat_set<PathType, IsPermutationComparator> Paths_{};
 
   StepState CurrentState_{};
 };
 
-[[nodiscard]] GraphData createGraph(const TransitionCollector &Transitions,
-                                    const TypeSetValueType &Query,
-                                    const Config &Conf);
+[[nodiscard]] GraphData runGraphBuildingAndPathFinding(
+    const std::shared_ptr<TransitionCollector> &Transitions,
+    const TypeSetValueType &Query, const Config &Conf);
 
 [[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,

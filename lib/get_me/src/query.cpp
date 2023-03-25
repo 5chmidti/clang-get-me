@@ -1,6 +1,5 @@
 #include "get_me/query.hpp"
 
-#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,7 +13,7 @@
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
-#include "get_me/config.hpp"
+#include "get_me/formatting.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
@@ -44,9 +43,9 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
 }
 } // namespace
 
-TypeSetValueType
-getQueriedTypeForInput(const TransitionCollector &Transitions,
-                       const std::string_view QueriedTypeAsString) {
+TypeSetValueType getQueriedTypeForInput(
+    const TransitionCollector::associative_container_type &Transitions,
+    const std::string_view QueriedTypeAsString) {
   if (Transitions.empty()) {
     GetMeException::fail("getQueriedTypeForInput(): Transitions are empty");
   }
@@ -67,9 +66,9 @@ getQueriedTypeForInput(const TransitionCollector &Transitions,
   return ranges::front(FilteredTypes);
 }
 
-TransitionCollector
-getTransitionsForQuery(const TransitionCollector &Transitions,
-                       const TypeSetValueType &QueriedType) {
+TransitionCollector::associative_container_type getTransitionsForQuery(
+    const TransitionCollector::associative_container_type &Transitions,
+    const TypeSetValueType &QueriedType) {
   const auto QueriedTypeIsSubset = [&QueriedType](const auto &Required) {
     return Required.contains(QueriedType);
   };
@@ -84,5 +83,5 @@ getTransitionsForQuery(const TransitionCollector &Transitions,
                            ranges::not_fn(QueriedTypeIsSubset), ToRequired) |
                        ranges::to<StrippedTransitionsSet>};
              }) |
-         ranges::to<TransitionCollector>;
+         ranges::to<TransitionCollector::associative_container_type>;
 }

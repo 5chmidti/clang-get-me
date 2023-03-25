@@ -1,8 +1,9 @@
-from conans import ConanFile
+from conan import ConanFile
 
 
-class TemplateProject(ConanFile):
-    name = "TemplateProject"
+class GetMe(ConanFile):
+    settings = "os", "compiler", "build_type", "arch"
+    generators = "CMakeToolchain", "CMakeDeps"
 
     def configure(self):
         self.options["boost"].without_atomic = True
@@ -27,16 +28,17 @@ class TemplateProject(ConanFile):
         self.options["boost"].without_type_erasure = True
         self.options["boost"].without_wave = True
 
-    requires = (
-        "fmt/9.1.0",
-        "spdlog/1.11.0",
-        "catch2/3.3.0",
-        "benchmark/1.7.1",
-        "boost/1.81.0",
-        "range-v3/0.12.0",
-        "ftxui/3.0.0",
-        "rapidfuzz/cci.20210513",
-        "ctre/3.7.1",
-        "onetbb/2021.7.0",
-    )
-    generators = "cmake_find_package"
+    def requirements(self):
+        self.requires("fmt/9.1.0")
+        self.requires("spdlog/1.11.0")
+        self.requires("catch2/3.3.0")
+        self.requires("benchmark/1.7.1")
+        self.requires("boost/1.81.0")
+        self.requires("range-v3/0.12.0")
+        self.requires("ftxui/3.0.0")
+        self.requires("rapidfuzz/cci.20210513")
+        self.requires("ctre/3.7.1")
+        self.requires("onetbb/2021.7.0")
+
+    def build_requirements(self):
+        self.tool_requires("cmake/3.25.2")

@@ -6,7 +6,9 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <string>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -21,16 +23,18 @@
 #include <clang/AST/Redeclarable.h>
 #include <clang/AST/Stmt.h>
 #include <clang/AST/StmtIterator.h>
+#include <clang/AST/TemplateBase.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/LLVM.h>
 #include <clang/Basic/Specifiers.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Sema/Sema.h>
-#include <fmt/ranges.h>
 #include <llvm/Support/Casting.h>
+#include <range/v3/action/sort.hpp>
 #include <range/v3/action/unique.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/mismatch.hpp>
+#include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
@@ -38,11 +42,12 @@
 
 #include "get_me/config.hpp"
 #include "get_me/direct_type_dependency_propagation.hpp"
+#include "get_me/formatting.hpp"
 #include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "support/ranges/projections.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 
@@ -51,8 +56,9 @@ template <typename T>
                                               const Config &Conf) {
 
   auto [Acquired, Required] = toTypeSet(Transition, Conf);
-  return {std::move(Acquired), TransitionDataType{Transition},
-          std::move(Required)};
+  return {0U,
+          {std::move(Acquired), TransitionDataType{Transition},
+           std::move(Required)}};
 }
 
 namespace {
@@ -62,10 +68,10 @@ namespace {
 class GetMe : public clang::ASTConsumer {
 public:
   explicit GetMe(const Config &Configuration,
-                 std::shared_ptr<TransitionCollector> TransitionsRef,
+                 std::shared_ptr<TransitionCollector> Transitions,
                  clang::Sema &Sema)
       : Conf_{Configuration},
-        Transitions_{std::move(TransitionsRef)},
+        Transitions_{std::move(Transitions)},
         Sema_{Sema} {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) override;
@@ -168,8 +174,8 @@ void filterOverloads(TransitionCollector &Transitions,
   // FIXME: sorting just to make sure the overloads with longer parameter lists
   // are removed, figure out a better way. The algo also depends on this order
   // to determine if it is an overload
-  Transitions =
-      Transitions | ranges::views::move |
+  Transitions.Data =
+      Transitions.Data | ranges::views::move |
       ranges::views::transform([&IsOverload, &Comparator](
                                    BundeledTransitionType BundeledTransition) {
         return std::pair{ToAcquired(BundeledTransition),
@@ -178,7 +184,7 @@ void filterOverloads(TransitionCollector &Transitions,
                              ranges::actions::unique(IsOverload) |
                              ranges::to<StrippedTransitionsSet>};
       }) |
-      ranges::to<TransitionCollector>;
+      ranges::to<TransitionCollector::associative_container_type>;
 }
 
 } // namespace
@@ -293,8 +299,8 @@ public:
       return true;
     }
 
-    Transitions_[std::get<0>(toTypeSet(VDecl, Conf_))].emplace(
-        TransitionDataType{VDecl}, TypeSet{});
+    Transitions_.Data[std::get<0>(toTypeSet(VDecl, Conf_))].emplace(
+        0U, std::pair{TransitionDataType{VDecl}, TypeSet{}});
     return true;
   }
 
@@ -303,9 +309,6 @@ public:
       return true;
     }
     if (Conf_.EnableFilterStd && NDecl->isInStdNamespace()) {
-      return true;
-    }
-    if (NDecl->getUnderlyingType()->isArithmeticType()) {
       return true;
     }
     if (NDecl->isTemplateDecl()) {
@@ -333,8 +336,8 @@ public:
 
 private:
   void addTransition(TransitionType Transition) {
-    Transitions_[ToAcquired(Transition)].emplace(ToTransition(Transition),
-                                                 ToRequired(Transition));
+    Transitions_.Data[ToAcquired(Transition)].emplace(
+        0U, std::pair{ToTransition(Transition), ToRequired(Transition)});
   }
 
   const Config &Conf_;
@@ -357,6 +360,8 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
 
   propagateTransitionsOfDirectTypeDependencies(*Transitions_, CXXRecords,
                                                TypedefNameDecls, Conf_);
+
+  Transitions_->commit();
 }
 
 void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,

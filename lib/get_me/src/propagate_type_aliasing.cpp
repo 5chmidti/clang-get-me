@@ -1,14 +1,14 @@
 #include "get_me/propagate_type_aliasing.hpp"
 
+#include <cstddef>
 #include <functional>
 #include <utility>
 #include <vector>
 
+#include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/connected_components.hpp>
 #include <boost/graph/graph_selectors.hpp>
-#include <clang/AST/Decl.h>
 #include <range/v3/action/sort.hpp>
-#include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/conversion.hpp>
@@ -21,10 +21,12 @@
 #include <range/v3/view/indirect.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/map.hpp>
+#include <range/v3/view/move.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
+#include "get_me/graph.hpp"
 #include "get_me/indexed_set.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -36,11 +38,6 @@ using TypeAliasingGroups = std::vector<TypeAliasingGroup>;
 
 using TypeAliasingGraph =
     boost::adjacency_list<boost::listS, boost::vecS, boost::undirectedS>;
-
-using EdgeDescriptor =
-    typename boost::graph_traits<TypeAliasingGraph>::edge_descriptor;
-using VertexDescriptor =
-    typename boost::graph_traits<TypeAliasingGraph>::vertex_descriptor;
 
 class TypeAliasingGraphBuilder {
 public:
@@ -95,8 +92,7 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
   const auto GraphData = Builder.getResult();
   const auto Graph = createGraph(GraphData);
 
-  auto ComponentMap =
-      std::vector<VertexDescriptor>(GraphData.VertexData.size());
+  auto ComponentMap = std::vector<size_t>(GraphData.VertexData.size());
   boost::connected_components(Graph, ComponentMap.data());
 
   const auto SortedComponentMap = ComponentMap | ranges::views::enumerate |
@@ -106,7 +102,6 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
     return Value(Lhs) == Value(Rhs);
   };
   return SortedComponentMap | ranges::views::chunk_by(IsSameGroup) |
-         ranges::views::cache1 |
          ranges::views::filter(Greater(1), ranges::size) |
          ranges::views::transform(
              ranges::views::transform(Lookup(GraphData.VertexData, Index))) |
@@ -119,9 +114,9 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
   };
 }
 
-[[nodiscard]] StrippedTransitionsSet
-getTransitionsToPropagateForAcquired(const TransitionCollector &Transitions,
-                                     const TypeAliasingGroup &Group) {
+[[nodiscard]] StrippedTransitionsSet getTransitionsToPropagateForAcquired(
+    const TransitionCollector::associative_container_type &Transitions,
+    const TypeAliasingGroup &Group) {
   return Group |
          ranges::views::transform([&Transitions](const TypeSetValueType &Type) {
            return Transitions.find(Type);
@@ -132,8 +127,8 @@ getTransitionsToPropagateForAcquired(const TransitionCollector &Transitions,
          ranges::to<StrippedTransitionsSet>;
 }
 
-[[nodiscard]] auto
-propagateAcquiredTransitions(const TransitionCollector &Transitions) {
+[[nodiscard]] auto propagateAcquiredTransitions(
+    TransitionCollector::associative_container_type &Transitions) {
   return [&Transitions](const TypeAliasingGroup &Group) {
     const auto PairTypeWithGroupsTransitions =
         [TransitionsOfGroupMembers = getTransitionsToPropagateForAcquired(
@@ -141,7 +136,7 @@ propagateAcquiredTransitions(const TransitionCollector &Transitions) {
           return BundeledTransitionType{Type, TransitionsOfGroupMembers};
         };
     return Group | ranges::views::transform(PairTypeWithGroupsTransitions) |
-           ranges::to<TransitionCollector>;
+           ranges::to<TransitionCollector::associative_container_type>;
   };
 }
 
@@ -150,19 +145,20 @@ substituteGroupMembersFromRequired(const TypeAliasingGroup &Group) {
   return [&Group](const StrippedTransitionType &Transition) {
     return Group | ranges::views::transform(
                        [TransitionWithoutGroupMembers = StrippedTransitionType{
-                            ToTransition(Transition),
-                            ToRequired(Transition) |
-                                ranges::views::set_difference(Group) |
-                                ranges::to<TypeSet>}](const auto &Type) {
+                            Index(Transition),
+                            {ToTransition(Transition),
+                             ToRequired(Transition) |
+                                 ranges::views::set_difference(Group) |
+                                 ranges::to<TypeSet>}}](const auto &Type) {
                          auto NewTransition = TransitionWithoutGroupMembers;
-                         NewTransition.second.emplace(Type);
+                         Value(NewTransition).second.emplace(Type);
                          return NewTransition;
                        });
   };
 }
 
-[[nodiscard]] auto
-propagateRequiredTransitions(const TransitionCollector &Transitions) {
+[[nodiscard]] auto propagateRequiredTransitions(
+    TransitionCollector::associative_container_type &Transitions) {
   return [&Transitions](const TypeAliasingGroup &Group) {
     return Transitions |
            ranges::views::transform(
@@ -176,7 +172,7 @@ propagateRequiredTransitions(const TransitionCollector &Transitions) {
                              substituteGroupMembersFromRequired(Group)) |
                          ranges::to<StrippedTransitionsSet>};
                }) |
-           ranges::to<TransitionCollector>;
+           ranges::to<TransitionCollector::associative_container_type>;
   };
 }
 
@@ -184,12 +180,12 @@ void propgagateAcquiredTransitions(const TypeAliasingGroups &Groups,
                                    TransitionCollector &Transitions) {
   const auto TransitionsVector =
       Groups |
-      ranges::views::transform(propagateAcquiredTransitions(Transitions)) |
+      ranges::views::transform(propagateAcquiredTransitions(Transitions.Data)) |
       ranges::to_vector;
 
   const auto PairWithExistingForAcquired =
       [&Transitions](const BundeledTransitionType &New) {
-        return std::pair{std::ref(Transitions[ToAcquired(New)]), New};
+        return std::pair{std::ref(Transitions.Data[ToAcquired(New)]), New};
       };
   const auto MergeExistingWithNew = [](auto Pair) {
     auto &[Current, New] = Pair;
@@ -204,12 +200,12 @@ void propgagateRequiredTransitions(const TypeAliasingGroups &Groups,
                                    TransitionCollector &Transitions) {
   const auto TransitionsVector =
       Groups |
-      ranges::views::transform(propagateRequiredTransitions(Transitions)) |
+      ranges::views::transform(propagateRequiredTransitions(Transitions.Data)) |
       ranges::to_vector;
 
   const auto MergeExistingWithNew =
       [&Transitions](BundeledTransitionType Transition) {
-        Transitions[ToAcquired(Transition)].merge(Transition.second);
+        Transitions.Data[ToAcquired(Transition)].merge(Transition.second);
       };
   ranges::for_each(TransitionsVector | ranges::views::join |
                        ranges::views::move,

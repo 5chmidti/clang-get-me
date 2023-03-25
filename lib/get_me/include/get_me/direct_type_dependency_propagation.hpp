@@ -4,13 +4,6 @@
 #include <utility>
 #include <vector>
 
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graph_selectors.hpp>
-#include <boost/graph/graph_traits.hpp>
-#include <clang/AST/Decl.h>
-#include <range/v3/view/concat.hpp>
-#include <range/v3/view/for_each.hpp>
-
 #include "get_me/graph.hpp"
 #include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/transitions.hpp"
@@ -22,14 +15,6 @@ struct DTDGraphData {
   std::vector<TypeSetValueType> VertexData{};
   std::vector<EdgeType> Edges{};
 };
-
-template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
-  return ranges::views::for_each(
-      [... Propagators =
-           std::forward<Ts>(Propagators)]<typename T>(const T &Value) {
-        return ranges::views::concat(Propagators(Value)...);
-      });
-}
 
 void propagateTransitionsOfDirectTypeDependencies(
     TransitionCollector &Transitions,

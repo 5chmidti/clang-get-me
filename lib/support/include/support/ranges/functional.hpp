@@ -1,12 +1,42 @@
 #ifndef get_me_lib_support_include_support_ranges_functional_hpp
 #define get_me_lib_support_include_support_ranges_functional_hpp
 
+#include <cstddef>
 #include <functional>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
+#include <clang/AST/Decl.h>
 #include <range/v3/functional/comparisons.hpp>
-#include <range/v3/range/concepts.hpp>
+
+template <std::size_t I>
+inline constexpr auto Element = []<typename T>
+  requires(std::tuple_size_v<std::remove_cvref_t<T>> > I)(T && Tuple)
+-> decltype(auto) {
+  return std::get<I>(std::forward<T>(Tuple));
+};
+
+constexpr auto Index = Element<0>;
+constexpr auto Value = Element<1>;
+
+template <std::size_t I, typename ResultType>
+inline constexpr auto ConstrainedElement = []<typename T>
+  requires(std::tuple_size_v<std::remove_cvref_t<T>> > I) &&
+          std::same_as<std::remove_cvref_t<
+                           std::invoke_result_t<decltype(std::get<I>), T>>,
+                       ResultType>(T && Tuple)
+-> decltype(auto) {
+  return std::get<I>(std::forward<T>(Tuple));
+};
+
+inline constexpr auto ToQualType = [](const clang::ValueDecl *const VDecl) {
+  return VDecl->getType();
+};
+
+inline constexpr auto Copy = [](std::copyable auto Val) {
+  return std::move(Val);
+};
 
 inline constexpr auto Plus = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>(const U &Lhs) constexpr {
@@ -136,23 +166,17 @@ inline constexpr auto LessEqual = []<std::regular T>(T Rhs) constexpr {
 };
 
 template <typename T>
-inline constexpr auto CastAs =
-    []<typename ValueType>(ValueType &&Val) constexpr {
-      return static_cast<T>(std::forward<ValueType>(Val));
-    };
-
-template <typename T>
-inline constexpr auto Construct = []<typename ValueType>(ValueType && Val)
-  requires std::constructible_from<T, ValueType>
+inline constexpr auto Construct = []<typename... ValueType>(ValueType && ...Val)
+  requires std::constructible_from<T, ValueType...>
 {
-  return T{std::forward<ValueType>(Val)};
+  return T{std::forward<ValueType>(Val)...};
 };
 
 inline constexpr auto Lookup =
     []<ranges::random_access_range T, typename Projection = std::identity>(
         T && LookupRangeRef, Projection Proj = {}) constexpr
   requires std::is_trivially_copy_constructible_v<Projection> &&
-           std::is_lvalue_reference_v<T>
+           (std::is_lvalue_reference_v<T> || ranges::borrowed_range<T>)
 {
   if constexpr (std::is_const_v<T>) {
     return [&LookupRangeRef, Proj ]<typename IndexType>

@@ -3,8 +3,10 @@
 
 #include <vector>
 
-#include <clang/AST/Decl.h>
+#include <clang/AST/Type.h>
+#include <fmt/core.h>
 
+#include "get_me/formatting.hpp"
 #include "get_me/transitions.hpp"
 
 struct TypeAlias {

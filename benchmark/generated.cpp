@@ -1,9 +1,4 @@
-#include <algorithm>
 #include <cstddef>
-#include <string>
-
-#include <fmt/core.h>
-#include <fmt/format.h>
 
 #include "get_me_benchmarks.hpp"
 #include "support/testcase_generation.hpp"

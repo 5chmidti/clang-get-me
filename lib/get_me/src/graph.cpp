@@ -1,13 +1,20 @@
 #include "get_me/graph.hpp"
 
+#include <cstddef>
+#include <cstdint>
 #include <iterator>
+#include <limits>
+#include <memory>
 #include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
+#include <boost/algorithm/string/replace.hpp>
 #include <fmt/core.h>
-#include <fmt/ranges.h>
 #include <range/v3/action/push_back.hpp>
+#include <range/v3/action/sort.hpp>
+#include <range/v3/action/unique.hpp>
 #include <range/v3/algorithm/all_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
@@ -25,32 +32,32 @@
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 
+#include "get_me/backwards_path_finding.hpp"
 #include "get_me/config.hpp"
 #include "get_me/indexed_set.hpp"
-#include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
+#include "support/ranges/front.hpp"
 #include "support/ranges/functional.hpp"
-#include "support/ranges/projections.hpp"
 
-bool edgeWithTransitionExistsInContainer(
-    const indexed_set<GraphData::EdgeType> &Edges,
-    const GraphData::EdgeType &EdgeToAdd, const TransitionType &Transition,
-    const std::vector<TransitionType> &EdgeTransitions) {
+namespace {
+[[nodiscard]] bool
+edgeWithTransitionExistsInContainer(const GraphData::EdgeContainer &Edges,
+                                    const TransitionEdgeType &EdgeToAdd,
+                                    const TransitionType &Transition) {
   return ranges::contains(
       ranges::subrange(Edges.lower_bound(EdgeToAdd),
                        Edges.upper_bound(EdgeToAdd)) |
-          ranges::views::transform(Lookup(EdgeTransitions, Index)),
-      Transition);
+          ranges::views::transform(&TransitionEdgeType::TransitionIndex),
+      Index(Transition));
 }
 
-namespace {
 [[nodiscard]] std::vector<
     std::pair<GraphBuilder::VertexSet::value_type, std::vector<TransitionType>>>
 constructVertexAndTransitionsPairVector(
     GraphBuilder::VertexSet InterestingVertices,
-    const TransitionCollector &Transitions) {
+    const TransitionCollector::associative_container_type &Transitions) {
   auto IndependentTransitionsVec = ranges::fold_left(
       Transitions,
       std::vector<std::vector<TransitionType>>(InterestingVertices.size()),
@@ -61,8 +68,9 @@ constructVertexAndTransitionsPairVector(
              &CurrentIndependentTransitionsVec](
                 const StrippedTransitionType &StrippedTransition) {
               const auto Transition =
-                  TransitionType{Acquired, ToTransition(StrippedTransition),
-                                 ToRequired(StrippedTransition)};
+                  TransitionType{Index(StrippedTransition),
+                                 {Acquired, ToTransition(StrippedTransition),
+                                  ToRequired(StrippedTransition)}};
               const auto ContainsAcquired =
                   [&Acquired](const auto &IndexedVertex) {
                     return Value(IndexedVertex).contains(Acquired);
@@ -100,24 +108,49 @@ constructVertexAndTransitionsPairVector(
                          ranges::to<TypeSet>};
   };
 }
+
+[[nodiscard]] std::vector<VertexDescriptor>
+getVerticesThatAreNotA(GraphData &Data, const auto SourceOrTargetProjection) {
+  const auto Vertices =
+      Data.Edges | ranges::views::transform(SourceOrTargetProjection) |
+      ranges::to_vector | ranges::actions::sort | ranges::actions::unique;
+  return ranges::views::set_difference(
+             ranges::views::indices(Data.VertexData.size()), Vertices) |
+         ranges::to_vector;
+}
 } // namespace
 
-GraphData::GraphData(std::vector<VertexDataType> VertexData,
-                     std::vector<size_t> VertexDepth,
-                     std::vector<EdgeType> Edges,
-                     std::vector<TransitionType> EdgeTransitions)
+GraphData::GraphData(std::vector<TypeSet> VertexData,
+                     std::vector<size_t> VertexDepth, EdgeContainer Edges,
+                     std::shared_ptr<TransitionCollector> Transitions,
+                     PathContainer Paths)
     : VertexData{std::move(VertexData)},
       VertexDepth{std::move(VertexDepth)},
       Edges{std::move(Edges)},
-      EdgeIndices{ranges::views::indices(this->Edges.size()) |
-                  ranges::to_vector},
-      EdgeTransitions{std::move(EdgeTransitions)},
-      Graph{this->Edges.data(), this->Edges.data() + this->Edges.size(),
-            this->EdgeIndices.data(), this->EdgeIndices.size()} {}
+      Paths{std::move(Paths)},
+      Transitions{std::move(Transitions)} {}
+
+GraphData::GraphData(std::vector<TypeSet> VertexData,
+                     std::vector<size_t> VertexDepth, EdgeContainer Edges,
+                     std::shared_ptr<TransitionCollector> Transitions)
+    : GraphData{std::move(VertexData),
+                std::move(VertexDepth),
+                std::move(Edges),
+                std::move(Transitions),
+                {}} {}
 
 void GraphBuilder::build() {
   while (CurrentState_.IterationIndex < Conf_.MaxGraphDepth && buildStep()) {
     // complete build
+  }
+
+  if (!Edges_.empty()) {
+    auto Data = GraphData{getIndexedSetSortedByIndex(VertexData_),
+                          getIndexedSetSortedByIndex(VertexDepth_), Edges_,
+                          Transitions_};
+    backwardsPathFinder(Data);
+    // spdlog::trace("Data: {}", Data);
+    Paths_.merge(std::move(Data.Paths));
   }
 }
 
@@ -141,57 +174,54 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
   CurrentState_.InterestingVertices.clear();
   ++CurrentState_.IterationIndex;
 
-  auto MaybeAddEdgeFrom =
-      [this](const indexed_value<VertexType> &IndexedSourceVertex) {
-        const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
-        return [this, &IndexedSourceVertex,
-                SourceDepth](bool AddedTransitions,
-                             const std::pair<TransitionType, TypeSet>
-                                 &TransitionAndTargetTS) {
-          const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
-          const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
-          const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
-          const auto TargetVertexIndex = TargetVertexExists
-                                             ? Index(*TargetVertexIter)
-                                             : VertexData_.size();
+  auto MaybeAddEdgeFrom = [this](const indexed_value<VertexType>
+                                     &IndexedSourceVertex) {
+    const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
+    return [this, &IndexedSourceVertex, SourceDepth](
+               bool AddedTransitions, const std::pair<TransitionType, TypeSet>
+                                          &TransitionAndTargetTS) {
+      const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
+      const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
+      const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
+      const auto TargetVertexIndex =
+          TargetVertexExists ? Index(*TargetVertexIter) : VertexData_.size();
 
-          const auto EdgeToAdd = GraphData::EdgeType{Index(IndexedSourceVertex),
-                                                     TargetVertexIndex};
+      const auto EdgeToAdd = TransitionEdgeType{
+          {Index(IndexedSourceVertex), TargetVertexIndex}, Index(Transition)};
 
-          if (TargetVertexExists) {
-            if (!ranges::empty(TargetVertexIter->second) &&
-                getVertexDepthDifference(SourceDepth,
-                                         getVertexDepth(TargetVertexIndex)) <
-                    Conf_.GraphVertexDepthDifferenceThreshold) {
-              return AddedTransitions;
-            }
-
-            if (edgeWithTransitionExistsInContainer(
-                    EdgesData_, EdgeToAdd, Transition, EdgeTransitions_)) {
-              return AddedTransitions;
-            }
-
-            CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
-          } else {
-            CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
-                                                      TargetTypeSet);
-            VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
-            VertexDepth_.emplace(TargetVertexIndex,
-                                 CurrentState_.IterationIndex);
-          }
-          if (const auto [_, EdgeAdded] =
-                  EdgesData_.emplace(EdgesData_.size(), EdgeToAdd);
-              EdgeAdded) {
-            EdgeTransitions_.push_back(Transition);
-            AddedTransitions = true;
-          }
+      const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
+      if (TargetVertexExists) {
+        if (!IsEmptyTargetTS &&
+            getVertexDepthDifference(SourceDepth,
+                                     getVertexDepth(TargetVertexIndex)) <
+                Conf_.GraphVertexDepthDifferenceThreshold) {
           return AddedTransitions;
-        };
-      };
+        }
+
+        if (edgeWithTransitionExistsInContainer(Edges_, EdgeToAdd,
+                                                Transition)) {
+          return AddedTransitions;
+        }
+
+        CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
+      } else {
+        CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
+                                                  TargetTypeSet);
+        VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
+        VertexDepth_.emplace(TargetVertexIndex, CurrentState_.IterationIndex);
+      }
+      if (const auto [_, EdgeAdded] = Edges_.emplace(EdgeToAdd); EdgeAdded) {
+        AddedTransitions = true;
+      }
+
+      return AddedTransitions;
+    };
+  };
 
   return ranges::fold_left(
-      constructVertexAndTransitionsPairVector(std::move(InterestingVertices),
-                                              TransitionsForQuery_),
+      constructVertexAndTransitionsPairVector(
+          std::move(InterestingVertices),
+          getTransitionsForQuery(Transitions_->Data, Query_)),
       false,
       [MaybeAddEdgeFrom](bool AddedTransitions,
                          const auto &VertexAndTransitions) {
@@ -206,13 +236,13 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
 GraphData GraphBuilder::commit() {
   return {getIndexedSetSortedByIndex(std::move(VertexData_)),
-          getIndexedSetSortedByIndex(std::move(VertexDepth_)),
-          getIndexedSetSortedByIndex(std::move(EdgesData_)),
-          std::move(EdgeTransitions_)};
+          getIndexedSetSortedByIndex(std::move(VertexDepth_)), Edges_,
+          Transitions_, std::move(Paths_)};
 }
 
-GraphData createGraph(const TransitionCollector &Transitions,
-                      const TypeSetValueType &Query, const Config &Conf) {
+GraphData runGraphBuildingAndPathFinding(
+    const std::shared_ptr<TransitionCollector> &Transitions,
+    const TypeSetValueType &Query, const Config &Conf) {
   auto Builder = GraphBuilder{Transitions, Query, Conf};
   Builder.build();
   return Builder.commit();
@@ -237,16 +267,11 @@ size_t GraphBuilder::getVertexDepth(const size_t VertexIndex) const {
 }
 
 std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
-  const auto IndexMap = boost::get(boost::edge_index, Data.Graph);
-
-  const auto ToString = [&Data, &IndexMap](const auto &Edge) {
-    const auto SourceNode = Source(Edge);
-    const auto TargetNode = Target(Edge);
-
+  const auto ToString = [&Data](const TransitionEdgeType &Edge) {
     const auto Transition =
-        ToTransition(Data.EdgeTransitions[boost::get(IndexMap, Edge)]);
-    const auto TargetVertex = Data.VertexData[TargetNode];
-    const auto SourceVertex = Data.VertexData[SourceNode];
+        ToTransition(Data.Transitions->FlatData[Edge.TransitionIndex]);
+    const auto TargetVertex = Data.VertexData[Target(Edge)];
+    const auto SourceVertex = Data.VertexData[Source(Edge)];
 
     auto EdgeWeightAsString = fmt::format("{}", Transition);
     boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
@@ -256,8 +281,7 @@ std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
         SourceVertex, TargetVertex, EdgeWeightAsString);
   };
 
-  return ranges::fold_left(toRange(boost::edges(Data.Graph)) |
-                               ranges::views::transform(ToString),
+  return ranges::fold_left(Data.Edges | ranges::views::transform(ToString),
                            std::string{"digraph D {\n  layout = \"sfdp\";\n"},
                            [](std::string Result, auto Line) {
                              Result.append(std::move(Line));
@@ -277,4 +301,12 @@ std::int64_t GraphBuilder::getVertexDepthDifference(const size_t SourceDepth,
 
   return static_cast<std::int64_t>(TargetDepth) -
          static_cast<std::int64_t>(SourceDepth);
+}
+
+std::vector<VertexDescriptor> getRootVertices(GraphData &Data) {
+  return getVerticesThatAreNotA(Data, Target);
+}
+
+std::vector<VertexDescriptor> getLeafVertices(GraphData &Data) {
+  return getVerticesThatAreNotA(Data, Source);
 }

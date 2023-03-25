@@ -1,24 +1,34 @@
 #include "get_me/propagate_inheritance.hpp"
 
+#include <cstddef>
 #include <functional>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/breadth_first_search.hpp>
+#include <boost/graph/detail/adjacency_list.hpp>
+#include <boost/graph/graph_selectors.hpp>
+#include <boost/graph/graph_traits.hpp>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
+#include <llvm/Support/Casting.h>
 #include <range/v3/action/reverse.hpp>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/functional/not_fn.hpp>
+#include <range/v3/numeric/accumulate.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/cache1.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/indices.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/unique.hpp>
@@ -30,7 +40,6 @@
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/functional.hpp"
-#include "support/ranges/projections.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 
@@ -215,20 +224,6 @@ private:
   return Builder.getResult();
 }
 
-[[nodiscard]] auto maybePropagate(const TypeSetValueType &SourceType,
-                                  const TypeSetValueType TargetType) {
-  return
-      [SourceType, TargetType](const StrippedTransitionType &StrippedTransition)
-          -> std::pair<bool, StrippedTransitionType> {
-        auto RequiredTS = ToRequired(StrippedTransition);
-        const auto ChangedRequiredTS = 0U != RequiredTS.erase(SourceType);
-        RequiredTS.insert(TargetType);
-        return {ChangedRequiredTS,
-                StrippedTransitionType{ToTransition(StrippedTransition),
-                                       RequiredTS}};
-      };
-}
-
 [[nodiscard]] std::vector<VertexDescriptor>
 getVerticesToVisit(ranges::range auto Sources, const InheritanceGraph &Graph) {
   class BFSEdgeCollector : public boost::default_bfs_visitor {
@@ -256,6 +251,28 @@ getVerticesToVisit(ranges::range auto Sources, const InheritanceGraph &Graph) {
          ranges::actions::reverse;
 }
 
+template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
+  return ranges::views::for_each(
+      [... Propagators =
+           std::forward<Ts>(Propagators)]<typename T>(const T &Value) {
+        return ranges::views::concat(Propagators(Value)...);
+      });
+}
+
+[[nodiscard]] auto maybePropagate(const TypeSetValueType &SourceType,
+                                  const TypeSetValueType TargetType) {
+  return
+      [SourceType, TargetType](const StrippedTransitionType &StrippedTransition)
+          -> std::pair<bool, StrippedTransitionType> {
+        auto RequiredTS = ToRequired(StrippedTransition);
+        const auto ChangedRequiredTS = 0U != RequiredTS.erase(SourceType);
+        RequiredTS.insert(TargetType);
+        return {ChangedRequiredTS,
+                StrippedTransitionType{
+                    0U, {ToTransition(StrippedTransition), RequiredTS}}};
+      };
+}
+
 class InheritancePropagator {
 private:
   [[nodiscard]] const TypeSetValueType &
@@ -263,9 +280,9 @@ private:
     return Data_.VertexData[Vertex];
   }
 
-  [[nodiscard]] auto propagateRequired() const {
+  [[nodiscard]] auto propagateRequired() {
     return [this](const EdgeDescriptor &Edge) {
-      return Transitions_ |
+      return Transitions_.Data |
              ranges::views::transform(
                  [MaybePropagate = maybePropagate(toType(Source(Edge)),
                                                   toType(Target(Edge)))](
@@ -285,7 +302,7 @@ private:
   [[nodiscard]] auto
   propagatedForAcquired(const TypeSetValueType &DerivedType,
                         const TypeSetValueType &BaseType) const {
-    return Transitions_ |
+    return Transitions_.Data |
            ranges::views::filter(EqualTo(DerivedType), ToAcquired) |
            ranges::views::transform(
                [BaseType](const BundeledTransitionType &BundeledTransition)
@@ -297,7 +314,8 @@ private:
   [[nodiscard]] auto propagatedInheritedMethodsForAcquired(
       const TypeSetValueType &BaseType,
       const TypeSetValueType &DerivedType) const {
-    return Transitions_ | ranges::views::filter(EqualTo(BaseType), ToAcquired) |
+    return Transitions_.Data |
+           ranges::views::filter(EqualTo(BaseType), ToAcquired) |
            ranges::views::transform(
                [DerivedType](const BundeledTransitionType &BundeledTransition)
                    -> BundeledTransitionType {
@@ -342,7 +360,7 @@ public:
         ranges::views::for_each(PropagateTransitionsOfOutEdges) |
         ranges::to_vector;
     ranges::for_each(Vec, [this](BundeledTransitionType NewTransitions) {
-      Transitions_[ToAcquired(NewTransitions)].merge(
+      Transitions_.Data[ToAcquired(NewTransitions)].merge(
           std::move(NewTransitions.second));
     });
   }

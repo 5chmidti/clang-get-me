@@ -1,10 +1,25 @@
 #include "get_me/transitions.hpp"
 
+#include <cstddef>
+#include <string>
+#include <variant>
+
+#include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
-#include <fmt/ranges.h>
+#include <fmt/core.h>
+#include <fmt/format.h>
+#include <llvm/Support/Casting.h>
+#include <range/v3/algorithm/generate.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/view/for_each.hpp>
+#include <range/v3/view/join.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
 
+#include "get_me/formatting.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
+#include "support/variant.hpp"
 
 namespace {
 [[nodiscard]] std::string getTypeAsString(const clang::ValueDecl *const VDecl) {
@@ -82,4 +97,25 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
                    return "";
                  }},
       Data);
+}
+
+void TransitionCollector::commit() {
+  ranges::generate(Data | ranges::views::values | ranges::views::join |
+                       ranges::views::transform(Index),
+                   [Counter = size_t{0U}]() mutable { return Counter++; });
+  FlatData =
+      Data |
+      ranges::views::for_each(
+          [](const BundeledTransitionType &BundeledTransitions) {
+            return BundeledTransitions.second |
+                   ranges::views::transform(
+                       [Acquired = ToAcquired(BundeledTransitions)](
+                           const StrippedTransitionType &StrippedTransition) {
+                         return TransitionType{
+                             StrippedTransition.first,
+                             {Acquired, ToTransition(StrippedTransition.second),
+                              ToRequired(StrippedTransition.second)}};
+                       });
+          }) |
+      ranges::to<flat_container_type>;
 }

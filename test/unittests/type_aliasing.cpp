@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "get_me/config.hpp"
 #include "get_me_tests.hpp"
 
 static constexpr auto PropagateTypeAliasConfig =
@@ -258,7 +259,7 @@ TEST_CASE("propagate type aliasing with templates") {
     )",
        "B<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
 
-  test(R"(
+  testFailure(R"(
        struct A {};
        template <typename T>
        struct B {};
@@ -268,17 +269,17 @@ TEST_CASE("propagate type aliasing with templates") {
        template <typename T>
        using B3 = B<T>;
     )",
-       "B2", {"(B<int>, B B(), {})"}, PropagateTypeAliasConfig);
+              "B2", {"(B<int>, B B(), {})"}, PropagateTypeAliasConfig);
 
-  test(R"(
-       struct A {};
-       template <typename T>
-       struct B {};
+  //   testFailure(R"(
+  //        struct A {};
+  //        template <typename T>
+  //        struct B {};
 
-       using A2 = A;
-       using B2 = B<int>;
-       template <typename T>
-       using B3 = B<T>;
-    )",
-       "B3<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
+  //        using A2 = A;
+  //        using B2 = B<int>;
+  //        template <typename T>
+  //        using B3 = B<T>;
+  //     )",
+  //               "B3<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
 }

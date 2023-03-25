@@ -1,6 +1,7 @@
 #ifndef get_me_get_me_tests_hpp
 #define get_me_get_me_tests_hpp
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <set>
@@ -14,7 +15,6 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/view/indices.hpp>
 
-#include "get_me/path_traversal.hpp"
 #include "get_me/transitions.hpp"
 
 void testSuccess(std::string_view Code, std::string_view QueriedType,
@@ -56,7 +56,7 @@ void test(const auto &Generator, const size_t Count,
 collectTransitions(std::string_view Code, const Config &CurrentConfig = {});
 
 [[nodiscard]] std::set<std::string>
-buildGraphAndFindPaths(const TransitionCollector &Transitions,
+buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        std::string_view QueriedType,
                        const Config &CurrentConfig);
 
