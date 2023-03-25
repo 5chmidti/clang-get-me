@@ -249,26 +249,36 @@ public:
     if (filterOut(RDecl, Conf_)) {
       return true;
     }
-    const auto AddToTransitions =
-        [this](const ranges::viewable_range auto Range) {
-          ranges::for_each(
-              Range | ranges::views::filter([this](const auto *const Function) {
-                return !filterOut(Function, Conf_);
-              }),
-              [this](const auto *const Function) {
-                addTransition(toTransitionType(Function, Conf_));
-              });
-        };
-    AddToTransitions(RDecl->methods());
+    const auto *const Definition = [RDecl]() {
+      if (RDecl->isThisDeclarationADefinition()) {
+        return RDecl;
+      }
+      if (auto *const Instantiation =
+              RDecl->getTemplateInstantiationPattern()) {
+        return Instantiation;
+      }
+      return RDecl->getDefinition();
+    }();
+
+    if (Definition == nullptr) {
+      return true;
+    }
 
     // declare implicit default constructor even if it is not used
-    if (RDecl->needsImplicitDefaultConstructor()) {
+    if (Definition->needsImplicitDefaultConstructor()) {
       Sema_.DeclareImplicitDefaultConstructor(RDecl);
     }
 
-    AddToTransitions(RDecl->ctors());
+    ranges::for_each(
+        Definition->methods() |
+            ranges::views::filter([this](const auto *const Function) {
+              return !filterOut(Function, Conf_);
+            }),
+        [this](const auto *const Function) {
+          addTransition(toTransitionType(Function, Conf_));
+        });
 
-    if (RDecl->getNumBases() != 0) {
+    if (Definition->getNumBases() != 0) {
       CxxRecords_.push_back(RDecl);
     }
     return true;

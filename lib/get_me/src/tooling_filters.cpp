@@ -112,7 +112,7 @@ bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
 bool filterOut(const clang::CXXRecordDecl *const RDecl, const Config &Conf) {
   using namespace std::string_view_literals;
 
-  if (RDecl != RDecl->getDefinition()) {
+  if (RDecl->getDefinition() == nullptr) {
     return true;
   }
   if (hasReservedIdentifierNameOrType(RDecl)) {
