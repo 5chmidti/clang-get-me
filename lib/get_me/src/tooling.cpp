@@ -234,9 +234,6 @@ public:
       return true;
     }
 
-    if (FDecl->getType()->isArithmeticType()) {
-      return true;
-    }
     if (hasTypeNameContainingName(FDecl, "exception")) {
       return true;
     }
@@ -297,9 +294,6 @@ public:
       return true;
     }
     if (Conf_.EnableFilterStd && VDecl->isInStdNamespace()) {
-      return true;
-    }
-    if (VDecl->getType()->isArithmeticType()) {
       return true;
     }
     if (hasReservedIdentifierNameOrType(VDecl)) {
