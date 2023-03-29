@@ -6,6 +6,7 @@
 #include <range/v3/action/action.hpp>
 #include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/access.hpp>
+#include <range/v3/range/operations.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/range/traits.hpp>
 
@@ -18,7 +19,7 @@ struct FrontOrFn {
     if (ranges::empty(Range)) {
       return Default;
     }
-    return *ranges::begin(Range);
+    return ranges::front(Range);
   }
 
   [[nodiscard]] constexpr auto operator()(auto Default) const {
@@ -34,7 +35,7 @@ struct FrontOptFn {
     if (ranges::empty(Range)) {
       return std::nullopt;
     }
-    return *ranges::begin(Range);
+    return ranges::front(Range);
   }
 
   [[nodiscard]] constexpr auto operator()() const {
