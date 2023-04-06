@@ -36,6 +36,7 @@
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/spdlog.h>
 
+#include "get_me/backwards_path_finding.hpp"
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/query.hpp"
@@ -122,7 +123,8 @@ int main(int argc, const char **argv) {
   const auto &QueriedType = TypeName.getValue();
   const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
 
-  auto Data = runGraphBuildingAndPathFinding(Transitions, Query, Conf);
+  auto Data = runGraphBuilding(Transitions, Query, Conf);
+  runPathFinding(Data);
   // spdlog::trace("Data: {}", Data);
 
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),

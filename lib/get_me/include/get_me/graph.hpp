@@ -242,9 +242,9 @@ private:
   StepState CurrentState_{};
 };
 
-[[nodiscard]] GraphData runGraphBuildingAndPathFinding(
-    const std::shared_ptr<TransitionCollector> &Transitions,
-    const TypeSetValueType &Query, const Config &Conf);
+[[nodiscard]] GraphData
+runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
+                 const TypeSetValueType &Query, const Config &Conf);
 
 [[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,

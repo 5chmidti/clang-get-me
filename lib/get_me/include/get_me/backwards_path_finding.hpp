@@ -3,6 +3,6 @@
 
 #include "get_me/graph.hpp"
 
-void backwardsPathFinder(GraphData &Data);
+void runPathFinding(GraphData &Data);
 
 #endif

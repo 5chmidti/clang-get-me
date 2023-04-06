@@ -8,6 +8,7 @@
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/Tooling.h>
 
+#include "get_me/backwards_path_finding.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/query.hpp"
 #include "get_me/tooling.hpp"
@@ -21,7 +22,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   State.counters["transitions"] = static_cast<double>(Transitions->Data.size());
   const auto Query =
       getQueriedTypeForInput(Transitions->Data, QueriedTypeAsString);
-  auto Data = runGraphBuildingAndPathFinding(Transitions, Query, Conf);
+  auto Data = runGraphBuilding(Transitions, Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
   State.counters["paths"] = static_cast<double>(Data.Paths.size());
@@ -42,7 +43,9 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 #define BENCHMARK_GRAPH                                                        \
   const auto Query =                                                           \
       getQueriedTypeForInput(Transitions->Data, QueriedTypeAsString);          \
-  auto Data = runGraphBuildingAndPathFinding(Transitions, Query, Conf);
+  auto Data = runGraphBuilding(Transitions, Query, Conf);
+
+#define BENCHMARK_PATH_FINDING runPathFinding(Data);
 
 #define BENCHMARK_BODY_TRANSITIONS                                             \
   BENCHMARK_TRANSITIONS                                                        \
@@ -55,9 +58,15 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   benchmark::DoNotOptimize(Data.Edges.begin());                                \
   benchmark::ClobberMemory();
 
+#define BENCHMARK_BODY_PATH_FINDING                                            \
+  BENCHMARK_PATH_FINDING                                                       \
+  benchmark::DoNotOptimize(Data.Paths.begin());                                \
+  benchmark::ClobberMemory();
+
 #define BENCHMARK_BODY_FULL                                                    \
   BENCHMARK_BODY_TRANSITIONS                                                   \
-  BENCHMARK_BODY_GRAPH
+  BENCHMARK_BODY_GRAPH                                                         \
+  BENCHMARK_BODY_PATH_FINDING
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GENERATE_GENERATED_BENCHMARKS(Name, Generator, Args)                   \
@@ -100,7 +109,23 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
     }                                                                          \
     State.SetComplexityN(                                                      \
         static_cast<std::int64_t>(State.counters["transitions"]));             \
-  }
+  }                                                                            \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
+  BENCHMARK_REGISTER_F(Name, graph) Args;                                      \
+  BENCHMARK_DEFINE_F(Name, path_finding)(benchmark::State & State) {           \
+    const auto [QueriedType, Code] =                                           \
+        Generator(static_cast<size_t>(State.range(0)));                        \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    BENCHMARK_TRANSITIONS                                                      \
+    BENCHMARK_GRAPH                                                            \
+    for (auto _ : State) {                                                     \
+      BENCHMARK_BODY_PATH_FINDING                                              \
+    }                                                                          \
+    State.SetComplexityN(                                                      \
+        static_cast<std::int64_t>(State.counters["transitions"]));             \
+  }                                                                            \
+  /* NOLINTNEXTLINE(bugprone-macro-parentheses) */                             \
+  BENCHMARK_REGISTER_F(Name, path_finding) Args;
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define GENERATE_BENCHMARKS(Name, Code, QueriedType)                           \
@@ -130,6 +155,16 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
       BENCHMARK_BODY_GRAPH                                                     \
     }                                                                          \
   }                                                                            \
-  BENCHMARK_REGISTER_F(Name, graph);
+  BENCHMARK_REGISTER_F(Name, graph);                                           \
+  BENCHMARK_DEFINE_F(Name, path_finding)                                       \
+  (benchmark::State & State) {                                                 \
+    SETUP_BENCHMARK(Code, QueriedType);                                        \
+    BENCHMARK_TRANSITIONS                                                      \
+    BENCHMARK_GRAPH                                                            \
+    for (auto _ : State) {                                                     \
+      BENCHMARK_BODY_PATH_FINDING                                              \
+    }                                                                          \
+  }                                                                            \
+  BENCHMARK_REGISTER_F(Name, path_finding);
 
 #endif

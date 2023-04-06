@@ -74,7 +74,7 @@ private:
 
 } // namespace
 
-void backwardsPathFinder(GraphData &Data) {
+void runPathFinding(GraphData &Data) {
   const auto &Edges = Data.Edges;
 
   const auto TargetVertices = getRootVertices(Data);

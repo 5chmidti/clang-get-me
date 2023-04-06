@@ -7,6 +7,7 @@
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
+#include "get_me/backwards_path_finding.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
@@ -16,7 +17,8 @@ void queryAll(const std::shared_ptr<TransitionCollector> &Transitions,
   const auto Run = [Transitions, &Conf](const auto &QueriedType) {
     const auto Query = getQueriedTypeForInput(Transitions->Data,
                                               fmt::format("{}", QueriedType));
-    auto Data = runGraphBuildingAndPathFinding(Transitions, Query, Conf);
+    auto Data = runGraphBuilding(Transitions, Query, Conf);
+    runPathFinding(Data);
   };
 
   spdlog::info("Running with {} threads",

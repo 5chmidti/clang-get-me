@@ -20,7 +20,7 @@
 #include <range/v3/view/indirect.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include "ftxui/dom/elements.hpp"
+#include "get_me/backwards_path_finding.hpp"
 #include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 #include "get_me/query.hpp"
@@ -104,8 +104,9 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
     const auto Query = getQueriedTypeForInput(
         CollectionState.getTransitionsPtr()->Data, QueriedName);
 
-    auto Data = runGraphBuildingAndPathFinding(
-        CollectionState.getTransitionsPtr(), Query, Conf);
+    auto Data =
+        runGraphBuilding(CollectionState.getTransitionsPtr(), Query, Conf);
+    runPathFinding(Data);
 
     const auto Paths =
         Data.Paths | ranges::to_vector |

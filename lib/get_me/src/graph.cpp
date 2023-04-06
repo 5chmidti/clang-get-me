@@ -32,7 +32,6 @@
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 
-#include "get_me/backwards_path_finding.hpp"
 #include "get_me/config.hpp"
 #include "get_me/indexed_set.hpp"
 #include "get_me/transitions.hpp"
@@ -143,15 +142,6 @@ void GraphBuilder::build() {
   while (CurrentState_.IterationIndex < Conf_.MaxGraphDepth && buildStep()) {
     // complete build
   }
-
-  if (!Edges_.empty()) {
-    auto Data = GraphData{getIndexedSetSortedByIndex(VertexData_),
-                          getIndexedSetSortedByIndex(VertexDepth_), Edges_,
-                          Transitions_};
-    backwardsPathFinder(Data);
-    // spdlog::trace("Data: {}", Data);
-    Paths_.merge(std::move(Data.Paths));
-  }
 }
 
 bool GraphBuilder::buildStep() {
@@ -240,9 +230,9 @@ GraphData GraphBuilder::commit() {
           Transitions_, std::move(Paths_)};
 }
 
-GraphData runGraphBuildingAndPathFinding(
-    const std::shared_ptr<TransitionCollector> &Transitions,
-    const TypeSetValueType &Query, const Config &Conf) {
+GraphData
+runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
+                 const TypeSetValueType &Query, const Config &Conf) {
   auto Builder = GraphBuilder{Transitions, Query, Conf};
   Builder.build();
   return Builder.commit();

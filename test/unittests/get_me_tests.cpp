@@ -26,6 +26,7 @@
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
+#include "get_me/backwards_path_finding.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -154,11 +155,12 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const std::string_view QueriedType,
                        const Config &CurrentConfig) {
   const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
-  auto Data = runGraphBuildingAndPathFinding(Transitions, Query, CurrentConfig);
+  auto Data = runGraphBuilding(Transitions, Query, CurrentConfig);
   const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);
   REQUIRE(SourceVertex < VertexDataSize);
+  runPathFinding(Data);
 
   // return instead of requires because querying all might query a type with no
   // edges/transitions that acquire it
