@@ -181,7 +181,6 @@ private:
   char Presentation_{};
 };
 
-// FIXME: evaluate
 [[nodiscard]] std::vector<VertexDescriptor>
 getRootVertices(const GraphData &Data);
 
