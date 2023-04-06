@@ -240,7 +240,6 @@ private:
   std::vector<size_t> VertexDepth_{};
   GraphData::EdgeContainer Edges_{};
   std::shared_ptr<Config> Conf_{};
-  boost::container::flat_set<PathType, IsPermutationComparator> Paths_{};
 
   StepState CurrentState_{};
 };
