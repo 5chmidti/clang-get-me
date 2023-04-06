@@ -84,10 +84,16 @@ void runPathFinding(GraphData &Data) {
       ranges::views::filter([&StartVertices](const TransitionEdgeType &Step) {
         return ranges::contains(StartVertices, ReversedSource(Step));
       }) |
-      ranges::to_vector;
+      ranges::to_vector |
+      ranges::actions::sort(std::greater{},
+                            Lookup(Data.VertexDepth, ReversedSource));
 
-  const auto GetOutEdgesOfVertex = [&Edges](const VertexDescriptor Vertex) {
-    return Edges | ranges::views::filter(EqualTo(Vertex), ReversedSource);
+  const auto GetOutEdgesOfVertex = [&Edges,
+                                    &Data](const VertexDescriptor Vertex) {
+    return Edges | ranges::views::filter(EqualTo(Vertex), ReversedSource) |
+           ranges::to_vector |
+           ranges::actions::sort(std::greater{},
+                                 Lookup(Data.VertexDepth, ReversedSource));
   };
 
   auto EdgesStack = std::stack<TransitionEdgeType>{};
