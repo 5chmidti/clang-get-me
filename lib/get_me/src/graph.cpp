@@ -109,7 +109,8 @@ constructVertexAndTransitionsPairVector(
 }
 
 [[nodiscard]] std::vector<VertexDescriptor>
-getVerticesThatAreNotA(GraphData &Data, const auto SourceOrTargetProjection) {
+getVerticesThatAreNotA(const GraphData &Data,
+                       const auto SourceOrTargetProjection) {
   const auto Vertices =
       Data.Edges | ranges::views::transform(SourceOrTargetProjection) |
       ranges::to_vector | ranges::actions::sort | ranges::actions::unique;
@@ -298,10 +299,10 @@ std::int64_t GraphBuilder::getVertexDepthDifference(const size_t SourceDepth,
          static_cast<std::int64_t>(SourceDepth);
 }
 
-std::vector<VertexDescriptor> getRootVertices(GraphData &Data) {
+std::vector<VertexDescriptor> getRootVertices(const GraphData &Data) {
   return getVerticesThatAreNotA(Data, Target);
 }
 
-std::vector<VertexDescriptor> getLeafVertices(GraphData &Data) {
+std::vector<VertexDescriptor> getLeafVertices(const GraphData &Data) {
   return getVerticesThatAreNotA(Data, Source);
 }

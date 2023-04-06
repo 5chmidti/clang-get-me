@@ -182,9 +182,11 @@ private:
 };
 
 // FIXME: evaluate
-[[nodiscard]] std::vector<VertexDescriptor> getRootVertices(GraphData &Data);
+[[nodiscard]] std::vector<VertexDescriptor>
+getRootVertices(const GraphData &Data);
 
-[[nodiscard]] std::vector<VertexDescriptor> getLeafVertices(GraphData &Data);
+[[nodiscard]] std::vector<VertexDescriptor>
+getLeafVertices(const GraphData &Data);
 
 template <typename RangeType>
   requires std::same_as<ranges::range_value_t<RangeType>, PathType>
