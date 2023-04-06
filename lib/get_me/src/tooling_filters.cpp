@@ -60,6 +60,10 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
   if (Conf.EnableFilterStd && FDecl->isInStdNamespace()) {
     return true;
   }
+  if (Conf.EnableFilterArithmeticTransitions &&
+      FDecl->getReturnType()->isArithmeticType()) {
+    return true;
+  }
   if (!llvm::isa<clang::CXXConstructorDecl>(FDecl) &&
       FDecl->getReturnType()->isVoidType()) {
     return true;

@@ -34,6 +34,8 @@ public:
                                &Config::EnablePropagateTypeAlias},
             BooleanMappingType{"EnableTruncateArithmetic",
                                &Config::EnableTruncateArithmetic},
+            BooleanMappingType{"EnableFilterArithmeticTransitions",
+                               &Config::EnableFilterArithmeticTransitions},
             BooleanMappingType{"EnableFilterStd", &Config::EnableFilterStd},
             BooleanMappingType{"EnableGraphBackwardsEdge",
                                &Config::EnableGraphBackwardsEdge},
@@ -56,6 +58,7 @@ public:
   bool EnablePropagateInheritance = true;
   bool EnablePropagateTypeAlias = true;
   bool EnableTruncateArithmetic = false;
+  bool EnableFilterArithmeticTransitions = false;
   bool EnableFilterStd = false;
   bool EnableGraphBackwardsEdge = false;
 
