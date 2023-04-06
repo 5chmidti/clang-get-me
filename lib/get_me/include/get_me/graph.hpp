@@ -92,12 +92,13 @@ struct GraphData {
 
   GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
             EdgeContainer Edges,
-            std::shared_ptr<TransitionCollector> Transitions);
+            std::shared_ptr<TransitionCollector> Transitions,
+            std::shared_ptr<Config> Conf);
 
   GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
             EdgeContainer Edges,
             std::shared_ptr<TransitionCollector> Transitions,
-            PathContainer Paths);
+            PathContainer Paths, std::shared_ptr<Config> Conf);
 
   // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
 
@@ -112,6 +113,7 @@ struct GraphData {
 
   std::shared_ptr<TransitionCollector> Transitions{};
 
+  std::shared_ptr<Config> Conf{};
   // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
@@ -179,6 +181,7 @@ private:
   char Presentation_{};
 };
 
+// FIXME: evaluate
 [[nodiscard]] std::vector<VertexDescriptor> getRootVertices(GraphData &Data);
 
 [[nodiscard]] std::vector<VertexDescriptor> getLeafVertices(GraphData &Data);

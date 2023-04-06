@@ -122,21 +122,24 @@ getVerticesThatAreNotA(GraphData &Data, const auto SourceOrTargetProjection) {
 GraphData::GraphData(std::vector<TypeSet> VertexData,
                      std::vector<size_t> VertexDepth, EdgeContainer Edges,
                      std::shared_ptr<TransitionCollector> Transitions,
-                     PathContainer Paths)
+                     PathContainer Paths, std::shared_ptr<Config> Conf)
     : VertexData{std::move(VertexData)},
       VertexDepth{std::move(VertexDepth)},
       Edges{std::move(Edges)},
       Paths{std::move(Paths)},
-      Transitions{std::move(Transitions)} {}
+      Transitions{std::move(Transitions)},
+      Conf{std::move(Conf)} {}
 
 GraphData::GraphData(std::vector<TypeSet> VertexData,
                      std::vector<size_t> VertexDepth, EdgeContainer Edges,
-                     std::shared_ptr<TransitionCollector> Transitions)
+                     std::shared_ptr<TransitionCollector> Transitions,
+                     std::shared_ptr<Config> Conf)
     : GraphData{std::move(VertexData),
                 std::move(VertexDepth),
                 std::move(Edges),
                 std::move(Transitions),
-                {}} {}
+                {},
+                std::move(Conf)} {}
 
 void GraphBuilder::build() {
   while (CurrentState_.IterationIndex < Conf_->MaxGraphDepth && buildStep()) {
@@ -225,8 +228,11 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
 GraphData GraphBuilder::commit() {
   return {getIndexedSetSortedByIndex(std::move(VertexData_)),
-          getIndexedSetSortedByIndex(std::move(VertexDepth_)), Edges_,
-          Transitions_, std::move(Paths_)};
+          getIndexedSetSortedByIndex(std::move(VertexDepth_)),
+          Edges_,
+          Transitions_,
+          std::move(Paths_),
+          std::move(Conf_)};
 }
 
 GraphData
