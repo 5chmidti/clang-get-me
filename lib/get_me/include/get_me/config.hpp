@@ -35,6 +35,8 @@ public:
             BooleanMappingType{"EnableTruncateArithmetic",
                                &Config::EnableTruncateArithmetic},
             BooleanMappingType{"EnableFilterStd", &Config::EnableFilterStd},
+            BooleanMappingType{"EnableGraphBackwardsEdge",
+                               &Config::EnableGraphBackwardsEdge},
         },
         std::array{
             SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
@@ -42,10 +44,7 @@ public:
             SizeTMappingType{"MinPathCount", &Config::MinPathCount},
             SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
             SizeTMappingType{"NumPaths", &Config::NumPaths},
-        },
-        std::array{
-            Int64MappingType{"GraphVertexDepthDifferenceThreshold",
-                             &Config::GraphVertexDepthDifferenceThreshold}}};
+        }};
   }
 
   [[nodiscard]] static Config parse(const std::filesystem::path &File);
@@ -58,6 +57,7 @@ public:
   bool EnablePropagateTypeAlias = true;
   bool EnableTruncateArithmetic = false;
   bool EnableFilterStd = false;
+  bool EnableGraphBackwardsEdge = false;
 
   std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
   std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
@@ -65,7 +65,6 @@ public:
   std::size_t NumPaths = 10U;
   std::size_t MaxPathCount = std::numeric_limits<std::size_t>::max();
 
-  std::int64_t GraphVertexDepthDifferenceThreshold = 1;
   // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 

@@ -164,49 +164,48 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
   CurrentState_.InterestingVertices.clear();
   ++CurrentState_.IterationIndex;
 
-  auto MaybeAddEdgeFrom = [this](const indexed_value<VertexType>
-                                     &IndexedSourceVertex) {
-    const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
-    return [this, &IndexedSourceVertex, SourceDepth](
-               bool AddedTransitions, const std::pair<TransitionType, TypeSet>
-                                          &TransitionAndTargetTS) {
-      const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
-      const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
-      const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
-      const auto TargetVertexIndex =
-          TargetVertexExists ? Index(*TargetVertexIter) : VertexData_.size();
+  auto MaybeAddEdgeFrom =
+      [this](const indexed_value<VertexType> &IndexedSourceVertex) {
+        const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
+        return [this, &IndexedSourceVertex,
+                SourceDepth](bool AddedTransitions,
+                             const std::pair<TransitionType, TypeSet>
+                                 &TransitionAndTargetTS) {
+          const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
+          const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
+          const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
+          const auto TargetVertexIndex = TargetVertexExists
+                                             ? Index(*TargetVertexIter)
+                                             : VertexData_.size();
 
-      const auto EdgeToAdd = TransitionEdgeType{
-          {Index(IndexedSourceVertex), TargetVertexIndex}, Index(Transition)};
+          const auto EdgeToAdd = TransitionEdgeType{
+              {Index(IndexedSourceVertex), TargetVertexIndex},
+              Index(Transition)};
 
-      const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
-      if (TargetVertexExists) {
-        if (!IsEmptyTargetTS &&
-            getVertexDepthDifference(SourceDepth,
-                                     getVertexDepth(TargetVertexIndex)) <
-                Conf_.GraphVertexDepthDifferenceThreshold) {
+          const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
+          if (TargetVertexExists) {
+            if (!IsEmptyTargetTS && !Conf_.EnableGraphBackwardsEdge &&
+                SourceDepth >= getVertexDepth(TargetVertexIndex)) {
+              return AddedTransitions;
+            }
+
+            if (edgeWithTransitionExistsInContainer(Edges_, EdgeToAdd,
+                                                    Transition)) {
+              return AddedTransitions;
+            }
+          }
+          CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
+                                                    TargetTypeSet);
+          VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
+          VertexDepth_.emplace(TargetVertexIndex, CurrentState_.IterationIndex);
+          if (const auto [_, EdgeAdded] = Edges_.emplace(EdgeToAdd);
+              EdgeAdded) {
+            AddedTransitions = true;
+          }
+
           return AddedTransitions;
-        }
-
-        if (edgeWithTransitionExistsInContainer(Edges_, EdgeToAdd,
-                                                Transition)) {
-          return AddedTransitions;
-        }
-
-        CurrentState_.InterestingVertices.emplace(*TargetVertexIter);
-      } else {
-        CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
-                                                  TargetTypeSet);
-        VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
-        VertexDepth_.emplace(TargetVertexIndex, CurrentState_.IterationIndex);
-      }
-      if (const auto [_, EdgeAdded] = Edges_.emplace(EdgeToAdd); EdgeAdded) {
-        AddedTransitions = true;
-      }
-
-      return AddedTransitions;
-    };
-  };
+        };
+      };
 
   return ranges::fold_left(
       constructVertexAndTransitionsPairVector(
