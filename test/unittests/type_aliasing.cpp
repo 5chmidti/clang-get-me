@@ -1,10 +1,12 @@
+#include <memory>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "get_me/config.hpp"
 #include "get_me_tests.hpp"
 
-static constexpr auto PropagateTypeAliasConfig =
-    Config{.EnablePropagateTypeAlias = true};
+static const auto PropagateTypeAliasConfig =
+    std::make_shared<Config>(Config{.EnablePropagateTypeAlias = true});
 
 TEST_CASE("propagate type aliasing") {
   test(R"(

@@ -6,6 +6,7 @@
 
 #include "get_me/config.hpp"
 
-[[nodiscard]] ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf);
+[[nodiscard]] ftxui::Component
+buildConfigComponent(ftxui::Ref<std::shared_ptr<Config>> Conf);
 
 #endif

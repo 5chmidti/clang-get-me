@@ -34,7 +34,8 @@
 
 class TransitionCollectionState {
 public:
-  TransitionCollectionState(Config &Conf, clang::tooling::ClangTool &Tool,
+  TransitionCollectionState(std::shared_ptr<Config> Conf,
+                            clang::tooling::ClangTool &Tool,
                             std::shared_ptr<TransitionCollector> Transitions =
                                 std::make_shared<TransitionCollector>())
       : Conf_(Conf),
@@ -81,14 +82,14 @@ private:
     });
   }
 
-  Config &Conf_;
+  std::shared_ptr<Config> Conf_;
   clang::tooling::ClangTool &Tool_;
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs_;
   std::shared_ptr<TransitionCollector> Transitions_{};
   std::vector<std::string> AcquiredTypeNames_{};
 };
 
-void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
+void runTui(std::shared_ptr<Config> Conf, clang::tooling::ClangTool &Tool) {
   auto CollectionState = TransitionCollectionState{Conf, Tool};
 
   auto Screen = ftxui::ScreenInteractive::Fullscreen();
@@ -146,7 +147,7 @@ void runTui(Config &Conf, clang::tooling::ClangTool &Tool) {
   const auto TabToggle = ftxui::Toggle(&TabNames, &TabSelection);
   const auto Tabs = ftxui::Container::Tab(
       {
-          buildConfigComponent(&Conf),
+          buildConfigComponent(Conf),
           buildQueryComponent(&QueriedName,
                               &CollectionState.getAqcuiredTypeNames(),
                               CommitCallback),

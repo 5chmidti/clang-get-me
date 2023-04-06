@@ -19,45 +19,45 @@
 
 void testSuccess(std::string_view Code, std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
-                 const Config &CurrentConfig = {},
+                 std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());
 
 void testFailure(std::string_view Code, std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
-                 const Config &CurrentConfig = {},
+                 std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());
 
 void testNoThrow(std::string_view Code, std::string_view QueriedType,
-                 const Config &CurrentConfig = {},
+                 std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());
 
-void testQueryAll(std::string_view Code, const Config &CurrentConfig = {},
+void testQueryAll(std::string_view Code,
+                  std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                   std::source_location Loc = std::source_location::current());
 
 void test(std::string_view Code, std::string_view QueriedType,
           const std::set<std::string, std::less<>> &ExpectedPaths,
-          const Config &CurrentConfig = {},
+          std::shared_ptr<Config> Conf = std::make_shared<Config>(),
           std::source_location Loc = std::source_location::current());
 
 void test(const auto &Generator, const size_t Count,
-          const Config &CurrentConfig = {},
+          std::shared_ptr<Config> Conf = std::make_shared<Config>(),
           std::source_location Loc = std::source_location::current()) {
-  ranges::for_each(
-      ranges::views::indices(size_t{1U}, Count),
-      [&Generator, &Loc, &CurrentConfig](const auto NumRepetitions) {
-        const auto &[Query, Code] = Generator(NumRepetitions);
-        testNoThrow(Code, Query, CurrentConfig, Loc);
-        testQueryAll(Code, CurrentConfig, Loc);
-      });
+  ranges::for_each(ranges::views::indices(size_t{1U}, Count),
+                   [&Generator, &Loc, &Conf](const auto NumRepetitions) {
+                     const auto &[Query, Code] = Generator(NumRepetitions);
+                     testNoThrow(Code, Query, Conf, Loc);
+                     testQueryAll(Code, Conf, Loc);
+                   });
 }
 
 [[nodiscard]] std::pair<std::unique_ptr<clang::ASTUnit>,
                         std::shared_ptr<TransitionCollector>>
-collectTransitions(std::string_view Code, const Config &CurrentConfig = {});
+collectTransitions(std::string_view Code, std::shared_ptr<Config> Conf = {});
 
 [[nodiscard]] std::set<std::string>
 buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        std::string_view QueriedType,
-                       const Config &CurrentConfig);
+                       std::shared_ptr<Config> Conf);
 
 #endif

@@ -3,8 +3,8 @@
 #include "get_me/config.hpp"
 #include "get_me_tests.hpp"
 
-static constexpr auto PropagateInheritanceConfig =
-    Config{.EnablePropagateInheritance = true};
+static const auto PropagateInheritanceConfig =
+    std::make_shared<Config>(Config{.EnablePropagateInheritance = true});
 
 TEST_CASE("propagate inheritance") {
   test(R"(

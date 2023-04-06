@@ -19,11 +19,12 @@
 #include "tui/components/int64_input.hpp"
 #include "tui/components/size_t_input.hpp"
 
-ftxui::Component buildConfigComponent(ftxui::Ref<Config> Conf) {
+ftxui::Component
+buildConfigComponent(ftxui::Ref<std::shared_ptr<Config>> Conf) {
   const auto ToEntry = [&Conf]<typename ValueType>(
                            const Config::MappingType<ValueType> &MappingValue) {
     const auto &[Name, MemberAddress] = MappingValue;
-    const auto Flag1 = configEntry(&std::invoke(MemberAddress, Conf));
+    const auto Flag1 = configEntry(&std::invoke(MemberAddress, *Conf));
     return Renderer(Flag1, [Name, Flag1] {
       return hbox(ftxui::text(fmt::format("{:35}: ", Name)), Flag1->Render());
     });

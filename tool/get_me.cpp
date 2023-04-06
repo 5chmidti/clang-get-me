@@ -98,7 +98,8 @@ int main(int argc, const char **argv) {
   }
 
   const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
-  auto Conf = ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath);
+  auto Conf = std::make_shared<Config>(
+      ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath));
 
   if (Interactive) {
     runTui(Conf, Tool);
@@ -143,7 +144,7 @@ int main(int argc, const char **argv) {
   auto PreIndepPathsSize = Paths.size();
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
-  const auto OutputPathCount = std::min<size_t>(Paths.size(), Conf.NumPaths);
+  const auto OutputPathCount = std::min<size_t>(Paths.size(), Conf->NumPaths);
   ranges::partial_sort(
       Paths,
       Paths.begin() +

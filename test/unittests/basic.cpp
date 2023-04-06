@@ -76,7 +76,7 @@ A getA(float, float);
        "A",
        {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
         "(A, A getA(float), {float})", "(A, A getA(float, int), {int, float})"},
-       Config{.EnableFilterOverloads = true});
+       std::make_shared<Config>(Config{.EnableFilterOverloads = true}));
 
   test(R"(
 struct A {};
@@ -85,7 +85,7 @@ A getA(float);
 A getA(float, float);
 )",
        "A", {"(A, A getA(float), {float})", "(A, A A(), {})"},
-       Config{.EnableFilterOverloads = true});
+       std::make_shared<Config>(Config{.EnableFilterOverloads = true}));
 }
 
 TEST_CASE("special member functions") {
@@ -167,12 +167,12 @@ TEST_CASE("arithmetic") {
     int getInt();
   )",
        "A", {"(A, A A(int), {arithmetic}), (arithmetic, int getInt(), {})"},
-       Config{.EnableTruncateArithmetic = true});
+       std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
 
   test(R"(
     struct A { A(int); };
     float getFloat();
   )",
        "A", {"(A, A A(int), {arithmetic}), (arithmetic, float getFloat(), {})"},
-       Config{.EnableTruncateArithmetic = true});
+       std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
 }

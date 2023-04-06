@@ -9,6 +9,6 @@
 #include "get_me/transitions.hpp"
 
 void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,
-                        clang::ASTUnit &AST, const Config &Conf);
+                        clang::ASTUnit &AST, std::shared_ptr<Config> Conf);
 
 #endif

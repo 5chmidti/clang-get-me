@@ -5,6 +5,6 @@
 
 #include "get_me/config.hpp"
 
-void runTui(Config &Conf, clang::tooling::ClangTool &Tool);
+void runTui(std::shared_ptr<Config> Conf, clang::tooling::ClangTool &Tool);
 
 #endif

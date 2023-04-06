@@ -67,17 +67,17 @@ namespace {
 // current context
 class GetMe : public clang::ASTConsumer {
 public:
-  explicit GetMe(const Config &Configuration,
+  explicit GetMe(std::shared_ptr<Config> Conf,
                  std::shared_ptr<TransitionCollector> Transitions,
                  clang::Sema &Sema)
-      : Conf_{Configuration},
+      : Conf_{std::move(Conf)},
         Transitions_{std::move(Transitions)},
         Sema_{Sema} {}
 
   void HandleTranslationUnit(clang::ASTContext &Context) override;
 
 private:
-  Config Conf_;
+  std::shared_ptr<Config> Conf_;
   std::shared_ptr<TransitionCollector> Transitions_;
   clang::Sema &Sema_;
 };
@@ -191,11 +191,12 @@ void filterOverloads(TransitionCollector &Transitions,
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
-  GetMeVisitor(const Config &Configuration, TransitionCollector &TransitionsRef,
+  GetMeVisitor(std::shared_ptr<Config> Conf,
+               TransitionCollector &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
                std::vector<TypeAlias> &TypedefNameDeclsRef,
                clang::Sema &SemaRef)
-      : Conf_{Configuration},
+      : Conf_{std::move(Conf)},
         Transitions_{TransitionsRef},
         CxxRecords_{CXXRecordsRef},
         TypedefNameDecls_{TypedefNameDeclsRef},
@@ -205,7 +206,7 @@ public:
     if (Decl == nullptr) {
       return true;
     }
-    if (!Conf_.EnableFilterStd || !Decl->isInStdNamespace()) {
+    if (!Conf_->EnableFilterStd || !Decl->isInStdNamespace()) {
       clang::RecursiveASTVisitor<GetMeVisitor>::TraverseDecl(Decl);
     }
     return true;
@@ -216,11 +217,11 @@ public:
     if (llvm::isa<clang::CXXMethodDecl>(FDecl)) {
       return true;
     }
-    if (filterOut(FDecl, Conf_)) {
+    if (filterOut(FDecl, *Conf_)) {
       return true;
     }
 
-    addTransition(toTransitionType(FDecl, Conf_));
+    addTransition(toTransitionType(FDecl, *Conf_));
     return true;
   }
 
@@ -238,12 +239,12 @@ public:
       return true;
     }
 
-    addTransition(toTransitionType(FDecl, Conf_));
+    addTransition(toTransitionType(FDecl, *Conf_));
     return true;
   }
 
   [[nodiscard]] bool VisitCXXRecordDecl(clang::CXXRecordDecl *RDecl) {
-    if (filterOut(RDecl, Conf_)) {
+    if (filterOut(RDecl, *Conf_)) {
       return true;
     }
     const auto *const Definition = [RDecl]() {
@@ -269,10 +270,10 @@ public:
     ranges::for_each(
         Definition->methods() |
             ranges::views::filter([this](const auto *const Function) {
-              return !filterOut(Function, Conf_);
+              return !filterOut(Function, *Conf_);
             }),
         [this](const auto *const Function) {
-          addTransition(toTransitionType(Function, Conf_));
+          addTransition(toTransitionType(Function, *Conf_));
         });
 
     if (Definition->getNumBases() != 0) {
@@ -293,7 +294,7 @@ public:
     if (!VDecl->isStaticDataMember()) {
       return true;
     }
-    if (Conf_.EnableFilterStd && VDecl->isInStdNamespace()) {
+    if (Conf_->EnableFilterStd && VDecl->isInStdNamespace()) {
       return true;
     }
     if (hasReservedIdentifierNameOrType(VDecl)) {
@@ -303,7 +304,7 @@ public:
       return true;
     }
 
-    Transitions_.Data[std::get<0>(toTypeSet(VDecl, Conf_))].emplace(
+    Transitions_.Data[std::get<0>(toTypeSet(VDecl, *Conf_))].emplace(
         0U, std::pair{TransitionDataType{VDecl}, TypeSet{}});
     return true;
   }
@@ -312,7 +313,7 @@ public:
     if (NDecl->isInvalidDecl()) {
       return true;
     }
-    if (Conf_.EnableFilterStd && NDecl->isInStdNamespace()) {
+    if (Conf_->EnableFilterStd && NDecl->isInStdNamespace()) {
       return true;
     }
     if (NDecl->isTemplateDecl()) {
@@ -344,7 +345,7 @@ private:
         0U, std::pair{ToTransition(Transition), ToRequired(Transition)});
   }
 
-  const Config &Conf_;
+  std::shared_ptr<Config> Conf_;
   TransitionCollector &Transitions_;
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
   std::vector<TypeAlias> &TypedefNameDecls_;
@@ -358,19 +359,20 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
                        Sema_};
 
   std::ignore = Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-  if (Conf_.EnableFilterOverloads) {
+  if (Conf_->EnableFilterOverloads) {
     filterOverloads(*Transitions_);
   }
 
   propagateTransitionsOfDirectTypeDependencies(*Transitions_, CXXRecords,
-                                               TypedefNameDecls, Conf_);
+                                               TypedefNameDecls, *Conf_);
 
   Transitions_->commit();
 }
 
+// FIXME: make transitions the returned value
 void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,
-                        clang::ASTUnit &AST, const Config &Conf) {
+                        clang::ASTUnit &AST, std::shared_ptr<Config> Conf) {
 
-  GetMe{Conf, std::move(Transitions), AST.getSema()}.HandleTranslationUnit(
-      AST.getASTContext());
+  GetMe{std::move(Conf), std::move(Transitions), AST.getSema()}
+      .HandleTranslationUnit(AST.getASTContext());
 }

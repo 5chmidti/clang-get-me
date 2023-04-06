@@ -204,12 +204,13 @@ public:
   using VertexSet = indexed_set<VertexType>;
 
   explicit GraphBuilder(std::shared_ptr<TransitionCollector> Transitions,
-                        const TypeSetValueType &Query, const Config &Conf)
+                        const TypeSetValueType &Query,
+                        std::shared_ptr<Config> Conf)
       : Transitions_{std::move(Transitions)},
         Query_{Query},
         VertexData_{{0U, TypeSet{Query}}, {1U, TypeSet{}}},
         VertexDepth_{{0U, 0U}, {1U, 0U}},
-        Conf_{Conf},
+        Conf_{std::move(Conf)},
         CurrentState_{0U, VertexData_} {}
 
   void build();
@@ -236,7 +237,7 @@ private:
   VertexSet VertexData_{};
   indexed_set<size_t> VertexDepth_{};
   GraphData::EdgeContainer Edges_{};
-  Config Conf_{};
+  std::shared_ptr<Config> Conf_{};
   boost::container::flat_set<PathType, IsPermutationComparator> Paths_{};
 
   StepState CurrentState_{};
@@ -244,7 +245,7 @@ private:
 
 [[nodiscard]] GraphData
 runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
-                 const TypeSetValueType &Query, const Config &Conf);
+                 const TypeSetValueType &Query, std::shared_ptr<Config> Conf);
 
 [[nodiscard]] VertexDescriptor
 getSourceVertexMatchingQueriedType(const GraphData &Data,

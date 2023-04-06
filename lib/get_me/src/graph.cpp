@@ -139,7 +139,7 @@ GraphData::GraphData(std::vector<TypeSet> VertexData,
                 {}} {}
 
 void GraphBuilder::build() {
-  while (CurrentState_.IterationIndex < Conf_.MaxGraphDepth && buildStep()) {
+  while (CurrentState_.IterationIndex < Conf_->MaxGraphDepth && buildStep()) {
     // complete build
   }
 }
@@ -184,7 +184,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
           const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
           if (TargetVertexExists) {
-            if (!IsEmptyTargetTS && !Conf_.EnableGraphBackwardsEdge &&
+            if (!IsEmptyTargetTS && !Conf_->EnableGraphBackwardsEdge &&
                 SourceDepth >= getVertexDepth(TargetVertexIndex)) {
               return AddedTransitions;
             }
@@ -231,8 +231,8 @@ GraphData GraphBuilder::commit() {
 
 GraphData
 runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
-                 const TypeSetValueType &Query, const Config &Conf) {
-  auto Builder = GraphBuilder{Transitions, Query, Conf};
+                 const TypeSetValueType &Query, std::shared_ptr<Config> Conf) {
+  auto Builder = GraphBuilder{Transitions, Query, std::move(Conf)};
   Builder.build();
   return Builder.commit();
 }

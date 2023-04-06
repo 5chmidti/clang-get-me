@@ -78,20 +78,20 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
 
 void test(const std::string_view Code, const std::string_view QueriedType,
           const std::set<std::string, std::less<>> &ExpectedPaths,
-          const Config &CurrentConfig, const std::source_location Loc) {
-  testSuccess(Code, QueriedType, ExpectedPaths, CurrentConfig, Loc);
-  testQueryAll(Code, CurrentConfig, Loc);
+          std::shared_ptr<Config> Conf, const std::source_location Loc) {
+  testSuccess(Code, QueriedType, ExpectedPaths, Conf, Loc);
+  testQueryAll(Code, Conf, Loc);
 }
 
 void testSuccess(const std::string_view Code,
                  const std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
-                 const Config &CurrentConfig, const std::source_location Loc) {
+                 std::shared_ptr<Config> Conf, const std::source_location Loc) {
   spdlog::enable_backtrace(BacktraceSize);
   LOG_LOC(Loc);
-  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+  const auto [AST, Transitions] = collectTransitions(Code, Conf);
   const auto FoundPathsAsString =
-      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+      buildGraphAndFindPaths(Transitions, QueriedType, Conf);
   verify(true, FoundPathsAsString, ExpectedPaths);
   spdlog::disable_backtrace();
 }
@@ -99,42 +99,40 @@ void testSuccess(const std::string_view Code,
 void testFailure(const std::string_view Code,
                  const std::string_view QueriedType,
                  const std::set<std::string, std::less<>> &ExpectedPaths,
-                 const Config &CurrentConfig, const std::source_location Loc) {
+                 std::shared_ptr<Config> Conf, const std::source_location Loc) {
   LOG_LOC(Loc);
   spdlog::enable_backtrace(BacktraceSize);
-  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+  const auto [AST, Transitions] = collectTransitions(Code, Conf);
   const auto FoundPathsAsString =
-      buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+      buildGraphAndFindPaths(Transitions, QueriedType, Conf);
   verify(false, FoundPathsAsString, ExpectedPaths);
   spdlog::disable_backtrace();
 }
 
 void testNoThrow(const std::string_view Code,
                  const std::string_view QueriedType,
-                 const Config &CurrentConfig, const std::source_location Loc) {
+                 std::shared_ptr<Config> Conf, const std::source_location Loc) {
   spdlog::enable_backtrace(BacktraceSize);
-  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
-  const auto Test = [&Loc, &Transitions, &QueriedType, &CurrentConfig]() {
+  const auto [AST, Transitions] = collectTransitions(Code, Conf);
+  const auto Test = [&Loc, &Transitions, &QueriedType, &Conf]() {
     LOG_LOC(Loc);
-    std::ignore =
-        buildGraphAndFindPaths(Transitions, QueriedType, CurrentConfig);
+    std::ignore = buildGraphAndFindPaths(Transitions, QueriedType, Conf);
     spdlog::disable_backtrace();
   };
 
   REQUIRE_NOTHROW(Test());
 }
 
-void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
+void testQueryAll(const std::string_view Code, std::shared_ptr<Config> Conf,
                   const std::source_location Loc) {
   spdlog::enable_backtrace(BacktraceSize);
   LOG_LOC(Loc);
 
-  const auto [AST, Transitions] = collectTransitions(Code, CurrentConfig);
+  const auto [AST, Transitions] = collectTransitions(Code, Conf);
 
-  const auto Run = [&Transitions, &CurrentConfig](const auto &QueriedType) {
-    REQUIRE_NOTHROW(
-        std::ignore = buildGraphAndFindPaths(
-            Transitions, fmt::format("{}", QueriedType), CurrentConfig));
+  const auto Run = [&Transitions, &Conf](const auto &QueriedType) {
+    REQUIRE_NOTHROW(std::ignore = buildGraphAndFindPaths(
+                        Transitions, fmt::format("{}", QueriedType), Conf));
   };
 
   tbb::parallel_for_each(
@@ -143,19 +141,19 @@ void testQueryAll(const std::string_view Code, const Config &CurrentConfig,
 }
 
 std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionCollector>>
-collectTransitions(const std::string_view Code, const Config &CurrentConfig) {
+collectTransitions(const std::string_view Code, std::shared_ptr<Config> Conf) {
   auto AST = clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
   auto Transitions = std::make_shared<TransitionCollector>();
-  collectTransitions(Transitions, *AST, CurrentConfig);
+  collectTransitions(Transitions, *AST, std::move(Conf));
   return {std::move(AST), std::move(Transitions)};
 }
 
 std::set<std::string>
 buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const std::string_view QueriedType,
-                       const Config &CurrentConfig) {
+                       std::shared_ptr<Config> Conf) {
   const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
-  auto Data = runGraphBuilding(Transitions, Query, CurrentConfig);
+  auto Data = runGraphBuilding(Transitions, Query, std::move(Conf));
   const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);
