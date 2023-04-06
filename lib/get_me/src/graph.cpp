@@ -170,7 +170,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
   auto MaybeAddEdgeFrom =
       [this](const indexed_value<VertexType> &IndexedSourceVertex) {
-        const auto SourceDepth = getVertexDepth(Index(IndexedSourceVertex));
+        const auto SourceDepth = VertexDepth_[Index(IndexedSourceVertex)];
         return [this, &IndexedSourceVertex,
                 SourceDepth](bool AddedTransitions,
                              const std::pair<TransitionType, TypeSet>
@@ -189,7 +189,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
           const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
           if (TargetVertexExists) {
             if (!IsEmptyTargetTS && !Conf_->EnableGraphBackwardsEdge &&
-                SourceDepth >= getVertexDepth(TargetVertexIndex)) {
+                SourceDepth >= VertexDepth_[TargetVertexIndex]) {
               return AddedTransitions;
             }
 
@@ -200,8 +200,10 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
           }
           CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
                                                     TargetTypeSet);
-          VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
-          VertexDepth_.emplace(TargetVertexIndex, CurrentState_.IterationIndex);
+          if (!TargetVertexExists) {
+            VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
+            VertexDepth_.push_back(CurrentState_.IterationIndex);
+          }
           if (const auto [_, EdgeAdded] = Edges_.emplace(EdgeToAdd);
               EdgeAdded) {
             AddedTransitions = true;
@@ -229,7 +231,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
 GraphData GraphBuilder::commit() {
   return {getIndexedSetSortedByIndex(std::move(VertexData_)),
-          getIndexedSetSortedByIndex(std::move(VertexDepth_)),
+          std::move(VertexDepth_),
           Edges_,
           Transitions_,
           std::move(Paths_),
@@ -254,12 +256,6 @@ getSourceVertexMatchingQueriedType(const GraphData &Data,
   }
   return static_cast<VertexDescriptor>(
       std::distance(Data.VertexData.begin(), SourceVertex));
-}
-
-size_t GraphBuilder::getVertexDepth(const size_t VertexIndex) const {
-  return VertexDepth_ | ranges::views::filter(EqualTo(VertexIndex), Index) |
-         ranges::views::take(1) | ranges::views::values | ranges::to_vector |
-         actions::FrontOr(0U);
 }
 
 std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {

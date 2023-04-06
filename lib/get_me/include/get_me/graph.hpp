@@ -213,7 +213,7 @@ public:
       : Transitions_{std::move(Transitions)},
         Query_{Query},
         VertexData_{{0U, TypeSet{Query}}, {1U, TypeSet{}}},
-        VertexDepth_{{0U, 0U}, {1U, 0U}},
+        VertexDepth_{0U, 1U},
         Conf_{std::move(Conf)},
         CurrentState_{0U, VertexData_} {}
 
@@ -231,15 +231,13 @@ private:
     VertexSet InterestingVertices{};
   };
 
-  [[nodiscard]] size_t getVertexDepth(size_t VertexIndex) const;
-
   [[nodiscard]] static std::int64_t
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
   std::shared_ptr<TransitionCollector> Transitions_;
   TypeSetValueType Query_;
   VertexSet VertexData_{};
-  indexed_set<size_t> VertexDepth_{};
+  std::vector<size_t> VertexDepth_{};
   GraphData::EdgeContainer Edges_{};
   std::shared_ptr<Config> Conf_{};
   boost::container::flat_set<PathType, IsPermutationComparator> Paths_{};
