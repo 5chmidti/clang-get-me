@@ -81,6 +81,8 @@ void runPathFinding(GraphData &Data) {
   const auto StartVertices = getLeafVertices(Data);
   const auto StartEdges =
       Edges |
+      ranges::views::filter(Less(Data.Conf->MaxPathLength),
+                            Lookup(Data.VertexDepth, ReversedTarget)) |
       ranges::views::filter([&StartVertices](const TransitionEdgeType &Step) {
         return ranges::contains(StartVertices, ReversedSource(Step));
       }) |
@@ -88,13 +90,19 @@ void runPathFinding(GraphData &Data) {
       ranges::actions::sort(std::greater{},
                             Lookup(Data.VertexDepth, ReversedSource));
 
-  const auto GetOutEdgesOfVertex = [&Edges,
-                                    &Data](const VertexDescriptor Vertex) {
-    return Edges | ranges::views::filter(EqualTo(Vertex), ReversedSource) |
-           ranges::to_vector |
-           ranges::actions::sort(std::greater{},
-                                 Lookup(Data.VertexDepth, ReversedSource));
-  };
+  const auto GetOutEdgesOfVertex =
+      [&Edges, &Data](const VertexDescriptor SourceVertex) {
+        const auto SourceVertexDepth = Data.VertexDepth[SourceVertex];
+        return Edges |
+               ranges::views::filter(EqualTo(SourceVertex), ReversedSource) |
+               ranges::views::filter(
+                   LessEqual(Data.Conf->MaxPathLength),
+                   ranges::compose(Plus(SourceVertexDepth),
+                                   Lookup(Data.VertexDepth, ReversedTarget))) |
+               ranges::to_vector |
+               ranges::actions::sort(std::greater{},
+                                     Lookup(Data.VertexDepth, ReversedSource));
+      };
 
   auto EdgesStack = std::stack<TransitionEdgeType>{};
   push(EdgesStack, StartEdges);
