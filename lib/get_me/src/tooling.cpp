@@ -378,10 +378,10 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   Transitions_->commit();
 }
 
-// FIXME: make transitions the returned value
-void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,
-                        clang::ASTUnit &AST, std::shared_ptr<Config> Conf) {
-
-  GetMe{std::move(Conf), std::move(Transitions), AST.getSema()}
-      .HandleTranslationUnit(AST.getASTContext());
+std::shared_ptr<TransitionCollector>
+collectTransitions(clang::ASTUnit &AST, std::shared_ptr<Config> Conf) {
+  auto Transitions = std::make_shared<TransitionCollector>();
+  GetMe{std::move(Conf), Transitions, AST.getSema()}.HandleTranslationUnit(
+      AST.getASTContext());
+  return Transitions;
 }

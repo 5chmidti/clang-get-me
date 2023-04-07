@@ -17,8 +17,7 @@
 inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
                           const std::string &QueriedTypeAsString) {
   const auto Conf = std::make_shared<Config>();
-  auto Transitions = std::make_shared<TransitionCollector>();
-  collectTransitions(Transitions, Ast, Conf);
+  auto Transitions = collectTransitions(Ast, Conf);
   State.counters["transitions"] = static_cast<double>(Transitions->Data.size());
   const auto Query =
       getQueriedTypeForInput(Transitions->Data, QueriedTypeAsString);
@@ -36,9 +35,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
       clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});          \
   setupCounters(State, *Ast, QueriedTypeAsString);
 
-#define BENCHMARK_TRANSITIONS                                                  \
-  auto Transitions = std::make_shared<TransitionCollector>();                  \
-  collectTransitions(Transitions, *Ast, Conf);
+#define BENCHMARK_TRANSITIONS auto Transitions = collectTransitions(*Ast, Conf);
 
 #define BENCHMARK_GRAPH                                                        \
   const auto Query =                                                           \

@@ -85,6 +85,9 @@ int main(int argc, const char **argv) {
                           : Result;
   }();
 
+  GetMeException::verify(ranges::size(Sources) == 1,
+                         "Built {} ASTs, expected 1", ranges::size(Sources));
+
   clang::tooling::ClangTool Tool(OptionsParser->getCompilations(), Sources);
 
   if (Verbose) {
@@ -106,15 +109,11 @@ int main(int argc, const char **argv) {
     return 0;
   }
 
-  auto Transitions = std::make_shared<TransitionCollector>();
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs{};
   const auto BuildASTsResult = Tool.buildASTs(ASTs);
   GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
-  ranges::for_each(ASTs | ranges::views::indirect,
-                   [&Transitions, &Conf](auto &AST) {
-                     ::collectTransitions(Transitions, AST, Conf);
-                   });
+  auto Transitions = collectTransitions(*ASTs.front(), Conf);
 
   if (QueryAll) {
     queryAll(Transitions, Conf);

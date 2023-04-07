@@ -143,8 +143,7 @@ void testQueryAll(const std::string_view Code, std::shared_ptr<Config> Conf,
 std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionCollector>>
 collectTransitions(const std::string_view Code, std::shared_ptr<Config> Conf) {
   auto AST = clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
-  auto Transitions = std::make_shared<TransitionCollector>();
-  collectTransitions(Transitions, *AST, std::move(Conf));
+  auto Transitions = collectTransitions(*AST, std::move(Conf));
   return {std::move(AST), std::move(Transitions)};
 }
 

@@ -8,7 +8,7 @@
 #include "get_me/config.hpp"
 #include "get_me/transitions.hpp"
 
-void collectTransitions(std::shared_ptr<TransitionCollector> Transitions,
-                        clang::ASTUnit &AST, std::shared_ptr<Config> Conf);
+[[nodiscard]] std::shared_ptr<TransitionCollector>
+collectTransitions(clang::ASTUnit &AST, std::shared_ptr<Config> Conf);
 
 #endif

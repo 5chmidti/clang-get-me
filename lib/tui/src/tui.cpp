@@ -72,14 +72,10 @@ public:
 
 private:
   void collectTransitions() {
-    Transitions_->Data.clear();
-
     const auto BuildASTsResult = Tool_.buildASTs(ASTs_);
     GetMeException::verify(BuildASTsResult == 0, "Error building ASTs");
 
-    ranges::for_each(ASTs_ | ranges::views::indirect, [this](auto &AST) {
-      ::collectTransitions(Transitions_, AST, Conf_);
-    });
+    Transitions_ = ::collectTransitions(*ASTs_.front(), Conf_);
   }
 
   std::shared_ptr<Config> Conf_;
