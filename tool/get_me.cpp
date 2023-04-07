@@ -144,7 +144,8 @@ int main(int argc, const char **argv) {
   auto PreIndepPathsSize = Paths.size();
   spdlog::info("generated {} paths", PreIndepPathsSize);
 
-  const auto OutputPathCount = std::min<size_t>(Paths.size(), Conf->NumPaths);
+  const auto OutputPathCount =
+      std::min<size_t>(Paths.size(), Conf->MaxPathOutputCount);
   ranges::partial_sort(
       Paths,
       Paths.begin() +
