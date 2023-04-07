@@ -3,6 +3,8 @@
 
 #include <cstddef>
 #include <functional>
+#include <limits>
+#include <numeric>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -37,6 +39,17 @@ inline constexpr auto ToQualType = [](const clang::ValueDecl *const VDecl) {
 inline constexpr auto Copy = [](std::copyable auto Val) {
   return std::move(Val);
 };
+
+inline constexpr auto SafePlus = []<std::integral T>(const T Lhs,
+                                                     const T Rhs) constexpr {
+  if (const auto Mid = std::midpoint(Lhs, Rhs);
+      Mid > std::midpoint(T{}, std::numeric_limits<T>::max())) {
+    return std::numeric_limits<T>::max();
+  }
+  return std::plus<T>{}(Lhs, Rhs);
+};
+
+// add binary and unary support via binary facade or smt
 
 inline constexpr auto Plus = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>(const U &Lhs) constexpr {

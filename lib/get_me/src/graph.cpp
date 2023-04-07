@@ -20,6 +20,7 @@
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/fold_left.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
@@ -206,11 +207,26 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
           std::move(InterestingVertices),
           getTransitionsForQuery(Transitions_->Data, Query_)),
       false,
-      [MaybeAddEdgeFrom](bool AddedTransitions,
-                         const auto &VertexAndTransitions) {
+      [this, MaybeAddEdgeFrom](bool AddedTransitions,
+                               const auto &VertexAndTransitions) {
         const auto &[IndexedVertex, Transitions] = VertexAndTransitions;
+
+        const auto MaxAllowedTypeSetSize =
+            SafePlus(Conf_->MaxPathLength, Conf_->MaxRemainingTypes);
+        // adjust with -1 to correctly model removing the acquired in
+        // 'new = old-acquired+required'
+        const auto CurrentTypeSetSize =
+            SafePlus(ranges::size(Value(IndexedVertex)),
+                     CurrentState_.IterationIndex) -
+            1;
+
         return ranges::fold_left(
             Transitions |
+                ranges::views::filter(
+                    Less(MaxAllowedTypeSetSize),
+                    ranges::compose(
+                        ranges::bind_back(SafePlus, CurrentTypeSetSize),
+                        ranges::compose(ranges::size, ToRequired))) |
                 ranges::views::transform(
                     toTransitionAndTargetTypeSetPairForVertex(IndexedVertex)),
             AddedTransitions, MaybeAddEdgeFrom(IndexedVertex));

@@ -42,6 +42,7 @@ public:
         },
         std::array{
             SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
+            SizeTMappingType{"MaxRemainingTypes", &Config::MaxRemainingTypes},
             SizeTMappingType{"MaxPathLength", &Config::MaxPathLength},
             SizeTMappingType{"MinPathCount", &Config::MinPathCount},
             SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
@@ -63,6 +64,7 @@ public:
   bool EnableGraphBackwardsEdge = false;
 
   std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
+  std::size_t MaxRemainingTypes = std::numeric_limits<std::size_t>::max();
   std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
   std::size_t MinPathCount = 0U;
   std::size_t NumPaths = 10U;
