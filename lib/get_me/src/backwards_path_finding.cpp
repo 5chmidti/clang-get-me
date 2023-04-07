@@ -48,6 +48,8 @@ public:
     }
   }
 
+  [[nodiscard]] size_t getNumPaths() const { return ranges::size(Paths_); }
+
 private:
   boost::container::flat_set<PathType, IsPermutationComparator> &Paths_;
   PathType CurrentPath_{};
@@ -123,6 +125,9 @@ void runPathFinding(GraphData &Data) {
 
     if (ranges::contains(TargetVertices, ReversedTarget(Edge))) {
       State.finishPath();
+      if (State.getNumPaths() > Data.Conf->MaxPathCount) {
+        break;
+      }
     } else {
       AddOutEdgesOfVertexToStack(ReversedTarget(Edge));
     }
