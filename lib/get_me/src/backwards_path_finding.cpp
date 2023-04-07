@@ -12,9 +12,11 @@
 #include <range/v3/iterator/operations.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/filter.hpp>
 #include <spdlog/spdlog.h>
 
+#include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 #include "support/ranges/functional.hpp"
 
@@ -42,11 +44,15 @@ public:
     Paths_.emplace(Copy(CurrentPath_) | ranges::actions::reverse);
   }
 
-  void rollbackPathIfRequired(const TransitionEdgeType &Edge) {
+  [[nodiscard]] bool rollbackPathIfRequired(const TransitionEdgeType &Edge) {
     if (requiresRollback(Edge)) {
       rollbackFor(Edge);
+      return true;
     }
+    return false;
   }
+
+  [[nodiscard]] const PathType &getCurrentPath() const { return CurrentPath_; }
 
   [[nodiscard]] size_t getNumPaths() const { return ranges::size(Paths_); }
 
@@ -120,7 +126,20 @@ void runPathFinding(GraphData &Data) {
     const auto Edge = EdgesStack.top();
     EdgesStack.pop();
 
-    State.rollbackPathIfRequired(Edge);
+    if (const auto RolledBack = State.rollbackPathIfRequired(Edge);
+        RolledBack) {
+      if (Data.Conf->EnableGraphBackwardsEdge &&
+          ranges::contains(State.getCurrentPath(), Target(Edge), Target)) {
+        continue;
+      }
+    } else {
+      if (Data.Conf->EnableGraphBackwardsEdge &&
+          !ranges::empty(State.getCurrentPath()) &&
+          Target(ranges::back(State.getCurrentPath())) == Target(Edge)) {
+        continue;
+      }
+    }
+
     State.addEdge(Edge);
 
     if (ranges::contains(TargetVertices, ReversedTarget(Edge))) {
