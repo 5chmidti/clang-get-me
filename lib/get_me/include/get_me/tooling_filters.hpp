@@ -25,7 +25,7 @@ class Config;
 
 [[nodiscard]] bool hasReservedIdentifierName(const clang::QualType &QType);
 
-[[nodiscard]] bool hasReservedIdentifierType(const clang::Type *Type);
+[[nodiscard]] bool hasReservedIdentifierType(const clang::QualType &QType);
 
 template <typename T>
 [[nodiscard]] static bool
@@ -61,7 +61,7 @@ template <typename T>
     return true;
   }
   if constexpr (std::is_same_v<T, clang::TypedefNameDecl>) {
-    return hasReservedIdentifierType(Decl->getUnderlyingType().getTypePtr());
+    return hasReservedIdentifierType(Decl->getUnderlyingType());
   }
   return false;
 }

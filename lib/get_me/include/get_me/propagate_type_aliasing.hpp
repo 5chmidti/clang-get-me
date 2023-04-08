@@ -10,8 +10,8 @@
 #include "get_me/transitions.hpp"
 
 struct TypeAlias {
-  const clang::Type *Base;
-  const clang::Type *Alias;
+  clang::QualType Base;
+  clang::QualType Alias;
 };
 
 template <> class fmt::formatter<TypeAlias> {

@@ -4,6 +4,7 @@
 #include <string>
 
 #include <clang/AST/PrettyPrinter.h>
+#include <clang/AST/Type.h>
 
 namespace clang {
 class Type;
@@ -11,10 +12,7 @@ class Decl;
 class NamedDecl;
 } // namespace clang
 
-[[nodiscard]] clang::PrintingPolicy
-getNormalizedPrintingPolicy(const clang::Decl *Decl);
-
-[[nodiscard]] std::string toString(const clang::Type *Type);
+[[nodiscard]] std::string toString(const clang::QualType &QType);
 [[nodiscard]] std::string toString(const clang::NamedDecl *NDecl);
 
 #endif

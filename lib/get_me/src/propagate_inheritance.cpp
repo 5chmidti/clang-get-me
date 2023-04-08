@@ -62,14 +62,8 @@ using VertexDescriptor =
 [[nodiscard]] bool overridesMethod(const TypeSetValueType &TypeValue,
                                    const clang::CXXMethodDecl *const Method) {
   return std::visit(
-      Overloaded{[Method](const clang::Type *const Type) {
-                   const auto *const NewTypeAsRecordType =
-                       llvm::dyn_cast<clang::RecordType>(Type);
-                   if (NewTypeAsRecordType == nullptr) {
-                     return false;
-                   }
-                   const auto *const Derived =
-                       NewTypeAsRecordType->getAsCXXRecordDecl();
+      Overloaded{[Method](const clang::QualType &QType) {
+                   const auto *const Derived = QType->getAsCXXRecordDecl();
 
                    if (Derived == nullptr) {
                      return false;
@@ -103,14 +97,8 @@ using VertexDescriptor =
 overridesConstructor(const TypeSetValueType &TypeValue,
                      const clang::CXXMethodDecl *const Ctor) {
   return std::visit(
-      Overloaded{[Ctor](const clang::Type *const Type) {
-                   const auto *const NewTypeAsRecordType =
-                       llvm::dyn_cast<clang::RecordType>(Type);
-                   if (NewTypeAsRecordType == nullptr) {
-                     return false;
-                   }
-                   const auto *const Derived =
-                       NewTypeAsRecordType->getAsCXXRecordDecl();
+      Overloaded{[Ctor](const clang::QualType &QType) {
+                   const auto *const Derived = QType->getAsCXXRecordDecl();
 
                    if (Derived == nullptr) {
                      return false;
@@ -157,7 +145,8 @@ overridesConstructor(const TypeSetValueType &TypeValue,
 class InheritanceGraphBuilder {
 public:
   void visit(const clang::CXXRecordDecl *const Record) {
-    const auto RecordIndex = addType(launderType(Record->getTypeForDecl()));
+    const auto RecordIndex =
+        addType(clang::QualType{Record->getTypeForDecl(), 0});
     visitCXXRecordDecl(Record, RecordIndex);
   }
 
@@ -187,7 +176,7 @@ private:
         Derived->bases(),
         [this, DerivedIndex](const clang::CXXBaseSpecifier &BaseSpec) {
           const auto QType = BaseSpec.getType();
-          const auto BaseVertexIndex = addType(launderType(QType.getTypePtr()));
+          const auto BaseVertexIndex = addType(QType);
 
           if (addEdge(DTDGraphData::EdgeType{BaseVertexIndex, DerivedIndex})) {
             visitCXXRecordDecl(QType->getAsCXXRecordDecl(), BaseVertexIndex);

@@ -23,7 +23,7 @@
 
 namespace {
 [[nodiscard]] std::string getTypeAsString(const clang::ValueDecl *const VDecl) {
-  return VDecl->getType().getAsString(getNormalizedPrintingPolicy(VDecl));
+  return VDecl->getType().getAsString();
 }
 
 constexpr auto FunctionDeclToStringForAcquired =
@@ -33,8 +33,7 @@ constexpr auto FunctionDeclToStringForAcquired =
         const auto *const Parent = Constructor->getParent();
         return Parent->getNameAsString();
       }
-      return FDecl->getReturnType().getAsString(
-          getNormalizedPrintingPolicy(FDecl));
+      return FDecl->getReturnType().getAsString();
     };
 
 constexpr auto FunctionDeclToStringForRequired =

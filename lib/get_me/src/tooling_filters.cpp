@@ -25,13 +25,13 @@ bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
 }
 
 bool hasReservedIdentifierName(const clang::QualType &QType) {
-  const auto QTypeAsString = QType.getAsString();
+  const auto QTypeAsString = toString(QType.getUnqualifiedType());
   return QTypeAsString.starts_with("_") ||
          (QTypeAsString.find("::_") != std::string::npos);
 }
 
-bool hasReservedIdentifierType(const clang::Type *const Type) {
-  return hasReservedIdentifierName(clang::QualType(Type, 0));
+bool hasReservedIdentifierType(const clang::QualType &QType) {
+  return hasReservedIdentifierName(QType);
 }
 
 bool isReturnTypeInParameterList(const clang::FunctionDecl *const FDecl) {

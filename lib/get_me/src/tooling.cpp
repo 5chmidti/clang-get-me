@@ -328,21 +328,16 @@ public:
     if (NDecl->isTemplateDecl()) {
       return true;
     }
-    // explicitly create the type even if it is not used
-    const auto *const AliasType =
-        launderType(NDecl->getASTContext()
-                        .getTypedefType(NDecl, NDecl->getUnderlyingType())
-                        .getTypePtr());
-    if (AliasType == nullptr ||
-        NDecl->getUnderlyingType().getTypePtr() == nullptr) {
+    const auto AliasType = NDecl->getASTContext().getTypedefType(
+        NDecl, NDecl->getUnderlyingType());
+    if (NDecl->getUnderlyingType().getTypePtr() == nullptr) {
       return true;
     }
     if (hasReservedIdentifierNameOrType(NDecl)) {
       return true;
     }
 
-    const auto *const BaseType =
-        launderType(NDecl->getUnderlyingType().getTypePtr());
+    const auto BaseType = NDecl->getUnderlyingType();
 
     TypedefNameDecls_.emplace_back(BaseType, AliasType);
     return true;

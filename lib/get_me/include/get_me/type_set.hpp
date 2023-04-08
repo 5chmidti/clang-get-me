@@ -1,6 +1,8 @@
 #ifndef get_me_lib_get_me_include_get_me_type_set_hpp
 #define get_me_lib_get_me_include_get_me_type_set_hpp
 
+#include <concepts>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -23,7 +25,7 @@ class VarDecl;
 class Config;
 
 struct ArithmeticType {
-  const clang::Type *Value{};
+  clang::QualType Value{};
 
   [[nodiscard]] friend bool operator==(const ArithmeticType & /*Lhs*/,
                                        const ArithmeticType & /*Rhs*/) {
@@ -49,7 +51,22 @@ public:
   }
 };
 
-using TypeSetValueType = std::variant<const clang::Type *, ArithmeticType>;
+[[nodiscard]] clang::QualType launderType(const clang::QualType &Type);
+
+class TypeSetValueType : public std::variant<clang::QualType, ArithmeticType> {
+public:
+  using Base = std::variant<clang::QualType, ArithmeticType>;
+  using Base::variant;
+
+  // force launder of all QualTypes for TypeSetValueType
+  template <typename T>
+    requires std::same_as<clang::QualType, std::remove_cvref_t<T>>
+  // NOLINTBEGIN(bugprone-forwarding-reference-overload,
+  // google-explicit-constructor, hicpp-explicit-conversions)
+  explicit(false) TypeSetValueType(T &&QType)
+      : Base{launderType(std::forward<T>(QType))} {}
+  // NOLINTEND
+};
 
 template <> class fmt::formatter<TypeSetValueType> {
 public:
@@ -63,7 +80,7 @@ public:
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(
         Ctx.out(), "{}",
-        std::visit(Overloaded{[](const clang::Type *const Type) {
+        std::visit(Overloaded{[](const clang::QualType &Type) {
                                 return toString(Type);
                               },
                               [](const ArithmeticType &Arithmetic) {
@@ -84,10 +101,8 @@ toTypeSet(const clang::VarDecl *VDecl, const Config &Conf);
 [[nodiscard]] std::pair<TypeSetValueType, TypeSet>
 toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
 
-[[nodiscard]] TypeSetValueType toTypeSetValueType(const clang::Type *Type,
+[[nodiscard]] TypeSetValueType toTypeSetValueType(const clang::QualType &QType,
                                                   const Config &Conf);
-
-[[nodiscard]] const clang::Type *launderType(const clang::Type *Type);
 
 [[nodiscard]] bool isSubset(const TypeSet &Superset, const TypeSet &Subset);
 

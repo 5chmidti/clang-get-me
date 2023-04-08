@@ -25,8 +25,8 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
                        const std::string_view QueriedTypeAsString) {
   return std::visit(
       Overloaded{
-          [QueriedTypeAsString](const clang::Type *const Type) {
-            const auto TypeAsString = toString(Type);
+          [QueriedTypeAsString](const clang::QualType &QType) {
+            const auto TypeAsString = toString(QType);
             const auto EquivalentName = TypeAsString == QueriedTypeAsString;
             if (!EquivalentName &&
                 (TypeAsString.find(QueriedTypeAsString) != std::string::npos)) {
