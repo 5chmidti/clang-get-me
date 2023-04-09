@@ -77,16 +77,16 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
   INFO(toString(Loc))
 
 void test(const std::string_view Code, const std::string_view QueriedType,
-          const std::set<std::string, std::less<>> &ExpectedPaths,
-          std::shared_ptr<Config> Conf, const std::source_location Loc) {
+          const ResultPaths &ExpectedPaths, std::shared_ptr<Config> Conf,
+          const std::source_location Loc) {
   testSuccess(Code, QueriedType, ExpectedPaths, Conf, Loc);
   testQueryAll(Code, Conf, Loc);
 }
 
 void testSuccess(const std::string_view Code,
                  const std::string_view QueriedType,
-                 const std::set<std::string, std::less<>> &ExpectedPaths,
-                 std::shared_ptr<Config> Conf, const std::source_location Loc) {
+                 const ResultPaths &ExpectedPaths, std::shared_ptr<Config> Conf,
+                 const std::source_location Loc) {
   spdlog::enable_backtrace(BacktraceSize);
   LOG_LOC(Loc);
   const auto [AST, Transitions] = collectTransitions(Code, Conf);
@@ -98,8 +98,8 @@ void testSuccess(const std::string_view Code,
 
 void testFailure(const std::string_view Code,
                  const std::string_view QueriedType,
-                 const std::set<std::string, std::less<>> &ExpectedPaths,
-                 std::shared_ptr<Config> Conf, const std::source_location Loc) {
+                 const ResultPaths &ExpectedPaths, std::shared_ptr<Config> Conf,
+                 const std::source_location Loc) {
   LOG_LOC(Loc);
   spdlog::enable_backtrace(BacktraceSize);
   const auto [AST, Transitions] = collectTransitions(Code, Conf);
@@ -147,7 +147,7 @@ collectTransitions(const std::string_view Code, std::shared_ptr<Config> Conf) {
   return {std::move(AST), std::move(Transitions)};
 }
 
-std::set<std::string>
+ResultPaths
 buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const std::string_view QueriedType,
                        std::shared_ptr<Config> Conf) {
@@ -165,5 +165,5 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
     return {};
   }
 
-  return toString(Data.Paths, Data) | ranges::to<std::set>;
+  return toString(Data.Paths, Data) | ranges::to<ResultPaths>;
 }

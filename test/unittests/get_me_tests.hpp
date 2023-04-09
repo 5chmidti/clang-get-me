@@ -17,13 +17,15 @@
 
 #include "get_me/transitions.hpp"
 
+using ResultPaths = std::set<std::string, std::less<>>;
+
 void testSuccess(std::string_view Code, std::string_view QueriedType,
-                 const std::set<std::string, std::less<>> &ExpectedPaths,
+                 const ResultPaths &ExpectedPaths,
                  std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());
 
 void testFailure(std::string_view Code, std::string_view QueriedType,
-                 const std::set<std::string, std::less<>> &ExpectedPaths,
+                 const ResultPaths &ExpectedPaths,
                  std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());
 
@@ -36,7 +38,7 @@ void testQueryAll(std::string_view Code,
                   std::source_location Loc = std::source_location::current());
 
 void test(std::string_view Code, std::string_view QueriedType,
-          const std::set<std::string, std::less<>> &ExpectedPaths,
+          const ResultPaths &ExpectedPaths,
           std::shared_ptr<Config> Conf = std::make_shared<Config>(),
           std::source_location Loc = std::source_location::current());
 
@@ -55,7 +57,7 @@ void test(const auto &Generator, const size_t Count,
                         std::shared_ptr<TransitionCollector>>
 collectTransitions(std::string_view Code, std::shared_ptr<Config> Conf = {});
 
-[[nodiscard]] std::set<std::string>
+[[nodiscard]] ResultPaths
 buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        std::string_view QueriedType,
                        std::shared_ptr<Config> Conf);
