@@ -15,7 +15,12 @@ TEST_CASE("propagate type aliasing") {
   A getA();
   B getB();
   )",
-       "B", {"(B, B getB(), {})", "(B, A getA(), {})", "(B, A A(), {})"},
+       "B",
+       {
+           "(B, B getB(), {})",
+           "(B, A getA(), {})",
+           "(B, A A(), {})",
+       },
        PropagateTypeAliasConfig);
 
   test(R"(
@@ -24,7 +29,12 @@ TEST_CASE("propagate type aliasing") {
   A getA();
   B getB();
   )",
-       "A", {"(A, B getB(), {})", "(A, A getA(), {})", "(A, A A(), {})"},
+       "A",
+       {
+           "(A, B getB(), {})",
+           "(A, A getA(), {})",
+           "(A, A A(), {})",
+       },
        PropagateTypeAliasConfig);
 
   test(R"(
@@ -37,7 +47,11 @@ TEST_CASE("propagate type aliasing") {
   B getB();
   B b = getB();
   )",
-       "B", {"(B, A A(int), {int})", "(B, B getB(), {})"},
+       "B",
+       {
+           "(B, A A(int), {int})",
+           "(B, B getB(), {})",
+       },
        PropagateTypeAliasConfig);
 
   test(R"(
@@ -150,7 +164,11 @@ TEST_CASE("propagate type aliasing") {
        template <typename T>
        using B3 = B<T>;
     )",
-       "A", {"(A, A A(), {})"}, PropagateTypeAliasConfig);
+       "A",
+       {
+           "(A, A A(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
        struct A {};
@@ -162,7 +180,11 @@ TEST_CASE("propagate type aliasing") {
        template <typename T>
        using B3 = B<T>;
     )",
-       "A2", {"(A2, A A(), {})"}, PropagateTypeAliasConfig);
+       "A2",
+       {
+           "(A2, A A(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
        using A = int;
@@ -174,7 +196,11 @@ TEST_CASE("propagate type aliasing") {
        int getInt();
        D getD();
     )",
-       "int", {"(int, D getD(), {})", "(int, int getInt(), {})"},
+       "int",
+       {
+           "(int, D getD(), {})",
+           "(int, int getInt(), {})",
+       },
        PropagateTypeAliasConfig);
 }
 
@@ -185,7 +211,11 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Other = A;
        };
     )",
-       "A", {"(A, A A(), {})"}, PropagateTypeAliasConfig);
+       "A",
+       {
+           "(A, A A(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
        struct A {};
@@ -193,7 +223,11 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Other = A;
        };
     )",
-       "B::Other", {"(B::Other, A A(), {})"}, PropagateTypeAliasConfig);
+       "B::Other",
+       {
+           "(B::Other, A A(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
        struct A {};
@@ -201,7 +235,12 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Base = A;
        };
     )",
-       "A", {"(A, A A(), {})", "(A, B B(), {})"}, PropagateTypeAliasConfig);
+       "A",
+       {
+           "(A, A A(), {})",
+           "(A, B B(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
        struct A {};
@@ -209,7 +248,11 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Base = A;
        };
     )",
-       "B::Base", {"(B::Base, A A(), {})", "(B::Base, B B(), {})"},
+       "B::Base",
+       {
+           "(B::Base, A A(), {})",
+           "(B::Base, B B(), {})",
+       },
        PropagateTypeAliasConfig);
 
   testFailure(R"(
@@ -219,7 +262,11 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Other = A<int>;
        };
     )",
-              "A<int>", {"(A, A A(), {})"}, PropagateTypeAliasConfig);
+              "A<int>",
+              {
+                  "(A, A A(), {})",
+              },
+              PropagateTypeAliasConfig);
 
   testFailure(R"(
        template <typename T>
@@ -228,7 +275,11 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Other = A<int>;
        };
     )",
-              "B::Other", {"(B::Other, A A(), {})"}, PropagateTypeAliasConfig);
+              "B::Other",
+              {
+                  "(B::Other, A A(), {})",
+              },
+              PropagateTypeAliasConfig);
 
   test(R"(
        struct A {};
@@ -236,7 +287,12 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Base = A;
        };
     )",
-       "A", {"(A, A A(), {})", "(A, B B(), {})"}, PropagateTypeAliasConfig);
+       "A",
+       {
+           "(A, A A(), {})",
+           "(A, B B(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   test(R"(
        struct A {};
@@ -244,7 +300,11 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Base = A;
        };
     )",
-       "B::Base", {"(B::Base, A A(), {})", "(B::Base, B B(), {})"},
+       "B::Base",
+       {
+           "(B::Base, A A(), {})",
+           "(B::Base, B B(), {})",
+       },
        PropagateTypeAliasConfig);
 }
 
@@ -259,7 +319,11 @@ TEST_CASE("propagate type aliasing with templates") {
        template <typename T>
        using B3 = B<T>;
     )",
-       "B<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
+       "B<T>",
+       {
+           "(B<T>, B B(), {})",
+       },
+       PropagateTypeAliasConfig);
 
   testFailure(R"(
        struct A {};
@@ -271,7 +335,11 @@ TEST_CASE("propagate type aliasing with templates") {
        template <typename T>
        using B3 = B<T>;
     )",
-              "B2", {"(B<int>, B B(), {})"}, PropagateTypeAliasConfig);
+              "B2",
+              {
+                  "(B<int>, B B(), {})",
+              },
+              PropagateTypeAliasConfig);
 
   //   testFailure(R"(
   //        struct A {};
@@ -283,5 +351,9 @@ TEST_CASE("propagate type aliasing with templates") {
   //        template <typename T>
   //        using B3 = B<T>;
   //     )",
-  //               "B3<T>", {"(B<T>, B B(), {})"}, PropagateTypeAliasConfig);
+  //               "B3<T>",
+  //               {
+  //                   "(B<T>, B B(), {})",
+  //               },
+  //               PropagateTypeAliasConfig);
 }

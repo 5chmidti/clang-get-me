@@ -7,7 +7,10 @@ TEST_CASE("simple single edges") {
   test(R"(
 struct A {};
 )",
-       "A", {"(A, A A(), {})"});
+       "A",
+       {
+           "(A, A A(), {})",
+       });
 
   test(R"(
 struct A {};
@@ -15,7 +18,12 @@ struct A {};
 A getA();
 A getA(int);
 )",
-       "A", {"(A, A getA(), {})", "(A, A getA(int), {int})", "(A, A A(), {})"});
+       "A",
+       {
+           "(A, A getA(), {})",
+           "(A, A getA(int), {int})",
+           "(A, A A(), {})",
+       });
 
   test(R"(
 struct A {};
@@ -23,13 +31,21 @@ struct B {};
 A getA();
 B getB();
 )",
-       "A", {"(A, A getA(), {})", "(A, A A(), {})"});
+       "A",
+       {
+           "(A, A getA(), {})",
+           "(A, A A(), {})",
+       });
 
   test(R"(
 struct A {};
 struct B { static A StaticMemberA; };
 )",
-       "A", {"(A, A StaticMemberA(), {})", "(A, A A(), {})"});
+       "A",
+       {
+           "(A, A StaticMemberA(), {})",
+           "(A, A A(), {})",
+       });
 }
 
 TEST_CASE("simple") {
@@ -42,9 +58,13 @@ A getA(int);
 B getB();
 )",
        "A",
-       {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
-        "(A, A MemberA(B), {B}), (B, B getB(), {})",
-        "(A, A MemberA(B), {B}), (B, B B(), {})"});
+       {
+           "(A, A getA(), {})",
+           "(A, A A(), {})",
+           "(A, A getA(int), {int})",
+           "(A, A MemberA(B), {B}), (B, B getB(), {})",
+           "(A, A MemberA(B), {B}), (B, B B(), {})",
+       });
 
   test(R"(
     struct A {};
@@ -52,7 +72,10 @@ B getB();
       A localA{};
     }
   )",
-       "A", {"(A, A A(), {})"});
+       "A",
+       {
+           "(A, A A(), {})",
+       });
 
   testFailure(R"(
     struct A {};
@@ -74,8 +97,13 @@ A getA(float);
 A getA(float, float);
 )",
        "A",
-       {"(A, A getA(), {})", "(A, A A(), {})", "(A, A getA(int), {int})",
-        "(A, A getA(float), {float})", "(A, A getA(float, int), {int, float})"},
+       {
+           "(A, A getA(), {})",
+           "(A, A A(), {})",
+           "(A, A getA(int), {int})",
+           "(A, A getA(float), {float})",
+           "(A, A getA(float, int), {int, float})",
+       },
        std::make_shared<Config>(Config{.EnableFilterOverloads = true}));
 
   test(R"(
@@ -84,7 +112,11 @@ struct A {};
 A getA(float);
 A getA(float, float);
 )",
-       "A", {"(A, A getA(float), {float})", "(A, A A(), {})"},
+       "A",
+       {
+           "(A, A getA(float), {float})",
+           "(A, A A(), {})",
+       },
        std::make_shared<Config>(Config{.EnableFilterOverloads = true}));
 }
 
@@ -92,22 +124,34 @@ TEST_CASE("special member functions") {
   test(R"(
 struct A {};
 )",
-       "A", {"(A, A A(), {})"});
+       "A",
+       {
+           "(A, A A(), {})",
+       });
 
   test(R"(
 struct A { A(); };
 )",
-       "A", {"(A, A A(), {})"});
+       "A",
+       {
+           "(A, A A(), {})",
+       });
 
   test(R"(
 struct A { explicit A(int); };
 )",
-       "A", {"(A, A A(int), {int})"});
+       "A",
+       {
+           "(A, A A(int), {int})",
+       });
 
   test(R"(
 struct A { A(int, float); };
 )",
-       "A", {"(A, A A(int, float), {int, float})"});
+       "A",
+       {
+           "(A, A A(int, float), {int, float})",
+       });
 
   test(R"(
 struct A {
@@ -117,8 +161,11 @@ struct A {
 };
 )",
        "A",
-       {"(A, A A(), {})", "(A, A A(int), {int})",
-        "(A, A A(int, float), {int, float})"});
+       {
+           "(A, A A(), {})",
+           "(A, A A(int), {int})",
+           "(A, A A(int, float), {int, float})",
+       });
 
   test(R"(
 struct A {
@@ -127,7 +174,10 @@ struct A {
 };
 A& getA();
 )",
-       "A &", {"(A &, A & getA(), {})"});
+       "A &",
+       {
+           "(A &, A & getA(), {})",
+       });
 
   test(R"(
 struct A {
@@ -138,7 +188,10 @@ struct B : public A {
   void foo();
 };
 )",
-       "B", {"(B, B B(), {})"});
+       "B",
+       {
+           "(B, B B(), {})",
+       });
 }
 
 TEST_CASE("templates") {
@@ -151,14 +204,22 @@ TEST_CASE("templates") {
   };
   A<int> getA();
   )",
-              "A<int>", {"(A<int>, A A(), {})", "(A<int>, A<int> getA(), {})"});
+              "A<int>",
+              {
+                  "(A<int>, A A(), {})",
+                  "(A<int>, A<int> getA(), {})",
+              });
 
   testFailure(R"(
   template <typename T>
   struct A { A() = default; };
   A<int> getA();
   )",
-              "A<int>", {"(A<int>, A A(), {})", "(A<int>, A<int> getA(), {})"});
+              "A<int>",
+              {
+                  "(A<int>, A A(), {})",
+                  "(A<int>, A<int> getA(), {})",
+              });
 }
 
 TEST_CASE("arithmetic") {
@@ -166,13 +227,19 @@ TEST_CASE("arithmetic") {
     struct A { A(int); };
     int getInt();
   )",
-       "A", {"(A, A A(int), {arithmetic}), (arithmetic, int getInt(), {})"},
+       "A",
+       {
+           "(A, A A(int), {arithmetic}), (arithmetic, int getInt(), {})",
+       },
        std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
 
   test(R"(
     struct A { A(int); };
     float getFloat();
   )",
-       "A", {"(A, A A(int), {arithmetic}), (arithmetic, float getFloat(), {})"},
+       "A",
+       {
+           "(A, A A(int), {arithmetic}), (arithmetic, float getFloat(), {})",
+       },
        std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
 }

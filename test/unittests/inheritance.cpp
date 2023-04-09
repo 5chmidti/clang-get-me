@@ -52,7 +52,11 @@ TEST_CASE("propagate inheritance") {
   A getA();
   B getB();
   )",
-       "B", {"(B, B getB(), {})", "(B, A A(int, float), {int, float})"},
+       "B",
+       {
+           "(B, B getB(), {})",
+           "(B, A A(int, float), {int, float})",
+       },
        PropagateInheritanceConfig);
 
   test(R"(
@@ -63,8 +67,11 @@ A getA();
 B getB();
 )",
        "A",
-       {"(A, A getA(), {})", "(A, B getB(), {})",
-        "(A, A A(int, float), {int, float})"},
+       {
+           "(A, A getA(), {})",
+           "(A, B getB(), {})",
+           "(A, A A(int, float), {int, float})",
+       },
        PropagateInheritanceConfig);
 
   testFailure(
