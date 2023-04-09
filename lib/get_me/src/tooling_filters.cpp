@@ -128,13 +128,6 @@ bool filterOut(const clang::CXXRecordDecl *const RDecl, const Config &Conf) {
   if (Conf.EnableFilterStd && RDecl->isInStdNamespace()) {
     return true;
   }
-  if (const auto Spec = RDecl->getTemplateSpecializationKind();
-      Spec != clang::TSK_Undeclared &&
-      Spec != clang::TSK_ImplicitInstantiation &&
-      Spec != clang::TSK_ExplicitInstantiationDefinition &&
-      Spec != clang::TSK_ExplicitInstantiationDeclaration) {
-    return true;
-  }
   if (RDecl->isTemplateDecl()) {
     return true;
   }
