@@ -16,7 +16,6 @@
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include "get_me/formatting.hpp"
 #include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"

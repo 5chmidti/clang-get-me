@@ -16,7 +16,6 @@
 #include <range/v3/view/filter.hpp>
 #include <spdlog/spdlog.h>
 
-#include "get_me/config.hpp"
 #include "get_me/graph.hpp"
 #include "support/ranges/functional.hpp"
 
