@@ -148,9 +148,10 @@ bool GraphBuilder::buildStepFor(const VertexDescriptor Vertex) {
 }
 
 bool GraphBuilder::buildStepFor(const VertexType &InterestingVertex) {
-  return buildStepFor(VertexData_ |
-                      ranges::views::filter(EqualTo(InterestingVertex), Value) |
-                      ranges::to<VertexSet>);
+  return buildStepFor(
+      ranges::subrange{VertexData_.lower_bound(InterestingVertex),
+                       VertexData_.upper_bound(InterestingVertex)} |
+      ranges::to<VertexSet>);
 }
 
 bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
