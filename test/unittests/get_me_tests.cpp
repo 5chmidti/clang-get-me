@@ -109,6 +109,25 @@ void testFailure(const std::string_view Code,
   spdlog::disable_backtrace();
 }
 
+void testFailure(const std::string_view Code,
+                 const std::string_view QueriedType,
+                 const ResultPaths &CurrentExpectedPaths,
+                 const ResultPaths &ExpectedPaths, std::shared_ptr<Config> Conf,
+                 const std::source_location Loc) {
+  LOG_LOC(Loc);
+  spdlog::enable_backtrace(BacktraceSize);
+  const auto [AST, Transitions] = collectTransitions(Code, Conf);
+  const auto FoundPathsAsString =
+      buildGraphAndFindPaths(Transitions, QueriedType, Conf);
+  verify(true, FoundPathsAsString, CurrentExpectedPaths);
+  {
+    INFO("CurrentExpectedPaths and ExpectedPaths are equivalent, promote from "
+         "testFailure to test/testSuccess");
+    verify(false, CurrentExpectedPaths, ExpectedPaths);
+  }
+  spdlog::disable_backtrace();
+}
+
 void testNoThrow(const std::string_view Code,
                  const std::string_view QueriedType,
                  std::shared_ptr<Config> Conf, const std::source_location Loc) {

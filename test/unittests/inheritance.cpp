@@ -87,6 +87,11 @@ B getB();
           "(C, C C(), {})",
           "(C, C getC(A), {A}), (A, A A(), {})",
           "(C, C getC(A), {B}), (B, B B(), {})",
+          "(C, C getC(A), {A}), (A, B B(), {})",
+      },
+      {
+          "(C, C C(), {})",
+          "(C, C getC(A), {A}), (A, A A(), {})",
       },
       PropagateInheritanceConfig);
 }
@@ -135,14 +140,19 @@ TEST_CASE("propagate inheritence: qualified types") {
       "C",
       {
           "(C, C C(), {})",
-          "(C, C funcA(A&), {A}), (A, A A(), {})",
-          "(C, C funcA(A&), {A}), (A, B B(), {})",
-          "(C, C funcA(A&), {B}), (B, B B(), {})",
-          "(C, C funcB(B&), {B}), (B, B B(), {})",
-          "(C, C funcA(A&), {A}), (A, A& funcA(D), {D}), (D, D D(), {})",
-          "(C, C funcA(A&), {A}), (A, B& funcB(D), {D}), (D, D D(), {})",
-          "(C, C funcA(A&), {B}), (B, B& funcB(D), {D}), (D, D D(), {})",
-          "(C, C funcB(B&), {B}), (B, B& funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A &), {A &}), (A &, A & funcA(D), {D}), (D, D D(), {})",
+          "(C, C funcB(B &), {B &}), (B &, B & funcB(D), {D}), (D, D D(), {})",
+      },
+      {
+          "(C, C C(), {})",
+          "(C, C funcA(A &), {A &}), (A &, A A(), {})",
+          "(C, C funcA(A &), {A &}), (A &, B B(), {})",
+          "(C, C funcA(A &), {B &}), (B &, B B(), {})",
+          "(C, C funcB(B &), {B &}), (B &, B B(), {})",
+          "(C, C funcA(A &), {A &}), (A &, A & funcA(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A &), {A &}), (A &, B & funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A &), {B &}), (B &, B & funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcB(B &), {B &}), (B &, B & funcB(D), {D}), (D, D D(), {})",
       },
       PropagateInheritanceConfig);
 
@@ -162,14 +172,21 @@ TEST_CASE("propagate inheritence: qualified types") {
       "C",
       {
           "(C, C C(), {})",
-          "(C, C funcA(A*), {A}), (A, A A(), {})",
-          "(C, C funcA(A*), {A}), (A, B B(), {})",
-          "(C, C funcA(A*), {B}), (B, B B(), {})",
-          "(C, C funcB(B*), {B}), (B, B B(), {})",
-          "(C, C funcA(A*), {A}), (A, A funcA(D), {D}), (D, D D(), {})",
-          "(C, C funcA(A), {A}), (A, B* funcB(D), {D}), (D, D D(), {})",
-          "(C, C funcA(A), {B}), (B, B* funcB(D), {D}), (D, D D(), {})",
-          "(C, C funcB(B), {B}), (B, B* funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A *), {A *}), (A *, A * funcA(D), {D}), (D, D D(), {})",
+          "(C, C funcB(B *), {B *}), (B *, B * funcB(D), {D}), (D, D D(), {})",
+      },
+      {
+          "(C, C C(), {})",
+          "(C, C funcA(A *), {A}), (A, A A(), {})",
+          "(C, C funcA(A *), {A}), (A, B B(), {})",
+          "(C, C funcA(A *), {B}), (B, B B(), {})",
+          "(C, C funcB(B *), {B}), (B, B B(), {})",
+          "(C, C funcA(A *), {A}), (A, A funcA(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A), {A}), (A, B * funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A), {B}), (B, B * funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcB(B), {B}), (B, B * funcB(D), {D}), (D, D D(), {})",
+          "(C, C funcA(A *), {A *}), (A *, A * funcA(D), {D}), (D, D D(), {})",
+          "(C, C funcB(B *), {B *}), (B *, B * funcB(D), {D}), (D, D D(), {})",
       },
       PropagateInheritanceConfig);
 }
@@ -185,9 +202,8 @@ TEST_CASE("propagate inheritence: qualified types virtual") {
       "B",
       {
           "(B, B B(), {})",
-          "(B, B funcB(B), {B}), (B, B B(), {})",
       },
-      PropagateInheritanceConfig);
+      {}, PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -200,9 +216,8 @@ TEST_CASE("propagate inheritence: qualified types virtual") {
       "B",
       {
           "(B, B B(), {})",
-          "(B, B& funcBRef(B&), {B}), (B, B B(), {})",
       },
-      PropagateInheritanceConfig);
+      {}, PropagateInheritanceConfig);
 
   testFailure(
       R"(
@@ -215,7 +230,6 @@ TEST_CASE("propagate inheritence: qualified types virtual") {
       "B",
       {
           "(B, B B(), {})",
-          "(B, B* funcBPtr(B*), {B}), (B, B B(), {})",
       },
-      PropagateInheritanceConfig);
+      {}, PropagateInheritanceConfig);
 }

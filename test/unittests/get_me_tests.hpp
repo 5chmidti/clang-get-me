@@ -29,6 +29,12 @@ void testFailure(std::string_view Code, std::string_view QueriedType,
                  std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());
 
+void testFailure(std::string_view Code, std::string_view QueriedType,
+                 const ResultPaths &CurrentExpectedPaths,
+                 const ResultPaths &ExpectedPaths,
+                 std::shared_ptr<Config> Conf = std::make_shared<Config>(),
+                 std::source_location Loc = std::source_location::current());
+
 void testNoThrow(std::string_view Code, std::string_view QueriedType,
                  std::shared_ptr<Config> Conf = std::make_shared<Config>(),
                  std::source_location Loc = std::source_location::current());

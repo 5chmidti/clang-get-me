@@ -262,7 +262,7 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Other = A<int>;
        };
     )",
-              "A<int>",
+              "A<int>", {},
               {
                   "(A, A A(), {})",
               },
@@ -275,7 +275,7 @@ TEST_CASE("propagate type aliasing with member aliases") {
             using Other = A<int>;
        };
     )",
-              "B::Other",
+              "B::Other", {},
               {
                   "(B::Other, A A(), {})",
               },
@@ -335,7 +335,7 @@ TEST_CASE("propagate type aliasing with templates") {
        template <typename T>
        using B3 = B<T>;
     )",
-              "B2",
+              "B2", {},
               {
                   "(B<int>, B B(), {})",
               },
@@ -351,7 +351,7 @@ TEST_CASE("propagate type aliasing with templates") {
   //        template <typename T>
   //        using B3 = B<T>;
   //     )",
-  //               "B3<T>",
+  //               "B3<T>", {},
   //               {
   //                   "(B<T>, B B(), {})",
   //               },

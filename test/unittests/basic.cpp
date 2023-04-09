@@ -206,6 +206,9 @@ TEST_CASE("templates") {
   )",
               "A<int>",
               {
+                  "(A<int>, A<int> getA(), {})",
+              },
+              {
                   "(A<int>, A A(), {})",
                   "(A<int>, A<int> getA(), {})",
               });
@@ -216,6 +219,9 @@ TEST_CASE("templates") {
   A<int> getA();
   )",
               "A<int>",
+              {
+                  "(A<int>, A<int> getA(), {})",
+              },
               {
                   "(A<int>, A A(), {})",
                   "(A<int>, A<int> getA(), {})",
