@@ -38,7 +38,7 @@ public:
                             clang::tooling::ClangTool &Tool,
                             std::shared_ptr<TransitionCollector> Transitions =
                                 std::make_shared<TransitionCollector>())
-      : Conf_(Conf),
+      : Conf_(std::move(Conf)),
         Tool_(Tool),
         Transitions_{std::move(Transitions)} {}
 
@@ -85,7 +85,8 @@ private:
   std::vector<std::string> AcquiredTypeNames_{};
 };
 
-void runTui(std::shared_ptr<Config> Conf, clang::tooling::ClangTool &Tool) {
+void runTui(const std::shared_ptr<Config> Conf,
+            clang::tooling::ClangTool &Tool) {
   auto CollectionState = TransitionCollectionState{Conf, Tool};
 
   auto Screen = ftxui::ScreenInteractive::Fullscreen();
