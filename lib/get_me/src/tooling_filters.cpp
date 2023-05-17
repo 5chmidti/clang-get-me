@@ -25,7 +25,7 @@ bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
 }
 
 bool hasReservedIdentifierName(const clang::QualType &QType) {
-  const auto QTypeAsString = toString(QType.getUnqualifiedType());
+  const auto QTypeAsString = fmt::format("{}", (QType.getUnqualifiedType()));
   return QTypeAsString.starts_with("_") ||
          (QTypeAsString.find("::_") != std::string::npos);
 }

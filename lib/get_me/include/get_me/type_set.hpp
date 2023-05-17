@@ -80,12 +80,7 @@ public:
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(
         Ctx.out(), "{}",
-        std::visit(Overloaded{[](const clang::QualType &Type) {
-                                return toString(Type);
-                              },
-                              [](const ArithmeticType &Arithmetic) {
-                                return fmt::format("{}", Arithmetic);
-                              }},
+        std::visit([](const auto &Val) { return fmt::format("{}", Val); },
                    Val));
   }
 };

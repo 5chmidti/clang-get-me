@@ -24,8 +24,7 @@ public:
   template <typename FormatContext>
   [[nodiscard]] auto format(const TypeAlias &Val, FormatContext &Ctx) const
       -> decltype(Ctx.out()) {
-    return fmt::format_to(Ctx.out(), "({}, {})", toString(Val.Base),
-                          toString(Val.Alias));
+    return fmt::format_to(Ctx.out(), "({}, {})", Val.Base, Val.Alias);
   }
 };
 
