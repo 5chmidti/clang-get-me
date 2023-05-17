@@ -281,7 +281,7 @@ public:
           addTransition(toTransitionType(Function, *Conf_));
         });
 
-    if (Definition->getNumBases() != 0) {
+    if (!ranges::empty(Definition->bases())) {
       CxxRecords_.push_back(RDecl);
     }
     return true;
