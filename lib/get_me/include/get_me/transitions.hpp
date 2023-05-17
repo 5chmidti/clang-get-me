@@ -71,7 +71,7 @@ struct TransitionCollector {
 using BundeledTransitionType = TransitionCollector::value_type;
 
 inline constexpr auto ToAcquired =
-    []<typename T>(T && Transition) -> decltype(auto)
+    []<typename T>(T &&Transition) -> decltype(auto)
   requires IsAnyOf<std::remove_cvref_t<T>, TransitionType,
                    BundeledTransitionType>
 {
@@ -84,7 +84,7 @@ inline constexpr auto ToAcquired =
 };
 
 inline constexpr auto ToRequired =
-    []<typename T>(T && Transition) -> decltype(auto)
+    []<typename T>(T &&Transition) -> decltype(auto)
   requires IsAnyOf<std::remove_cvref_t<T>, TransitionType,
                    StrippedTransitionType, StrippedTransitionType::second_type>
 {
@@ -100,7 +100,7 @@ inline constexpr auto ToRequired =
 };
 
 inline constexpr auto ToTransition =
-    []<typename T>(T && Transition) -> decltype(auto)
+    []<typename T>(T &&Transition) -> decltype(auto)
   requires IsAnyOf<std::remove_cvref_t<T>, TransitionType,
                    StrippedTransitionType, StrippedTransitionType::second_type>
 {

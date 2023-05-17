@@ -14,10 +14,8 @@
 
 template <std::size_t I>
 inline constexpr auto Element = []<typename T>
-  requires(std::tuple_size_v<std::remove_cvref_t<T>> > I)(T && Tuple)
--> decltype(auto) {
-  return std::get<I>(std::forward<T>(Tuple));
-};
+  requires(std::tuple_size_v<std::remove_cvref_t<T>> > I)
+(T &&Tuple) -> decltype(auto) { return std::get<I>(std::forward<T>(Tuple)); };
 
 constexpr auto Index = Element<0>;
 constexpr auto Value = Element<1>;
@@ -25,12 +23,10 @@ constexpr auto Value = Element<1>;
 template <std::size_t I, typename ResultType>
 inline constexpr auto ConstrainedElement = []<typename T>
   requires(std::tuple_size_v<std::remove_cvref_t<T>> > I) &&
-          std::same_as<std::remove_cvref_t<
-                           std::invoke_result_t<decltype(std::get<I>), T>>,
-                       ResultType>(T && Tuple)
--> decltype(auto) {
-  return std::get<I>(std::forward<T>(Tuple));
-};
+              std::same_as<std::remove_cvref_t<
+                               std::invoke_result_t<decltype(std::get<I>), T>>,
+                           ResultType>
+(T &&Tuple) -> decltype(auto) { return std::get<I>(std::forward<T>(Tuple)); };
 
 inline constexpr auto ToQualType = [](const clang::ValueDecl *const VDecl) {
   return VDecl->getType();
@@ -129,61 +125,46 @@ inline constexpr auto BitNot = []<std::regular T>(T Rhs) constexpr {
   };
 };
 
-inline constexpr auto EqualTo =
-    []<std::equality_comparable T>(T Rhs) constexpr {
-      return [Rhs]<std::regular U>
-        requires std::equality_comparable_with<U, T>(const U &Lhs)
-      constexpr {
-        return ranges::equal_to{}(Lhs, Rhs);
-      };
-    };
+inline constexpr auto EqualTo = []<std::regular T>(T Rhs) constexpr {
+  return [Rhs]<std::regular U>
+    requires std::equality_comparable_with<U, T>
+  (const U &Lhs) constexpr { return ranges::equal_to{}(Lhs, Rhs); };
+};
 
 inline constexpr auto NotEqualTo = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>
-    requires std::equality_comparable_with<U, T>(const U &Lhs)
-  constexpr {
-    return ranges::not_equal_to{}(Lhs, Rhs);
-  };
+    requires std::equality_comparable_with<U, T>
+  (const U &Lhs) constexpr { return ranges::not_equal_to{}(Lhs, Rhs); };
 };
 
 inline constexpr auto Greater = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>
-    requires std::totally_ordered_with<U, T>(const U &Lhs)
-  constexpr {
-    return ranges::greater{}(Lhs, Rhs);
-  };
+    requires std::totally_ordered_with<U, T>
+  (const U &Lhs) constexpr { return ranges::greater{}(Lhs, Rhs); };
 };
 
 inline constexpr auto Less = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>
-    requires std::totally_ordered_with<U, T>(const U &Lhs)
-  constexpr {
-    return ranges::less{}(Lhs, Rhs);
-  };
+    requires std::totally_ordered_with<U, T>
+  (const U &Lhs) constexpr { return ranges::less{}(Lhs, Rhs); };
 };
 
 inline constexpr auto GreaterEqual = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>
-    requires std::totally_ordered_with<U, T>(const U &Lhs)
-  constexpr {
-    return ranges::greater_equal{}(Lhs, Rhs);
-  };
+    requires std::totally_ordered_with<U, T>
+  (const U &Lhs) constexpr { return ranges::greater_equal{}(Lhs, Rhs); };
 };
 
 inline constexpr auto LessEqual = []<std::regular T>(T Rhs) constexpr {
   return [Rhs]<std::regular U>
-    requires std::totally_ordered_with<U, T>(const U &Lhs)
-  constexpr {
-    return ranges::less_equal{}(Lhs, Rhs);
-  };
+    requires std::totally_ordered_with<U, T>
+  (const U &Lhs) constexpr { return ranges::less_equal{}(Lhs, Rhs); };
 };
 
 template <typename T>
-inline constexpr auto Construct = []<typename... ValueType>(ValueType && ...Val)
+inline constexpr auto Construct = []<typename... ValueType>(ValueType &&...Val)
   requires std::constructible_from<T, ValueType...>
-{
-  return T{std::forward<ValueType>(Val)...};
-};
+{ return T{std::forward<ValueType>(Val)...}; };
 
 inline constexpr auto Lookup =
     []<ranges::random_access_range T, typename Projection = std::identity>(
