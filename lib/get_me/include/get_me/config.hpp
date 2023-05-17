@@ -39,6 +39,8 @@ public:
             BooleanMappingType{"EnableFilterStd", &Config::EnableFilterStd},
             BooleanMappingType{"EnableGraphBackwardsEdge",
                                &Config::EnableGraphBackwardsEdge},
+            BooleanMappingType{"EnableVerboseTransitionCollection",
+                               &Config::EnableVerboseTransitionCollection},
         },
         std::array{
             SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
@@ -62,6 +64,7 @@ public:
   bool EnableFilterArithmeticTransitions = false;
   bool EnableFilterStd = false;
   bool EnableGraphBackwardsEdge = false;
+  bool EnableVerboseTransitionCollection = false;
 
   std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
   std::size_t MaxRemainingTypes = std::numeric_limits<std::size_t>::max();

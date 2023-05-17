@@ -47,9 +47,17 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
   using namespace std::string_view_literals;
 
   if (FDecl->isDeleted()) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} because of being deleted",
+                    FDecl->getNameAsString());
+    }
     return true;
   }
   if (hasReservedIdentifierNameOrType(FDecl)) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} because of having a reserved identifier",
+                    FDecl->getNameAsString());
+    }
     return true;
   }
   if (hasAnyParameterOrReturnTypeWithName(
@@ -58,10 +66,18 @@ bool filterOut(const clang::FunctionDecl *const FDecl, const Config &Conf) {
     return true;
   }
   if (Conf.EnableFilterStd && FDecl->isInStdNamespace()) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} from std namespace",
+                    FDecl->getNameAsString());
+    }
     return true;
   }
   if (Conf.EnableFilterArithmeticTransitions &&
       FDecl->getReturnType()->isArithmeticType()) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} returning arithmetic type",
+                    FDecl->getNameAsString());
+    }
     return true;
   }
   if (!llvm::isa<clang::CXXConstructorDecl>(FDecl) &&
@@ -85,11 +101,19 @@ bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
 
   // FIXME: filter access spec for members, depends on context of query
   if (Method->getAccess() != clang::AccessSpecifier::AS_public) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} due to visibility",
+                    Method->getNameAsString());
+    }
     return true;
   }
 
   // FIXME: allow conversions
   if (llvm::isa<clang::CXXConversionDecl>(Method)) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} due being a CXXConversionDecl",
+                    Method->getNameAsString());
+    }
     return true;
   }
   if (llvm::isa<clang::CXXDestructorDecl>(Method)) {
@@ -104,8 +128,15 @@ bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
     }
 
     // FIXME: allow dependent on context
+    // FIXME: add transitive parents
+    // FIXME: add caching for parents
     if (ranges::any_of(Method->getParent()->methods() | ranges::views::indirect,
                        &clang::CXXMethodDecl::isPure)) {
+      if (Conf.EnableVerboseTransitionCollection) {
+        spdlog::trace("filtered out {} due to inheriting from a class with "
+                      "pure functions",
+                      Method->getNameAsString());
+      }
       return true;
     }
   }
@@ -117,6 +148,10 @@ bool filterOut(const clang::CXXRecordDecl *const RDecl, const Config &Conf) {
   using namespace std::string_view_literals;
 
   if (RDecl->getDefinition() == nullptr) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} due to not having a definition",
+                    RDecl->getNameAsString());
+    }
     return true;
   }
   if (hasReservedIdentifierNameOrType(RDecl)) {
@@ -126,9 +161,17 @@ bool filterOut(const clang::CXXRecordDecl *const RDecl, const Config &Conf) {
     return true;
   }
   if (Conf.EnableFilterStd && RDecl->isInStdNamespace()) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} from std namespace",
+                    RDecl->getNameAsString());
+    }
     return true;
   }
   if (RDecl->isTemplateDecl()) {
+    if (Conf.EnableVerboseTransitionCollection) {
+      spdlog::trace("filtered out {} due to being a template decl",
+                    RDecl->getNameAsString());
+    }
     return true;
   }
   if (hasNameContainingAny(RDecl, std::array{"FILE"sv, "exception"sv,
