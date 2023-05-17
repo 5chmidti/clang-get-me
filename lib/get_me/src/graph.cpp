@@ -22,12 +22,16 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/view/concat.hpp>
+#include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/remove.hpp>
+#include <range/v3/view/repeat_n.hpp>
 #include <range/v3/view/set_algorithm.hpp>
+#include <range/v3/view/single.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
@@ -35,6 +39,7 @@
 
 #include "get_me/config.hpp"
 #include "get_me/indexed_set.hpp"
+#include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
@@ -130,6 +135,28 @@ GraphData::GraphData(std::vector<TypeSet> VertexData,
       Edges{std::move(Edges)},
       Transitions{std::move(Transitions)},
       Conf{std::move(Conf)} {}
+
+GraphBuilder::GraphBuilder(std::shared_ptr<TransitionCollector> Transitions,
+                           TypeSet Query, std::shared_ptr<Config> Conf)
+    : Transitions_{std::move(Transitions)},
+      Query_{std::move(Query)},
+      VertexData_{ranges::views::concat(
+                      ranges::views::enumerate(Query_) |
+                          ranges::views::transform(
+                              [](const auto Pair) -> VertexSet::value_type {
+                                return {std::get<0>(Pair), {std::get<1>(Pair)}};
+                              }),
+                      ranges::views::single(VertexSet::value_type{
+                          ranges::size(Query_), TypeSet{}})) |
+                  ranges::to<VertexSet>},
+      VertexDepth_{
+          ranges::views::concat(
+              ranges::views::repeat_n(
+                  size_t{0U}, static_cast<std::int64_t>(ranges::size(Query_))),
+              ranges::views::single(size_t{1U})) |
+          ranges::to_vector},
+      Conf_{std::move(Conf)},
+      CurrentState_{0U, VertexData_} {}
 
 void GraphBuilder::build() {
   while (CurrentState_.IterationIndex < Conf_->MaxGraphDepth && buildStep()) {
@@ -241,7 +268,7 @@ GraphData GraphBuilder::commit() {
 
 GraphData
 runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
-                 const TypeSetValueType &Query, std::shared_ptr<Config> Conf) {
+                 const TypeSet &Query, std::shared_ptr<Config> Conf) {
   auto Builder = GraphBuilder{Transitions, Query, std::move(Conf)};
   Builder.build();
   return Builder.commit();

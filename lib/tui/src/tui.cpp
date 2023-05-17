@@ -98,7 +98,7 @@ void runTui(std::shared_ptr<Config> Conf, clang::tooling::ClangTool &Tool) {
   // initialized (aka filled)
   const auto CommitCallback = [&Conf, &PathsStr, &CollectionState,
                                &QueriedName]() {
-    const auto Query = getQueriedTypeForInput(
+    const auto Query = getQueriedTypesForInput(
         CollectionState.getTransitionsPtr()->Data, QueriedName);
 
     auto Data =

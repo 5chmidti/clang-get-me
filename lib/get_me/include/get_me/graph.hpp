@@ -207,14 +207,7 @@ public:
   using VertexSet = indexed_set<VertexType>;
 
   explicit GraphBuilder(std::shared_ptr<TransitionCollector> Transitions,
-                        const TypeSetValueType &Query,
-                        std::shared_ptr<Config> Conf)
-      : Transitions_{std::move(Transitions)},
-        Query_{Query},
-        VertexData_{{0U, TypeSet{Query}}, {1U, TypeSet{}}},
-        VertexDepth_{0U, 1U},
-        Conf_{std::move(Conf)},
-        CurrentState_{0U, VertexData_} {}
+                        TypeSet Query, std::shared_ptr<Config> Conf);
 
   void build();
   [[nodiscard]] bool buildStep();
@@ -234,7 +227,7 @@ private:
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
   std::shared_ptr<TransitionCollector> Transitions_;
-  TypeSetValueType Query_;
+  TypeSet Query_;
   VertexSet VertexData_{};
   std::vector<size_t> VertexDepth_{};
   GraphData::EdgeContainer Edges_{};
@@ -245,6 +238,6 @@ private:
 
 [[nodiscard]] GraphData
 runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
-                 const TypeSetValueType &Query, std::shared_ptr<Config> Conf);
+                 const TypeSet &Query, std::shared_ptr<Config> Conf);
 
 #endif

@@ -170,7 +170,7 @@ ResultPaths
 buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        const std::string_view QueriedType,
                        std::shared_ptr<Config> Conf) {
-  const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
+  const auto Query = getQueriedTypesForInput(Transitions->Data, QueriedType);
   auto Data = runGraphBuilding(Transitions, Query, std::move(Conf));
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);

@@ -6,6 +6,7 @@
 #include <variant>
 
 #include <fmt/ranges.h>
+#include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/functional/not_fn.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
@@ -13,10 +14,10 @@
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
-#include "get_me/formatting.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
+#include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 
 namespace {
@@ -43,34 +44,34 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
 }
 } // namespace
 
-TypeSetValueType getQueriedTypeForInput(
+TypeSet getQueriedTypesForInput(
     const TransitionCollector::associative_container_type &Transitions,
     const std::string_view QueriedTypeAsString) {
   if (Transitions.empty()) {
     GetMeException::fail("getQueriedTypeForInput(): Transitions are empty");
   }
-  const auto FilteredTypes =
+  auto FilteredTypes =
       Transitions | ranges::views::transform(ToAcquired) |
       ranges::views::filter(
           [QueriedTypeAsString](const TypeSetValueType &Acquired) {
             return matchesQueriedTypeName(Acquired, QueriedTypeAsString);
           }) |
-      ranges::to_vector;
+      ranges::to<TypeSet>;
 
   GetMeException::verify(!FilteredTypes.empty(),
                          "getQueriedTypeForInput(): no type matching {}",
                          QueriedTypeAsString);
 
-  spdlog::trace("{}", FilteredTypes);
-
-  return ranges::front(FilteredTypes);
+  return FilteredTypes;
 }
 
 TransitionCollector::associative_container_type getTransitionsForQuery(
     const TransitionCollector::associative_container_type &Transitions,
-    const TypeSetValueType &QueriedType) {
-  const auto QueriedTypeIsSubset = [&QueriedType](const auto &Required) {
+    const TypeSet &Query) {
+  const auto QueriedTypeIsSubset = [&Query](const auto &Required) {
+    return ranges::any_of(Query, [&Required](const auto &QueriedType) {
     return Required.contains(QueriedType);
+    });
   };
 
   return Transitions |
