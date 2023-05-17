@@ -79,11 +79,7 @@ int main(int argc, const char **argv) {
     llvm::errs() << OptionsParser.takeError();
     return 1;
   }
-  const auto &Sources = [&OptionsParser] {
-    const auto &Result = OptionsParser->getSourcePathList();
-    return Result.empty() ? OptionsParser->getCompilations().getAllFiles()
-                          : Result;
-  }();
+  const auto &Sources = OptionsParser->getSourcePathList();
 
   GetMeException::verify(ranges::size(Sources) == 1,
                          "Built {} ASTs, expected 1", ranges::size(Sources));
