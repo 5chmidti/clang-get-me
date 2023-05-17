@@ -19,7 +19,7 @@ struct FrontOrFn {
     if (ranges::empty(Range)) {
       return Default;
     }
-    return ranges::front(Range);
+    return std::move(ranges::front(Range));
   }
 
   [[nodiscard]] constexpr auto operator()(auto Default) const {
@@ -35,7 +35,7 @@ struct FrontOptFn {
     if (ranges::empty(Range)) {
       return std::nullopt;
     }
-    return ranges::front(Range);
+    return std::move(ranges::front(Range));
   }
 
   [[nodiscard]] constexpr auto operator()() const {
