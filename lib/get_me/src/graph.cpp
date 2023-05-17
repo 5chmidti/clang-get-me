@@ -247,18 +247,6 @@ runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
   return Builder.commit();
 }
 
-VertexDescriptor
-getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const TypeSetValueType &QueriedType) {
-  const auto SourceVertex = ranges::find(Data.VertexData, TypeSet{QueriedType});
-
-  if (SourceVertex == Data.VertexData.end()) {
-    throw GetMeException(fmt::format("found no type matching {}", QueriedType));
-  }
-  return static_cast<VertexDescriptor>(
-      std::distance(Data.VertexData.begin(), SourceVertex));
-}
-
 std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
   const auto ToString = [&Data](const TransitionEdgeType &Edge) {
     const auto Transition =

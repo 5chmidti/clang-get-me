@@ -172,10 +172,8 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
                        std::shared_ptr<Config> Conf) {
   const auto Query = getQueriedTypeForInput(Transitions->Data, QueriedType);
   auto Data = runGraphBuilding(Transitions, Query, std::move(Conf));
-  const auto SourceVertex = getSourceVertexMatchingQueriedType(Data, Query);
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);
-  REQUIRE(SourceVertex < VertexDataSize);
   runPathFinding(Data);
 
   // return instead of requires because querying all might query a type with no

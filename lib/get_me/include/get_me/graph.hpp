@@ -247,8 +247,4 @@ private:
 runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
                  const TypeSetValueType &Query, std::shared_ptr<Config> Conf);
 
-[[nodiscard]] VertexDescriptor
-getSourceVertexMatchingQueriedType(const GraphData &Data,
-                                   const TypeSetValueType &QueriedType);
-
 #endif
