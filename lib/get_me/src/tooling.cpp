@@ -41,8 +41,8 @@
 #include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
-#include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/formatting.hpp"
+#include "get_me/propagate_inheritance.hpp"
 #include "get_me/propagate_type_aliasing.hpp"
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
@@ -367,8 +367,12 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
     filterOverloads(*Transitions_);
   }
 
-  propagateTransitionsOfDirectTypeDependencies(*Transitions_, CXXRecords,
-                                               TypedefNameDecls, *Conf_);
+  if (Conf_->EnablePropagateInheritance) {
+    propagateInheritance(*Transitions_, CXXRecords);
+  }
+  if (Conf_->EnablePropagateTypeAlias) {
+    propagateTypeAliasing(*Transitions_, TypedefNameDecls);
+  }
 
   Transitions_->commit();
 }

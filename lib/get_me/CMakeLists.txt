@@ -3,7 +3,6 @@ target_sources(
   get_me_lib
   PRIVATE src/backwards_path_finding.cpp
           src/config.cpp
-          src/direct_type_dependency_propagation.cpp
           src/formatting.cpp
           src/graph.cpp
           src/propagate_inheritance.cpp
