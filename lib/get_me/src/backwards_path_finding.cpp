@@ -115,8 +115,8 @@ void runPathFinding(GraphData &Data) {
   push(EdgesStack, StartEdges);
 
   const auto AddOutEdgesOfVertexToStack =
-      [&EdgesStack, GetOutEdgesOfVertex](const VertexDescriptor Vertex) {
-        push(EdgesStack, GetOutEdgesOfVertex(Vertex));
+      [&EdgesStack, GetOutEdgesOfVertex](const VertexDescriptor SourceVertex) {
+        push(EdgesStack, GetOutEdgesOfVertex(SourceVertex));
       };
 
   auto State = StateType{Data.Paths};
