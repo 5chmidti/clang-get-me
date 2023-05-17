@@ -166,25 +166,35 @@ inline constexpr auto Construct = []<typename... ValueType>(ValueType &&...Val)
   requires std::constructible_from<T, ValueType...>
 { return T{std::forward<ValueType>(Val)...}; };
 
+template <typename RangeType, typename Projection, typename IndexType>
+concept integral_index_subscriptable =
+    std::ranges::random_access_range<RangeType> &&
+    std::regular_invocable<Projection, IndexType> &&
+    std::integral<
+        std::remove_cvref_t<std::invoke_result_t<Projection, IndexType>>> &&
+    requires(RangeType Range, Projection Proj, IndexType Idx) {
+      {
+        Range[std::invoke(Proj, Idx)]
+      } -> std::same_as<ranges::range_reference_t<RangeType>>;
+    };
+
 inline constexpr auto Lookup =
     []<ranges::random_access_range T, typename Projection = std::identity>(
         T && LookupRangeRef, Projection Proj = {}) constexpr
   requires std::is_trivially_copy_constructible_v<Projection> &&
-           (std::is_lvalue_reference_v<T> || ranges::borrowed_range<T>)
+           ranges::borrowed_range<T>
 {
   if constexpr (std::is_const_v<T>) {
-    return [&LookupRangeRef, Proj ]<typename IndexType>
-      requires std::regular_invocable<Projection, IndexType>(
-                   const IndexType &Index)
-    constexpr->decltype(auto) {
-      return LookupRangeRef[std::invoke(Proj, Index)];
+    return [&LookupRangeRef, Proj]<typename IndexType>
+      requires integral_index_subscriptable<T, Projection, IndexType>
+    (const IndexType &Idx) constexpr -> decltype(auto) {
+      return LookupRangeRef[std::invoke(Proj, Idx)];
     };
   } else {
-    return [&LookupRangeRef, Proj ]<typename IndexType>
-      requires std::regular_invocable<Projection, IndexType>(
-                   const IndexType &Index)
-    constexpr mutable->decltype(auto) {
-      return LookupRangeRef[std::invoke(Proj, Index)];
+    return [&LookupRangeRef, Proj]<typename IndexType>
+      requires integral_index_subscriptable<T, Projection, IndexType>
+    (const IndexType &Idx) constexpr mutable -> decltype(auto) {
+      return LookupRangeRef[std::invoke(Proj, Idx)];
     };
   }
 };
