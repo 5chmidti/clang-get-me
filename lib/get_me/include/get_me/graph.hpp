@@ -190,7 +190,8 @@ template <typename RangeType>
   requires std::same_as<ranges::range_value_t<RangeType>, PathType>
 [[nodiscard]] auto toString(RangeType &&Paths, const GraphData &Data) {
   const auto FormatPath = [&Data](const PathType &Path) {
-    const auto GetTransition = [&Data](const TransitionEdgeType &Edge) {
+    const auto GetTransition =
+        [&Data](const TransitionEdgeType &Edge) -> decltype(auto) {
       return Value(Data.Transitions->FlatData[Edge.TransitionIndex]);
     };
 
