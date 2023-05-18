@@ -23,9 +23,9 @@ normalize(clang::PrintingPolicy PrintingPolicy) {
 
 template <> class fmt::formatter<clang::QualType> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &ctx)
-      -> decltype(ctx.begin()) {
-    return ctx.begin();
+  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
+      -> decltype(Ctx.begin()) {
+    return Ctx.begin();
   }
 
   template <typename FormatContext>
