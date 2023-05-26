@@ -249,3 +249,43 @@ TEST_CASE("arithmetic") {
        },
        std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
 }
+
+TEST_CASE("back edges") {
+  test(R"(
+    struct A { A() = delete; };
+    struct B { B() = delete; };
+    struct C { C() = delete; };
+    struct D { D() = delete; };
+
+    D getD(A);
+    D getD(C);
+    C getC(B);
+    B getB(A);
+    A getA();
+  )",
+       "D",
+       {
+           "(D, D getD(A), {A}), (A, A getA(), {})",
+           "(D, D getD(C), {C}), (C, C getC(B), {B}), (B, B getB(A), {A}), (A, "
+           "A getA(), {})",
+       },
+       std::make_shared<Config>(Config{.EnableGraphBackwardsEdge = true}));
+  test(R"(
+    struct A { A() = delete; };
+    struct B { B() = delete; };
+    struct C { C() = delete; };
+    struct D { D() = delete; };
+
+    D getD(A);
+    D getD(C);
+    C getC(B);
+    B getB(A);
+    A getA();
+  )",
+       "D",
+       {
+           "(D, D getD(A), {A}), (A, A getA(), {})",
+           "(D, D getD(C), {C}), (C, C getC(B), {B})",
+       },
+       std::make_shared<Config>(Config{.EnableGraphBackwardsEdge = false}));
+}

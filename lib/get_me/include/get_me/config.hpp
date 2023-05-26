@@ -57,7 +57,7 @@ public:
   bool EnableTruncateArithmetic = false;
   bool EnableFilterArithmeticTransitions = false;
   bool EnableFilterStd = false;
-  bool EnableGraphBackwardsEdge = false;
+  bool EnableGraphBackwardsEdge = true;
   bool EnableVerboseTransitionCollection = false;
 
   std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
