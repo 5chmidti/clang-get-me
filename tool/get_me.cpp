@@ -121,8 +121,8 @@ int main(int argc, const char **argv) {
 
   auto Data = runGraphBuilding(Transitions, Query, Conf);
   runPathFinding(Data);
-  // spdlog::trace("Data: {}", Data);
 
+  spdlog::info("|Transitions|: {}", ranges::size(Data.Transitions->FlatData));
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
