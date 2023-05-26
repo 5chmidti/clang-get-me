@@ -21,8 +21,8 @@ void queryAll(const std::shared_ptr<TransitionCollector> &Transitions,
     runPathFinding(Data);
   };
 
-  spdlog::info("Running with {} threads",
-               tbb::this_task_arena::max_concurrency());
+  spdlog::trace("Running with {} threads",
+                tbb::this_task_arena::max_concurrency());
   tbb::parallel_for_each(
       Transitions->Data | ranges::views::transform(ToAcquired), Run);
 }

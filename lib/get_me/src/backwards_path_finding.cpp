@@ -152,6 +152,6 @@ void runPathFinding(GraphData &Data) {
   }
 
   if (Data.VertexData.size() < 10) {
-    spdlog::info("Data: {}", Data);
+    spdlog::trace("Data: {}", Data);
   }
 }
