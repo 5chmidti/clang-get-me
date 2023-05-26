@@ -6,6 +6,7 @@
 #include <string>
 #include <system_error>
 
+#include <fmt/core.h>
 #include <fmt/std.h>
 #include <llvm/Support/YAMLTraits.h>
 #include <llvm/Support/raw_ostream.h>
@@ -13,6 +14,10 @@
 #include <range/v3/utility/tuple_algorithm.hpp>
 
 #include "support/get_me_exception.hpp"
+
+template <> struct llvm::yaml::MappingTraits<Config> {
+  static void mapping(llvm::yaml::IO &YamlIO, Config &Conf);
+};
 
 Config Config::parse(const std::filesystem::path &File) {
   GetMeException::verify(std::filesystem::exists(File),
