@@ -47,7 +47,7 @@
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "support/ranges/functional.hpp"
+#include "support/ranges/functional_clang.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 

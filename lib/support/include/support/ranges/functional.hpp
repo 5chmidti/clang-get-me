@@ -9,7 +9,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <clang/AST/Decl.h>
 #include <range/v3/functional/comparisons.hpp>
 
 template <std::size_t I>
@@ -27,10 +26,6 @@ inline constexpr auto ConstrainedElement = []<typename T>
                                std::invoke_result_t<decltype(std::get<I>), T>>,
                            ResultType>
 (T &&Tuple) -> decltype(auto) { return std::get<I>(std::forward<T>(Tuple)); };
-
-inline constexpr auto ToQualType = [](const clang::ValueDecl *const VDecl) {
-  return VDecl->getType();
-};
 
 inline constexpr auto Copy = [](std::copyable auto Val) {
   return std::move(Val);
