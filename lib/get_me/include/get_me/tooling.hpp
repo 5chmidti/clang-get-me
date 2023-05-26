@@ -3,10 +3,12 @@
 
 #include <memory>
 
-#include <clang/Frontend/ASTUnit.h>
-
 #include "get_me/config.hpp"
 #include "get_me/transitions.hpp"
+
+namespace clang {
+class ASTUnit;
+}
 
 [[nodiscard]] std::shared_ptr<TransitionCollector>
 collectTransitions(clang::ASTUnit &AST, std::shared_ptr<Config> Conf);
