@@ -7,10 +7,14 @@
 #include <utility>
 
 #include <range/v3/action/sort.hpp>
+#include <range/v3/algorithm/equal.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/view/indices.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
 
+#include "support/get_me_exception.hpp"
 #include "support/ranges/functional.hpp"
 
 template <typename ValueType>
@@ -57,7 +61,12 @@ template <ranges::range RangeType>
 [[nodiscard]] auto getIndexedSetSortedByIndex(RangeType &&Range) {
   auto Sorted = std::forward<RangeType>(Range) | ranges::to_vector |
                 ranges::actions::sort(std::less{}, Index);
-  return Sorted | ranges::views::move | ranges::views::transform(Value) |
+  GetMeException::verify(
+      ranges::equal(ranges::views::indices(ranges::size(Sorted)),
+                    Sorted | ranges::views::transform(Index)),
+      "getIndexedSetSortedByIndex received an input that did not contain "
+      "indexed values with unique indices sorted and with difference 1");
+  return Sorted | ranges::views::move | ranges::views::values |
          ranges::to_vector;
 }
 
