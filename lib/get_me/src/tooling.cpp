@@ -47,6 +47,7 @@
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
+#include "support/get_me_exception.hpp"
 #include "support/ranges/functional_clang.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
@@ -328,18 +329,19 @@ public:
     if (NDecl->isTemplateDecl()) {
       return true;
     }
-    const auto AliasType = NDecl->getASTContext().getTypedefType(
-        NDecl, NDecl->getUnderlyingType());
-    if (NDecl->getUnderlyingType().getTypePtr() == nullptr) {
+    const auto UnderlyingType = NDecl->getUnderlyingType();
+    const auto AliasType =
+        NDecl->getASTContext().getTypedefType(NDecl, UnderlyingType);
+    if (UnderlyingType.getTypePtr() == nullptr) {
+      GetMeException::fail(
+          "unreachable, type alias should always have an underlying type");
       return true;
     }
     if (hasReservedIdentifierNameOrType(NDecl)) {
       return true;
     }
 
-    const auto BaseType = NDecl->getUnderlyingType();
-
-    TypedefNameDecls_.emplace_back(BaseType, AliasType);
+    TypedefNameDecls_.emplace_back(UnderlyingType, AliasType);
     return true;
   }
 
