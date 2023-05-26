@@ -55,7 +55,6 @@ TEST_CASE("propagate inheritance") {
        "B",
        {
            "(B, B getB(), {})",
-           "(B, A A(int, float), {int, float})",
        },
        PropagateInheritanceConfig);
 
@@ -232,4 +231,88 @@ TEST_CASE("propagate inheritence: qualified types virtual") {
           "(B, B B(), {})",
       },
       {}, PropagateInheritanceConfig);
+}
+
+// FIXME: test with general operators as well
+TEST_CASE("propagate inheritance: constructors") {
+  test(R"(
+        struct A {
+            A();
+        };
+        struct B : public A {
+            explicit B(int);
+        };
+    )",
+       "B",
+       {
+           "(B, B B(int), {int})",
+       },
+       PropagateInheritanceConfig);
+
+  test(R"(
+        struct A {
+            A();
+        };
+        struct B : public A {
+            using A::A;
+            explicit B(int);
+        };
+    )",
+       "B",
+       {
+           "(B, B B(int), {int})",
+           "(B, B B(), {})",
+       },
+       PropagateInheritanceConfig);
+
+  test(R"(
+        struct A {
+            explicit A(int);
+        };
+        struct B : public A {
+        };
+    )",
+       "B", {}, PropagateInheritanceConfig);
+
+  test(R"(
+        struct A {
+            A();
+        };
+        struct B : public A {
+            using A::A;
+        };
+    )",
+       "B",
+       {
+           "(B, B B(), {})",
+       },
+       PropagateInheritanceConfig);
+
+  testFailure(R"(
+        struct A {
+            explicit A(int);
+        };
+        struct B : public A {
+            using A::A;
+        };
+    )",
+              "B",
+              {
+                  "(B, A A(int), {int})",
+              },
+              PropagateInheritanceConfig);
+  test(R"(
+        struct A {
+            explicit A(int);
+        };
+        struct B : public A {
+            using A::A;
+        };
+        B b = B(42);
+    )",
+       "B",
+       {
+           "(B, B B(int), {int})",
+       },
+       PropagateInheritanceConfig);
 }

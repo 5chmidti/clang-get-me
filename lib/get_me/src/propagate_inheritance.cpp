@@ -11,6 +11,7 @@
 #include <boost/graph/detail/adjacency_list.hpp>
 #include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
 #include <llvm/Support/Casting.h>
@@ -308,10 +309,23 @@ private:
            ranges::views::transform(
                [DerivedType](const BundeledTransitionType &BundeledTransition)
                    -> BundeledTransitionType {
-                 return {DerivedType, BundeledTransition.second |
-                                          ranges::views::filter(
-                                              transitionIsMember(DerivedType)) |
-                                          ranges::to<StrippedTransitionsSet>};
+                 const auto IsNotConstructor =
+                     [](const StrippedTransitionType &Transition) {
+                       return std::visit(
+                           Overloaded{
+                               [](const clang::FunctionDecl *const FDecl) {
+                                 return !llvm::isa<clang::CXXConstructorDecl>(
+                                     FDecl);
+                               },
+                               [](auto &&) { return true; }},
+                           ToTransition(Transition));
+                     };
+                 return {DerivedType,
+                         BundeledTransition.second |
+                             ranges::views::filter(
+                                 transitionIsMember(DerivedType)) |
+                             ranges::views::filter(IsNotConstructor) |
+                             ranges::to<StrippedTransitionsSet>};
                });
   };
 
