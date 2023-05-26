@@ -80,7 +80,7 @@ public:
                             FormatContext &Ctx) const -> decltype(Ctx.out()) {
     return fmt::format_to(
         Ctx.out(), "{}",
-        std::visit([](const auto &Val) { return fmt::format("{}", Val); },
+        std::visit([](const auto &Value) { return fmt::format("{}", Value); },
                    Val));
   }
 };
