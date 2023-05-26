@@ -32,6 +32,7 @@
 #include "get_me/type_set.hpp"
 
 namespace {
+constexpr auto Indentation = 14U;
 constexpr auto BacktraceSize = 1024U;
 
 [[nodiscard]] std::string toString(const std::source_location &Loc) {
@@ -40,7 +41,7 @@ constexpr auto BacktraceSize = 1024U;
 }
 
 void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
-            const auto &ExpectedPaths) {
+            const auto &ExpectedPaths, const TransitionCollector &Transitions) {
   const auto ToString = []<typename T>(const T &Val) -> std::string {
     if constexpr (std::is_same_v<T, std::string>) {
       return Val;
@@ -53,7 +54,6 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
                                          ToString) |
            ranges::to<std::set>;
   };
-  static constexpr auto Indentation = 14;
   static const auto Seperator = fmt::format("\n{0: <{1}}  ", "", Indentation);
   INFO(fmt::format(
       "{1: <{0}}: {2}\n"
@@ -66,6 +66,9 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
       "Not expected",
       fmt::join(ToSetDifference(FoundPathsAsString, ExpectedPaths),
                 Seperator)));
+
+  INFO(fmt::format("{1: <{0}}: {2}", Indentation, "Transitions",
+                   fmt::join(Transitions.FlatData, Seperator)));
   REQUIRE(ExpectedEqualityResult ==
           ranges::equal(FoundPathsAsString, ExpectedPaths));
 }
@@ -92,7 +95,7 @@ void testSuccess(const std::string_view Code,
   const auto [AST, Transitions] = collectTransitions(Code, Conf);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, Conf);
-  verify(true, FoundPathsAsString, ExpectedPaths);
+  verify(true, FoundPathsAsString, ExpectedPaths, *Transitions);
   spdlog::disable_backtrace();
 }
 
@@ -105,7 +108,7 @@ void testFailure(const std::string_view Code,
   const auto [AST, Transitions] = collectTransitions(Code, Conf);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, Conf);
-  verify(false, FoundPathsAsString, ExpectedPaths);
+  verify(false, FoundPathsAsString, ExpectedPaths, *Transitions);
   spdlog::disable_backtrace();
 }
 
@@ -119,11 +122,11 @@ void testFailure(const std::string_view Code,
   const auto [AST, Transitions] = collectTransitions(Code, Conf);
   const auto FoundPathsAsString =
       buildGraphAndFindPaths(Transitions, QueriedType, Conf);
-  verify(true, FoundPathsAsString, CurrentExpectedPaths);
+  verify(true, FoundPathsAsString, CurrentExpectedPaths, *Transitions);
   {
     INFO("CurrentExpectedPaths and ExpectedPaths are equivalent, promote from "
          "testFailure to test/testSuccess");
-    verify(false, CurrentExpectedPaths, ExpectedPaths);
+    verify(false, CurrentExpectedPaths, ExpectedPaths, *Transitions);
   }
   spdlog::disable_backtrace();
 }
