@@ -41,7 +41,7 @@ constexpr auto BacktraceSize = 1024U;
 }
 
 void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
-            const auto &ExpectedPaths, const TransitionCollector &Transitions) {
+            const auto &ExpectedPaths, const TransitionData &Transitions) {
   const auto ToString = []<typename T>(const T &Val) -> std::string {
     if constexpr (std::is_same_v<T, std::string>) {
       return Val;
@@ -162,7 +162,7 @@ void testQueryAll(const std::string_view Code, std::shared_ptr<Config> Conf,
   spdlog::disable_backtrace();
 }
 
-std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionCollector>>
+std::pair<std::unique_ptr<clang::ASTUnit>, std::shared_ptr<TransitionData>>
 collectTransitions(const std::string_view Code, std::shared_ptr<Config> Conf) {
   auto AST = clang::tooling::buildASTFromCodeWithArgs(Code, {"-std=c++20"});
   auto Transitions = collectTransitions(*AST, std::move(Conf));
@@ -170,7 +170,7 @@ collectTransitions(const std::string_view Code, std::shared_ptr<Config> Conf) {
 }
 
 ResultPaths
-buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
+buildGraphAndFindPaths(const std::shared_ptr<TransitionData> &Transitions,
                        const std::string_view QueriedType,
                        std::shared_ptr<Config> Conf) {
   const auto Query = getQueriedTypesForInput(Transitions->Data, QueriedType);

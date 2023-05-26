@@ -6,7 +6,7 @@
 #include "get_me/config.hpp"
 #include "get_me/transitions.hpp"
 
-void queryAll(const std::shared_ptr<TransitionCollector> &Transitions,
+void queryAll(const std::shared_ptr<TransitionData> &Transitions,
               std::shared_ptr<Config> Conf);
 
 #endif

@@ -8,7 +8,7 @@
 #include "get_me/transitions.hpp"
 
 void propagateInheritance(
-    TransitionCollector &Transitions,
+    TransitionData &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords);
 
 #endif

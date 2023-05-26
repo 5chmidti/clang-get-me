@@ -69,8 +69,7 @@ namespace {
 class GetMe : public clang::ASTConsumer {
 public:
   explicit GetMe(std::shared_ptr<Config> Conf,
-                 std::shared_ptr<TransitionCollector> Transitions,
-                 clang::Sema &Sema)
+                 std::shared_ptr<TransitionData> Transitions, clang::Sema &Sema)
       : Conf_{std::move(Conf)},
         Transitions_{std::move(Transitions)},
         Sema_{Sema} {}
@@ -79,7 +78,7 @@ public:
 
 private:
   std::shared_ptr<Config> Conf_;
-  std::shared_ptr<TransitionCollector> Transitions_;
+  std::shared_ptr<TransitionData> Transitions_;
   clang::Sema &Sema_;
 };
 
@@ -96,7 +95,7 @@ private:
       Val);
 }
 
-void filterOverloads(TransitionCollector &Transitions,
+void filterOverloads(TransitionData &Transitions,
                      const size_t OverloadFilterParameterCountThreshold = 0) {
 
   const auto Comparator =
@@ -185,15 +184,14 @@ void filterOverloads(TransitionCollector &Transitions,
                              ranges::actions::unique(IsOverload) |
                              ranges::to<StrippedTransitionsSet>};
       }) |
-      ranges::to<TransitionCollector::associative_container_type>;
+      ranges::to<TransitionData::associative_container_type>;
 }
 
 } // namespace
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
-  GetMeVisitor(std::shared_ptr<Config> Conf,
-               TransitionCollector &TransitionsRef,
+  GetMeVisitor(std::shared_ptr<Config> Conf, TransitionData &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
                std::vector<TypeAlias> &TypedefNameDeclsRef,
                clang::Sema &SemaRef)
@@ -352,7 +350,7 @@ private:
   }
 
   std::shared_ptr<Config> Conf_;
-  TransitionCollector &Transitions_;
+  TransitionData &Transitions_;
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
   std::vector<TypeAlias> &TypedefNameDecls_;
   clang::Sema &Sema_;
@@ -379,9 +377,9 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   Transitions_->commit();
 }
 
-std::shared_ptr<TransitionCollector>
+std::shared_ptr<TransitionData>
 collectTransitions(clang::ASTUnit &AST, std::shared_ptr<Config> Conf) {
-  auto Transitions = std::make_shared<TransitionCollector>();
+  auto Transitions = std::make_shared<TransitionData>();
   GetMe{std::move(Conf), Transitions, AST.getSema()}.HandleTranslationUnit(
       AST.getASTContext());
   return Transitions;

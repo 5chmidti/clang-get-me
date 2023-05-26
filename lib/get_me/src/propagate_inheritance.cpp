@@ -341,7 +341,7 @@ private:
   }
 
 public:
-  InheritancePropagator(TransitionCollector &TransitionsRef, DTDGraphData Data)
+  InheritancePropagator(TransitionData &TransitionsRef, DTDGraphData Data)
       : Transitions_{TransitionsRef},
         Data_{std::move(Data)},
         Graph_{createGraph(Data_)} {}
@@ -369,7 +369,7 @@ public:
   }
 
 private:
-  TransitionCollector &Transitions_;
+  TransitionData &Transitions_;
   DTDGraphData Data_;
   InheritanceGraph Graph_;
   std::vector<bool> VertexVisited_ = std::vector<bool>(Data_.VertexData.size());
@@ -377,7 +377,7 @@ private:
 } // namespace
 
 void propagateInheritance(
-    TransitionCollector &Transitions,
+    TransitionData &Transitions,
     const std::vector<const clang::CXXRecordDecl *> &CXXRecords) {
   InheritancePropagator{Transitions, createInheritanceGraph(CXXRecords)}();
 }

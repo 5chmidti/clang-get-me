@@ -12,7 +12,7 @@
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
 
-void queryAll(const std::shared_ptr<TransitionCollector> &Transitions,
+void queryAll(const std::shared_ptr<TransitionData> &Transitions,
               const std::shared_ptr<Config> Conf) {
   const auto Run = [Transitions, &Conf](const auto &QueriedType) {
     const auto Query = getQueriedTypesForInput(Transitions->Data,

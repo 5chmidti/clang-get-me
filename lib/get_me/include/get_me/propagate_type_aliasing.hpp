@@ -28,7 +28,7 @@ public:
   }
 };
 
-void propagateTypeAliasing(TransitionCollector &Transitions,
+void propagateTypeAliasing(TransitionData &Transitions,
                            const std::vector<TypeAlias> &TypedefNameDecls);
 
 #endif

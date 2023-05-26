@@ -10,7 +10,7 @@ namespace clang {
 class ASTUnit;
 }
 
-[[nodiscard]] std::shared_ptr<TransitionCollector>
+[[nodiscard]] std::shared_ptr<TransitionData>
 collectTransitions(clang::ASTUnit &AST, std::shared_ptr<Config> Conf);
 
 #endif

@@ -115,7 +115,7 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
 }
 
 [[nodiscard]] StrippedTransitionsSet getTransitionsToPropagateForAcquired(
-    const TransitionCollector::associative_container_type &Transitions,
+    const TransitionData::associative_container_type &Transitions,
     const TypeAliasingGroup &Group) {
   return Group |
          ranges::views::transform([&Transitions](const TypeSetValueType &Type) {
@@ -128,7 +128,7 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
 }
 
 [[nodiscard]] auto propagateAcquiredTransitions(
-    TransitionCollector::associative_container_type &Transitions) {
+    TransitionData::associative_container_type &Transitions) {
   return [&Transitions](const TypeAliasingGroup &Group) {
     const auto PairTypeWithGroupsTransitions =
         [TransitionsOfGroupMembers = getTransitionsToPropagateForAcquired(
@@ -136,7 +136,7 @@ createTypeAliasingGroups(const std::vector<TypeAlias> &TypedefNameDecls) {
           return BundeledTransitionType{Type, TransitionsOfGroupMembers};
         };
     return Group | ranges::views::transform(PairTypeWithGroupsTransitions) |
-           ranges::to<TransitionCollector::associative_container_type>;
+           ranges::to<TransitionData::associative_container_type>;
   };
 }
 
@@ -158,7 +158,7 @@ substituteGroupMembersFromRequired(const TypeAliasingGroup &Group) {
 }
 
 [[nodiscard]] auto propagateRequiredTransitions(
-    TransitionCollector::associative_container_type &Transitions) {
+    TransitionData::associative_container_type &Transitions) {
   return [&Transitions](const TypeAliasingGroup &Group) {
     return Transitions |
            ranges::views::transform(
@@ -172,12 +172,12 @@ substituteGroupMembersFromRequired(const TypeAliasingGroup &Group) {
                              substituteGroupMembersFromRequired(Group)) |
                          ranges::to<StrippedTransitionsSet>};
                }) |
-           ranges::to<TransitionCollector::associative_container_type>;
+           ranges::to<TransitionData::associative_container_type>;
   };
 }
 
 void propgagateAcquiredTransitions(const TypeAliasingGroups &Groups,
-                                   TransitionCollector &Transitions) {
+                                   TransitionData &Transitions) {
   const auto TransitionsVector =
       Groups |
       ranges::views::transform(propagateAcquiredTransitions(Transitions.Data)) |
@@ -197,7 +197,7 @@ void propgagateAcquiredTransitions(const TypeAliasingGroups &Groups,
 }
 
 void propgagateRequiredTransitions(const TypeAliasingGroups &Groups,
-                                   TransitionCollector &Transitions) {
+                                   TransitionData &Transitions) {
   const auto TransitionsVector =
       Groups |
       ranges::views::transform(propagateRequiredTransitions(Transitions.Data)) |
@@ -213,7 +213,7 @@ void propgagateRequiredTransitions(const TypeAliasingGroups &Groups,
 }
 } // namespace
 
-void propagateTypeAliasing(TransitionCollector &Transitions,
+void propagateTypeAliasing(TransitionData &Transitions,
                            const std::vector<TypeAlias> &TypedefNameDecls) {
   const auto Groups = createTypeAliasingGroups(TypedefNameDecls);
 

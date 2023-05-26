@@ -36,8 +36,8 @@ class TransitionCollectionState {
 public:
   TransitionCollectionState(std::shared_ptr<Config> Conf,
                             clang::tooling::ClangTool &Tool,
-                            std::shared_ptr<TransitionCollector> Transitions =
-                                std::make_shared<TransitionCollector>())
+                            std::shared_ptr<TransitionData> Transitions =
+                                std::make_shared<TransitionData>())
       : Conf_(std::move(Conf)),
         Tool_(Tool),
         Transitions_{std::move(Transitions)} {}
@@ -61,12 +61,12 @@ public:
     return AcquiredTypeNames_;
   }
 
-  [[nodiscard]] std::shared_ptr<TransitionCollector> &getTransitionsPtr() {
+  [[nodiscard]] std::shared_ptr<TransitionData> &getTransitionsPtr() {
     return Transitions_;
   }
-  [[nodiscard]] TransitionCollector &getTransitions() { return *Transitions_; }
+  [[nodiscard]] TransitionData &getTransitions() { return *Transitions_; }
 
-  [[nodiscard]] const TransitionCollector &getTransitions() const {
+  [[nodiscard]] const TransitionData &getTransitions() const {
     return *Transitions_;
   }
 
@@ -81,7 +81,7 @@ private:
   std::shared_ptr<Config> Conf_;
   clang::tooling::ClangTool &Tool_;
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs_;
-  std::shared_ptr<TransitionCollector> Transitions_{};
+  std::shared_ptr<TransitionData> Transitions_{};
   std::vector<std::string> AcquiredTypeNames_{};
 };
 

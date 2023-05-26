@@ -55,7 +55,7 @@ using StrippedTransitionType =
 using StrippedTransitionsSet =
     boost::container::flat_set<StrippedTransitionType>;
 
-struct TransitionCollector {
+struct TransitionData {
   using associative_container_type =
       boost::container::flat_map<TypeSetValueType, StrippedTransitionsSet>;
   using value_type = associative_container_type::value_type;
@@ -68,7 +68,7 @@ struct TransitionCollector {
   flat_container_type FlatData{};
 };
 
-using BundeledTransitionType = TransitionCollector::value_type;
+using BundeledTransitionType = TransitionData::value_type;
 
 inline constexpr auto ToAcquired =
     []<typename T>(T &&Transition) -> decltype(auto)

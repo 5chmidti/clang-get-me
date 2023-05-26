@@ -97,7 +97,7 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
       Data);
 }
 
-void TransitionCollector::commit() {
+void TransitionData::commit() {
   ranges::generate(Data | ranges::views::values | ranges::views::join |
                        ranges::views::transform(Index),
                    [Counter = size_t{0U}]() mutable { return Counter++; });

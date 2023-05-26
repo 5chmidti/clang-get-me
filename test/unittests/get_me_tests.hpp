@@ -60,11 +60,11 @@ void test(const auto &Generator, const size_t Count,
 }
 
 [[nodiscard]] std::pair<std::unique_ptr<clang::ASTUnit>,
-                        std::shared_ptr<TransitionCollector>>
+                        std::shared_ptr<TransitionData>>
 collectTransitions(std::string_view Code, std::shared_ptr<Config> Conf = {});
 
 [[nodiscard]] ResultPaths
-buildGraphAndFindPaths(const std::shared_ptr<TransitionCollector> &Transitions,
+buildGraphAndFindPaths(const std::shared_ptr<TransitionData> &Transitions,
                        std::string_view QueriedType,
                        std::shared_ptr<Config> Conf);
 

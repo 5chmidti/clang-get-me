@@ -45,7 +45,7 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
 } // namespace
 
 TypeSet getQueriedTypesForInput(
-    const TransitionCollector::associative_container_type &Transitions,
+    const TransitionData::associative_container_type &Transitions,
     const std::string_view QueriedTypeAsString) {
   if (Transitions.empty()) {
     GetMeException::fail("getQueriedTypeForInput(): Transitions are empty");
@@ -65,12 +65,12 @@ TypeSet getQueriedTypesForInput(
   return FilteredTypes;
 }
 
-TransitionCollector::associative_container_type getTransitionsForQuery(
-    const TransitionCollector::associative_container_type &Transitions,
+TransitionData::associative_container_type getTransitionsForQuery(
+    const TransitionData::associative_container_type &Transitions,
     const TypeSet &Query) {
   const auto QueriedTypeIsSubset = [&Query](const auto &Required) {
     return ranges::any_of(Query, [&Required](const auto &QueriedType) {
-    return Required.contains(QueriedType);
+      return Required.contains(QueriedType);
     });
   };
 
@@ -84,5 +84,5 @@ TransitionCollector::associative_container_type getTransitionsForQuery(
                            ranges::not_fn(QueriedTypeIsSubset), ToRequired) |
                        ranges::to<StrippedTransitionsSet>};
              }) |
-         ranges::to<TransitionCollector::associative_container_type>;
+         ranges::to<TransitionData::associative_container_type>;
 }

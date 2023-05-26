@@ -90,13 +90,11 @@ struct GraphData {
       boost::container::flat_set<PathType, IsPermutationComparator>;
 
   GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
-            EdgeContainer Edges,
-            std::shared_ptr<TransitionCollector> Transitions,
+            EdgeContainer Edges, std::shared_ptr<TransitionData> Transitions,
             std::shared_ptr<Config> Conf);
 
   GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
-            EdgeContainer Edges,
-            std::shared_ptr<TransitionCollector> Transitions,
+            EdgeContainer Edges, std::shared_ptr<TransitionData> Transitions,
             PathContainer Paths, std::shared_ptr<Config> Conf);
 
   // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
@@ -110,7 +108,7 @@ struct GraphData {
 
   PathContainer Paths{};
 
-  std::shared_ptr<TransitionCollector> Transitions{};
+  std::shared_ptr<TransitionData> Transitions{};
 
   std::shared_ptr<Config> Conf{};
   // NOLINTEND(misc-non-private-member-variables-in-classes)
@@ -210,7 +208,7 @@ public:
   using VertexType = TypeSet;
   using VertexSet = indexed_set<VertexType>;
 
-  explicit GraphBuilder(std::shared_ptr<TransitionCollector> Transitions,
+  explicit GraphBuilder(std::shared_ptr<TransitionData> Transitions,
                         TypeSet Query, std::shared_ptr<Config> Conf);
 
   void build();
@@ -230,7 +228,7 @@ private:
   [[nodiscard]] static std::int64_t
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
-  std::shared_ptr<TransitionCollector> Transitions_;
+  std::shared_ptr<TransitionData> Transitions_;
   TypeSet Query_;
   VertexSet VertexData_{};
   std::vector<size_t> VertexDepth_{};
@@ -241,7 +239,7 @@ private:
 };
 
 [[nodiscard]] GraphData
-runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
+runGraphBuilding(const std::shared_ptr<TransitionData> &Transitions,
                  const TypeSet &Query, std::shared_ptr<Config> Conf);
 
 #endif

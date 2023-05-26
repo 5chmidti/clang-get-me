@@ -62,7 +62,7 @@ edgeWithTransitionExistsInContainer(const GraphData::EdgeContainer &Edges,
     std::pair<GraphBuilder::VertexSet::value_type, std::vector<TransitionType>>>
 constructVertexAndTransitionsPairVector(
     GraphBuilder::VertexSet InterestingVertices,
-    const TransitionCollector::associative_container_type &Transitions) {
+    const TransitionData::associative_container_type &Transitions) {
   auto IndependentTransitionsVec = ranges::fold_left(
       Transitions,
       std::vector<std::vector<TransitionType>>(InterestingVertices.size()),
@@ -128,7 +128,7 @@ getVerticesThatAreNotA(const GraphData &Data,
 
 GraphData::GraphData(std::vector<TypeSet> VertexData,
                      std::vector<size_t> VertexDepth, EdgeContainer Edges,
-                     std::shared_ptr<TransitionCollector> Transitions,
+                     std::shared_ptr<TransitionData> Transitions,
                      std::shared_ptr<Config> Conf)
     : VertexData{std::move(VertexData)},
       VertexDepth{std::move(VertexDepth)},
@@ -136,7 +136,7 @@ GraphData::GraphData(std::vector<TypeSet> VertexData,
       Transitions{std::move(Transitions)},
       Conf{std::move(Conf)} {}
 
-GraphBuilder::GraphBuilder(std::shared_ptr<TransitionCollector> Transitions,
+GraphBuilder::GraphBuilder(std::shared_ptr<TransitionData> Transitions,
                            TypeSet Query, std::shared_ptr<Config> Conf)
     : Transitions_{std::move(Transitions)},
       Query_{std::move(Query)},
@@ -266,9 +266,8 @@ GraphData GraphBuilder::commit() {
           std::move(VertexDepth_), Edges_, Transitions_, std::move(Conf_)};
 }
 
-GraphData
-runGraphBuilding(const std::shared_ptr<TransitionCollector> &Transitions,
-                 const TypeSet &Query, std::shared_ptr<Config> Conf) {
+GraphData runGraphBuilding(const std::shared_ptr<TransitionData> &Transitions,
+                           const TypeSet &Query, std::shared_ptr<Config> Conf) {
   auto Builder = GraphBuilder{Transitions, Query, std::move(Conf)};
   Builder.build();
   return Builder.commit();
