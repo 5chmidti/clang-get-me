@@ -143,9 +143,6 @@ void runPathFinding(GraphData &Data) {
 
     if (ranges::contains(TargetVertices, ReversedTarget(Edge))) {
       State.finishPath();
-      if (State.getNumPaths() > Data.Conf->MaxPathCount) {
-        break;
-      }
     } else {
       AddOutEdgesOfVertexToStack(ReversedTarget(Edge));
     }

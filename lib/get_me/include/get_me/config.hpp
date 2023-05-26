@@ -42,7 +42,6 @@ public:
             SizeTMappingType{"MaxRemainingTypes", &Config::MaxRemainingTypes},
             SizeTMappingType{"MaxPathLength", &Config::MaxPathLength},
             SizeTMappingType{"MinPathCount", &Config::MinPathCount},
-            SizeTMappingType{"MaxPathCount", &Config::MaxPathCount},
             SizeTMappingType{"MaxPathOutputCount", &Config::MaxPathOutputCount},
         }};
   }
@@ -66,7 +65,6 @@ public:
   std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
   std::size_t MinPathCount = 0U;
   std::size_t MaxPathOutputCount = 10U;
-  std::size_t MaxPathCount = std::numeric_limits<std::size_t>::max();
 
   // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
