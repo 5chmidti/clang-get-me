@@ -169,9 +169,12 @@ public:
   VertexData: {}
   VertexDepth: {}
   Edges: {}
-  Paths: {})",
-                          Val.VertexData, Val.VertexDepth, Val.Edges,
-                          Val.Paths);
+  Paths: {}
+  Transitions:
+    {}
+  )",
+                          Val.VertexData, Val.VertexDepth, Val.Edges, Val.Paths,
+                          fmt::join(Val.Transitions->FlatData, "\n\t"));
   }
 
 private:
