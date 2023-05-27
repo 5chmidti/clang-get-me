@@ -12,6 +12,7 @@
 
 #include <boost/algorithm/string/replace.hpp>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <range/v3/action/push_back.hpp>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/action/unique.hpp>
@@ -23,6 +24,7 @@
 #include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/concat.hpp>
+#include <range/v3/view/drop_while.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/indices.hpp>
@@ -34,6 +36,7 @@
 #include <range/v3/view/single.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <range/v3/view/take.hpp>
+#include <range/v3/view/take_while.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
 
@@ -277,24 +280,50 @@ std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
   const auto ToString = [&Data](const TransitionEdgeType &Edge) {
     const auto Transition =
         ToTransition(Data.Transitions->FlatData[Edge.TransitionIndex]);
-    const auto TargetVertex = Data.VertexData[Target(Edge)];
-    const auto SourceVertex = Data.VertexData[Source(Edge)];
+    const auto TargetVertex = Target(Edge);
+    const auto SourceVertex = Source(Edge);
 
     auto EdgeWeightAsString = fmt::format("{}", Transition);
     boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
-    return fmt::format(
-        R"(  "{}" -> "{}"[label="{}"]
-)",
-        SourceVertex, TargetVertex, EdgeWeightAsString);
+    return fmt::format(R"(  {} -> {}[label="{}"])", SourceVertex, TargetVertex,
+                       EdgeWeightAsString);
   };
 
-  return ranges::fold_left(Data.Edges | ranges::views::transform(ToString),
-                           std::string{"digraph D {\n  layout = \"sfdp\";\n"},
-                           [](std::string Result, auto Line) {
-                             Result.append(std::move(Line));
-                             return Result;
-                           }) +
-         "}\n";
+  const auto VertexToString = [](const auto &IndexedVertex) {
+    return fmt::format("  {} [label=\"{}\"]", Index(IndexedVertex),
+                       Value(IndexedVertex));
+  };
+  const auto ToRootVertexModifier = [](const auto &IndexedVertex) {
+    return fmt::format("  {} [color=red]", Index(IndexedVertex),
+                       Value(IndexedVertex));
+  };
+  const auto ToLeafVertexModifier = [](const auto &IndexedVertex) {
+    return fmt::format("  {} [color=orange]", Index(IndexedVertex),
+                       Value(IndexedVertex));
+  };
+
+  const auto RootVertices =
+      Data.VertexData | ranges::views::enumerate |
+      ranges::views::take_while(ranges::not_fn(ranges::empty), Value);
+
+  const auto LeafVertices =
+      Data.VertexData | ranges::views::enumerate |
+      ranges::views::set_difference(
+          Data.Edges | ranges::views::transform(Source), std::less{}, Index);
+
+  const auto Vertices = fmt::format(
+      "{}\n\n{}\n\n{}",
+      fmt::join(Data.VertexData | ranges::views::enumerate |
+                    ranges::views::transform(VertexToString),
+                "\n"),
+      fmt::join(RootVertices | ranges::views::transform(ToRootVertexModifier),
+                "\n"),
+      fmt::join(LeafVertices | ranges::views::transform(ToLeafVertexModifier),
+                "\n"));
+
+  return fmt::format(
+      "digraph D {{\n  layout = \"sfdp\";\n{}\n\n{}\n}}\n", Vertices,
+      fmt::join(Data.Edges | ranges::views::transform(ToString), "\n"));
 }
 
 std::int64_t GraphBuilder::getVertexDepthDifference(const size_t SourceDepth,
