@@ -35,8 +35,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Threads REQUIRED)
 find_package(Clang REQUIRED CONFIG)
 
-include(cmake/Conan.cmake)
-run_conan()
+include(cmake/ProjectDependencies.cmake)
 
 # project libraries
 add_library(project_libraries INTERFACE)
