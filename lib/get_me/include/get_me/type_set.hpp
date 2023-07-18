@@ -25,16 +25,9 @@ class VarDecl;
 class Config;
 
 struct ArithmeticType {
-  clang::QualType Value{};
-
-  [[nodiscard]] friend bool operator==(const ArithmeticType & /*Lhs*/,
-                                       const ArithmeticType & /*Rhs*/) {
-    return true;
-  }
-  [[nodiscard]] friend bool operator<(const ArithmeticType & /*Lhs*/,
-                                      const ArithmeticType & /*Rhs*/) {
-    return false;
-  }
+  [[nodiscard]] friend auto
+  operator<=>(const ArithmeticType & /*unused*/,
+              const ArithmeticType & /*unused*/) = default;
 };
 
 template <> class fmt::formatter<ArithmeticType> {

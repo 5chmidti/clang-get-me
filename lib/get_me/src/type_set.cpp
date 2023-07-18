@@ -29,7 +29,7 @@ namespace {
 TypeSetValueType toTypeSetValueType(const clang::QualType &QType,
                                     const Config &Conf) {
   if (Conf.EnableTruncateArithmetic && QType->isArithmeticType()) {
-    return TypeSetValueType{ArithmeticType{launderType(QType)}};
+    return TypeSetValueType{ArithmeticType{}};
   }
   return TypeSetValueType{launderType(QType)};
 }
