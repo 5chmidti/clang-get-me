@@ -1,4 +1,5 @@
 from conan import ConanFile
+from conan.tools.cmake import cmake_layout
 
 
 class GetMe(ConanFile):
@@ -40,5 +41,5 @@ class GetMe(ConanFile):
         self.requires("ctre/3.7.1")
         self.requires("onetbb/2021.7.0")
 
-    def build_requirements(self):
-        self.tool_requires("cmake/3.25.2")
+    def layout(self):
+        cmake_layout(self)
