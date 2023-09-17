@@ -10,6 +10,8 @@ function(add_get_me_test name)
   target_link_libraries(test_${name} PRIVATE get_me_test_lib)
   add_test(NAME ${name} COMMAND test_${name})
   add_dependencies(check test_${name})
+  set_tests_properties(
+    ${name} PROPERTIES ENVIRONMENT "LLVM_PROFILE_FILE=profile_${name}.profraw")
 endfunction()
 
 add_get_me_test(basic)

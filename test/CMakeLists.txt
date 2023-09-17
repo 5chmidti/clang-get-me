@@ -26,6 +26,10 @@ if(${COVERAGE_REPORT_AVAILABLE})
     DEPENDS check
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target
             coverage-report)
+
+  if(ENABLE_COVERAGE)
+    add_dependencies(check coverage-clean)
+  endif()
 endif()
 
 add_subdirectory(unittests)

@@ -20,6 +20,9 @@ set_project_warnings(project_options)
 # sanitizer options if supported by compiler
 include(cmake/Sanitizers.cmake)
 enable_sanitizers(project_options)
+include(cmake/Coverage.cmake)
+enable_coverage(project_options)
+enable_coverage_targets()
 
 include(cmake/Profiling.cmake)
 enable_profiling(project_options)
