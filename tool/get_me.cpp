@@ -136,8 +136,7 @@ int main(int argc, const char **argv) {
           ranges::views::transform([](const auto Range) {
             return std::pair{ranges::size(Range), ranges::begin(Range)->size()};
           }));
-  auto PreIndepPathsSize = Paths.size();
-  spdlog::info("generated {} paths", PreIndepPathsSize);
+  spdlog::info("generated {} paths", Paths.size());
 
   const auto OutputPathCount =
       std::min<size_t>(Paths.size(), Conf->MaxPathOutputCount);
