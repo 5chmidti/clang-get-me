@@ -32,14 +32,13 @@ struct ArithmeticType {
 
 template <> class fmt::formatter<ArithmeticType> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
-      -> decltype(Ctx.begin()) {
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
     return Ctx.begin();
   }
 
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const ArithmeticType & /*unused*/,
-                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
+  [[nodiscard]] format_context::iterator
+  format(const ArithmeticType & /*unused*/, format_context &Ctx) const {
     return fmt::format_to(Ctx.out(), "arithmetic");
   }
 };
@@ -63,14 +62,13 @@ public:
 
 template <> class fmt::formatter<TypeSetValueType> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
-      -> decltype(Ctx.begin()) {
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
     return Ctx.begin();
   }
 
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const TypeSetValueType &Val,
-                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
+  [[nodiscard]] format_context::iterator format(const TypeSetValueType &Val,
+                                                format_context &Ctx) const {
     return fmt::format_to(
         Ctx.out(), "{}",
         std::visit([](const auto &Value) { return fmt::format("{}", Value); },

@@ -23,14 +23,13 @@ normalize(clang::PrintingPolicy PrintingPolicy) {
 
 template <> class fmt::formatter<clang::QualType> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
-      -> decltype(Ctx.begin()) {
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
     return Ctx.begin();
   }
 
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const clang::QualType &Val,
-                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
+  [[nodiscard]] format_context::iterator format(const clang::QualType &Val,
+                                                format_context &Ctx) const {
     static const auto Policy =
         ::detail::normalize(clang::PrintingPolicy{clang::LangOptions{}});
     return fmt::format_to(Ctx.out(), "{}", Val.getAsString(Policy));

@@ -54,14 +54,13 @@ struct TransitionEdgeType {
 
 template <> class fmt::formatter<TransitionEdgeType> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
-      -> decltype(Ctx.begin()) {
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
     return Ctx.begin();
   }
 
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const TransitionEdgeType &Val,
-                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
+  [[nodiscard]] format_context::iterator format(const TransitionEdgeType &Val,
+                                                format_context &Ctx) const {
     return fmt::format_to(Ctx.out(), "({}, {})", Val.Edge, Val.TransitionIndex);
   }
 };
@@ -144,8 +143,8 @@ inline constexpr auto Target = []<typename T>(const T &Edge) -> VertexDescriptor
 
 template <> class fmt::formatter<GraphData> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
-      -> decltype(Ctx.begin()) {
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
     const auto *Iter = Ctx.begin();
     const auto *const End = Ctx.end();
     if (Iter != End && *Iter == 'd') {
@@ -156,9 +155,8 @@ public:
     return Iter;
   }
 
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const GraphData &Val, FormatContext &Ctx) const
-      -> decltype(Ctx.out()) {
+  [[nodiscard]] format_context::iterator format(const GraphData &Val,
+                                                format_context &Ctx) const {
     switch (Presentation_) {
     case 'd':
       return fmt::format_to(Ctx.out(), "{}", toDotFormat(Val));

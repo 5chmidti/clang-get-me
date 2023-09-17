@@ -32,14 +32,13 @@ getTransitionRequiredTypeNames(const TransitionDataType &Data);
 
 template <> class fmt::formatter<TransitionDataType> {
 public:
-  [[nodiscard]] constexpr auto parse(format_parse_context &Ctx)
-      -> decltype(Ctx.begin()) {
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
     return Ctx.begin();
   }
 
-  template <typename FormatContext>
-  [[nodiscard]] auto format(const TransitionDataType &Val,
-                            FormatContext &Ctx) const -> decltype(Ctx.out()) {
+  [[nodiscard]] format_context::iterator format(const TransitionDataType &Val,
+                                                format_context &Ctx) const {
     return fmt::format_to(
         Ctx.out(), "{} {}({})", getTransitionAcquiredTypeNames(Val),
         getTransitionName(Val), getTransitionRequiredTypeNames(Val));
