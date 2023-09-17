@@ -202,6 +202,14 @@ TEST_CASE("propagate type aliasing") {
            "(int, int getInt(), {})",
        },
        PropagateTypeAliasConfig);
+
+  test(R"(
+          using MyInt = int;
+          using My2ndInt = int;
+
+          MyInt getMyInt(My2ndInt);
+     )",
+       "int", {}, PropagateTypeAliasConfig);
 }
 
 TEST_CASE("propagate type aliasing with member aliases") {
