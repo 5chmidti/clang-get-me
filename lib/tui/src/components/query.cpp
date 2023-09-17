@@ -114,13 +114,12 @@ private:
       const auto WindowTitle = ftxui::text(
           fmt::format("# types: {}", SearchState_.getValues().size()));
 
-      const auto WindowBody =
-          hbox(Results->Render() | ftxui::frame | ftxui::flex_shrink,
-               ftxui::separator(),
-               renderSelectedResult() |
-                   size(ftxui::Direction::WIDTH,
-                        ftxui::Constraint::GREATER_THAN, MinWidth) |
-                   ftxui::flex_shrink);
+      const auto WindowBody = hbox(
+          Results->Render() | ftxui::frame | ftxui::flex_shrink,
+          ftxui::separator(),
+          renderSelectedResult() |
+              size(ftxui::WIDTH, ftxui::Constraint::GREATER_THAN, MinWidth) |
+              ftxui::flex_shrink);
       return window(WindowTitle, WindowBody);
     });
   }

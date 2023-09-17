@@ -30,16 +30,16 @@ class GetMe(ConanFile):
         self.options["boost"].without_wave = True
 
     def requirements(self):
-        self.requires("fmt/9.1.0")
-        self.requires("spdlog/1.11.0")
-        self.requires("catch2/3.3.0")
-        self.requires("benchmark/1.7.1")
-        self.requires("boost/1.81.0")
+        self.requires("fmt/10.1.1")
+        self.requires("spdlog/1.12.0")
+        self.requires("catch2/3.4.0")
+        self.requires("benchmark/1.8.3")
+        self.requires("boost/1.83.0")
         self.requires("range-v3/0.12.0")
-        self.requires("ftxui/3.0.0")
+        self.requires("ftxui/4.1.1")
         self.requires("rapidfuzz/cci.20210513")
-        self.requires("ctre/3.7.1")
-        self.requires("onetbb/2021.7.0")
+        self.requires("ctre/3.8")
+        self.requires("onetbb/2021.10.0")
 
     def layout(self):
         cmake_layout(self)
