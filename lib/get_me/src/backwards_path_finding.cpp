@@ -31,8 +31,7 @@ void push(std::stack<TransitionEdgeType> &Stack, RangeType &&Range) {
 
 class StateType {
 public:
-  [[nodiscard]] explicit StateType(
-      boost::container::flat_set<PathType, IsPermutationComparator> &Paths)
+  [[nodiscard]] explicit StateType(GraphData::PathContainer &Paths)
       : Paths_(Paths) {}
 
   void addEdge(const TransitionEdgeType &Edge) {
@@ -56,7 +55,7 @@ public:
   [[nodiscard]] size_t getNumPaths() const { return ranges::size(Paths_); }
 
 private:
-  boost::container::flat_set<PathType, IsPermutationComparator> &Paths_;
+  GraphData::PathContainer &Paths_;
   PathType CurrentPath_{};
 
   [[nodiscard]] bool requiresRollback(const TransitionEdgeType &Edge) const {
