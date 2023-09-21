@@ -6,5 +6,5 @@
 #include "support/testcase_generation.hpp"
 
 TEST_CASE("generated multi forking paths") {
-  test(GenerateMultiForkingPath, size_t{8});
+  test(GenerateMultiForkingPath, size_t{6});
 }

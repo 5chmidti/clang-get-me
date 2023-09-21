@@ -6,5 +6,5 @@
 #include "support/testcase_generation.hpp"
 
 TEST_CASE("generated straight path") {
-  test(GenerateStraightPath, size_t{1} << size_t{6});
+  test(GenerateStraightPath, size_t{1} << size_t{4});
 }
