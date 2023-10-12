@@ -62,7 +62,6 @@ struct TransitionData {
 
   void commit();
 
-  size_t TransitionCounter{0U};
   associative_container_type Data{};
   flat_container_type FlatData{};
 };
