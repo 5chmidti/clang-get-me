@@ -16,7 +16,6 @@ public:
 
   using BooleanMappingType = MappingType<bool>;
   using SizeTMappingType = MappingType<std::size_t>;
-  using Int64MappingType = MappingType<std::int64_t>;
 
   [[nodiscard]] static consteval auto getConfigMapping() {
     return std::tuple{
