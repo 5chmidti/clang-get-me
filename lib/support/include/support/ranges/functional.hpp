@@ -10,6 +10,7 @@
 #include <utility>
 
 #include <range/v3/functional/comparisons.hpp>
+#include <range/v3/range/concepts.hpp>
 
 template <std::size_t I>
 inline constexpr auto Element = []<typename T>
