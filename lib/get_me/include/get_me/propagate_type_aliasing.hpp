@@ -7,7 +7,7 @@
 #include <fmt/core.h>
 
 #include "get_me/formatting.hpp"
-#include "get_me/transitions.hpp"
+#include "get_me/type_conversion_map.hpp"
 
 struct TypeAlias {
   clang::QualType Base;
@@ -27,7 +27,7 @@ public:
   }
 };
 
-void propagateTypeAliasing(TransitionData &Transitions,
+void propagateTypeAliasing(TypeConversionMap &ConversionMap,
                            const std::vector<TypeAlias> &TypedefNameDecls);
 
 #endif

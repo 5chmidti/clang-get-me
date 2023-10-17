@@ -10,8 +10,8 @@
     const TransitionData::associative_container_type &Transitions,
     const TypeSet &Query);
 
-[[nodiscard]] TypeSet getQueriedTypesForInput(
-    const TransitionData::associative_container_type &Transitions,
-    std::string_view QueriedTypeAsString);
+[[nodiscard]] TypeSet
+getQueriedTypesForInput(const TransitionData &Transitions,
+                        std::string_view QueriedTypeAsString);
 
 #endif

@@ -288,3 +288,37 @@ TEST_CASE("back edges") {
        },
        std::make_shared<Config>(Config{.EnableGraphBackwardsEdge = false}));
 }
+
+TEST_CASE("dependent") {
+  test(R"(
+        struct C {};
+        struct B { B(C); };
+        struct A { A(B, C); };
+        )",
+       "A",
+       {
+           "(A, A A(B, C), {C, B}), (B, B B(C), {C}), (C, C C(), {})",
+       });
+}
+
+TEST_CASE("cycles") {
+  test(R"(
+        struct A {};
+        using B = A;
+        A getA(B);
+        )",
+       "A",
+       {
+           "(A, A A(), {})",
+       });
+
+  test(R"(
+        struct A {};
+        A getA(const A);
+        const A getA2(A);
+        )",
+       "A",
+       {
+           "(A, A A(), {})",
+       });
+}

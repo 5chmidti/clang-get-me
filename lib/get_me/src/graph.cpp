@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iterator>
 #include <limits>
 #include <memory>
 #include <set>
@@ -21,16 +20,20 @@
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/fold_left.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/algorithm/set_algorithm.hpp>
 #include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/drop_while.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/filter.hpp>
+#include <range/v3/view/for_each.hpp>
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/move.hpp>
 #include <range/v3/view/remove.hpp>
+#include <range/v3/view/repeat.hpp>
 #include <range/v3/view/repeat_n.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/single.hpp>
@@ -39,11 +42,13 @@
 #include <range/v3/view/take_while.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/zip.hpp>
+#include <spdlog/spdlog.h>
 
 #include "get_me/config.hpp"
 #include "get_me/indexed_set.hpp"
 #include "get_me/query.hpp"
 #include "get_me/transitions.hpp"
+#include "get_me/type_conversion_map.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/front.hpp"
@@ -61,62 +66,69 @@ edgeWithTransitionExistsInContainer(const GraphData::EdgeContainer &Edges,
       Index(Transition));
 }
 
-[[nodiscard]] std::vector<
-    std::pair<GraphBuilder::VertexSet::value_type, std::vector<TransitionType>>>
-constructVertexAndTransitionsPairVector(
+using FoldType = std::vector<std::pair<GraphBuilder::VertexSet::value_type,
+                                       std::vector<TransitionType>>>;
+[[nodiscard]] FoldType constructVertexAndTransitionsPairVector(
     GraphBuilder::VertexSet InterestingVertices,
-    const TransitionData::associative_container_type &Transitions) {
-  auto IndependentTransitionsVec = ranges::fold_left(
+    const TransitionData::associative_container_type &Transitions,
+    const TypeConversionMap &ConversionMap) {
+  return ranges::fold_left(
       Transitions,
-      std::vector<std::vector<TransitionType>>(InterestingVertices.size()),
-      [&InterestingVertices](auto CurrentIndependentTransitionsVec,
-                             const BundeledTransitionType &BundeledTransition) {
-        const auto MaybeAddIndependentTransitions =
-            [Acquired = ToAcquired(BundeledTransition), &InterestingVertices,
-             &CurrentIndependentTransitionsVec](
-                const StrippedTransitionType &StrippedTransition) {
-              const auto Transition =
-                  TransitionType{Index(StrippedTransition),
-                                 {Acquired, ToTransition(StrippedTransition),
-                                  ToRequired(StrippedTransition)}};
-              const auto ContainsAcquired =
-                  [&Acquired](const auto &IndexedVertex) {
-                    return Value(IndexedVertex).contains(Acquired);
-                  };
-              const auto AllAreIndependentOfTransition =
-                  [&Transition](const auto &IndependentTransitions) {
-                    return ranges::all_of(IndependentTransitions,
-                                          independentOf(Transition));
-                  };
-              ranges::for_each(
-                  ranges::views::zip(InterestingVertices,
-                                     CurrentIndependentTransitionsVec) |
-                      ranges::views::filter(ContainsAcquired, Element<0>) |
-                      ranges::views::transform(Element<1>) |
-                      ranges::views::filter(AllAreIndependentOfTransition),
-                  ranges::push_back(Transition));
-            };
-        ranges::for_each(BundeledTransition.second,
-                         MaybeAddIndependentTransitions);
-        return CurrentIndependentTransitionsVec;
+      ranges::views::zip(InterestingVertices,
+                         ranges::views::repeat(std::vector<TransitionType>{})) |
+          ranges::to<FoldType>,
+      [&ConversionMap](const FoldType &VertexAndTransitionsPair,
+                       const BundeledTransitionType &BundeledTransition) {
+        const auto Acquired = ToAcquired(BundeledTransition);
+        const auto PossibleConversionsTypesForAcquired =
+            ConversionMap |
+            ranges::views::filter(ranges::bind_back(ranges::contains, Acquired),
+                                  Value) |
+            ranges::views::keys | ranges::to<TypeSet>;
+        spdlog::error("VertexAndTransitionsPair: {}", VertexAndTransitionsPair);
+        return VertexAndTransitionsPair |
+               ranges::views::transform(
+                   [&PossibleConversionsTypesForAcquired,
+                    &BundeledTransition](const auto &Pair) {
+                     const auto &[Vertex, TransitionsVec] = Pair;
+                     const auto GetNewTransitions =
+                         [&PossibleConversionsTypesForAcquired](
+                             auto &InterestingVertex) {
+                           return [&InterestingVertex,
+                                   &PossibleConversionsTypesForAcquired](
+                                      const auto &StrippedTransition) {
+                             const auto MakeTransition =
+                                 [&StrippedTransition](
+                                     const auto &ConversionTypeOfAcquired) {
+                                   return TransitionType{
+                                       Index(StrippedTransition),
+                                       {ConversionTypeOfAcquired,
+                                        ToTransition(StrippedTransition),
+                                        ToRequired(StrippedTransition)}};
+                                 };
+                             const auto MatchingTypes =
+                                 ranges::views::set_intersection(
+                                     Value(InterestingVertex),
+                                     PossibleConversionsTypesForAcquired);
+                             return MatchingTypes |
+                                    ranges::views::transform(MakeTransition);
+                           };
+                         };
+                     spdlog::warn("Vertex: {}", Vertex);
+                     return std::pair{
+                         Vertex, getSmallestIndependentTransitions(
+                                     ranges::views::concat(
+                                         TransitionsVec,
+                                         BundeledTransition.second |
+                                             ranges::views::for_each(
+                                                 GetNewTransitions(Vertex))) |
+                                     ranges::to<std::vector<TransitionType>>)};
+                   }) |
+               ranges::to<FoldType>;
       });
-
-  return ranges::views::zip(InterestingVertices | ranges::views::move,
-                            IndependentTransitionsVec | ranges::views::move) |
-         ranges::to_vector;
 }
 
-[[nodiscard]] auto toTransitionAndTargetTypeSetPairForVertex(
-    const indexed_value<GraphBuilder::VertexType> &IndexedVertex) {
-  return [&IndexedVertex](const TransitionType &Transition) {
-    return std::pair{Transition,
-                     Value(IndexedVertex) |
-                         ranges::views::remove(ToAcquired(Transition)) |
-                         ranges::views::set_union(ToRequired(Transition)) |
-                         ranges::to<TypeSet>};
-  };
-}
-
+// FIXME: this should be a positive match? would probably be cheaper to compute
 [[nodiscard]] std::vector<VertexDescriptor>
 getVerticesThatAreNotA(const GraphData &Data,
                        const auto SourceOrTargetProjection) {
@@ -139,6 +151,34 @@ GraphData::GraphData(std::vector<TypeSet> VertexData,
       Transitions{std::move(Transitions)},
       Conf{std::move(Conf)} {}
 
+class GraphBuilder::GraphBuilderImpl {
+public:
+  [[nodiscard]] auto toTransitionAndTargetTypeSetPairForVertex(
+      const indexed_value<GraphBuilder::VertexType> &IndexedVertex) {
+    return [&IndexedVertex, this](const TransitionType &Transition) {
+      const auto Acquired = ToAcquired(Transition);
+      const auto ConversionsOfAcquired =
+          Transitions->ConversionMap.find(Acquired);
+
+      GetMeException::verify(
+          ConversionsOfAcquired != Transitions->ConversionMap.end(),
+          "Could not find type conversion mapping for {}", Acquired);
+
+      const auto NewRequired =
+          Value(IndexedVertex) |
+          ranges::views::set_difference(ConversionsOfAcquired->second) |
+          ranges::views::set_union(ToRequired(Transition)) |
+          ranges::to<TypeSet>;
+      spdlog::error(
+          "toTransitionAndTargetTypeSetPairForVertex: {} with {} and {}",
+          IndexedVertex, Transition, NewRequired);
+      return std::pair{Transition, NewRequired};
+    };
+  }
+
+  TransitionData *Transitions;
+};
+
 GraphBuilder::GraphBuilder(std::shared_ptr<TransitionData> Transitions,
                            TypeSet Query, std::shared_ptr<Config> Conf)
     : Transitions_{std::move(Transitions)},
@@ -159,7 +199,8 @@ GraphBuilder::GraphBuilder(std::shared_ptr<TransitionData> Transitions,
               ranges::views::single(size_t{1U})) |
           ranges::to_vector},
       Conf_{std::move(Conf)},
-      CurrentState_{0U, VertexData_} {}
+      CurrentState_{0U, VertexData_},
+      Impl_{std::make_unique<GraphBuilderImpl>(Transitions_.get())} {}
 
 void GraphBuilder::build() {
   while (CurrentState_.IterationIndex < Conf_->MaxGraphDepth && buildStep()) {
@@ -187,6 +228,8 @@ bool GraphBuilder::buildStepFor(const VertexType &InterestingVertex) {
 bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
   CurrentState_.InterestingVertices.clear();
   ++CurrentState_.IterationIndex;
+  spdlog::error("");
+  spdlog::error("InterestingVertices: {}", InterestingVertices);
 
   auto MaybeAddEdgeFrom =
       [this](const indexed_value<VertexType> &IndexedSourceVertex) {
@@ -202,30 +245,44 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
                                              ? Index(*TargetVertexIter)
                                              : VertexData_.size();
 
+          spdlog::error("TargetTypeSet: {}", TargetTypeSet);
+          spdlog::error("TargetVertexExists: {}", TargetVertexExists);
+          spdlog::error("VertexData_: {}", VertexData_);
+          spdlog::error("TargetVertexIndex: {}", TargetVertexIndex);
+          spdlog::error("IndexedSourceVertex: {}", IndexedSourceVertex);
+          spdlog::error("TransitionAndTargetTS: {}", TransitionAndTargetTS);
+
           const auto EdgeToAdd = TransitionEdgeType{
               {Index(IndexedSourceVertex), TargetVertexIndex},
               Index(Transition)};
+
+          spdlog::error("EdgeToAdd: {}", EdgeToAdd);
 
           const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
           if (TargetVertexExists) {
             if (!IsEmptyTargetTS && !Conf_->EnableGraphBackwardsEdge &&
                 SourceDepth >= VertexDepth_[TargetVertexIndex]) {
+              spdlog::error("backwards edge filter");
               return AddedTransitions;
             }
 
             if (edgeWithTransitionExistsInContainer(Edges_, EdgeToAdd,
                                                     Transition)) {
+              spdlog::error("edge exists");
               return AddedTransitions;
             }
           }
           CurrentState_.InterestingVertices.emplace(TargetVertexIndex,
                                                     TargetTypeSet);
           if (!TargetVertexExists) {
+            spdlog::error("adding vertex: {} -> {}", TargetVertexIndex,
+                          TargetTypeSet);
             VertexData_.emplace(TargetVertexIndex, TargetTypeSet);
             VertexDepth_.push_back(CurrentState_.IterationIndex);
           }
           if (const auto [_, EdgeAdded] = Edges_.emplace(EdgeToAdd);
               EdgeAdded) {
+            spdlog::error("added edge: {}", EdgeToAdd);
             AddedTransitions = true;
           }
 
@@ -233,14 +290,21 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
         };
       };
 
+  spdlog::error("Transitions_->Data: {}", Transitions_->Data);
+  auto TransitionsForQuery = getTransitionsForQuery(Transitions_->Data, Query_);
+  // FIXME: getTransitionsForQuery seems broken
+  auto VertexAndTransitionsVec = constructVertexAndTransitionsPairVector(
+      std::move(InterestingVertices), TransitionsForQuery,
+      Transitions_->ConversionMap);
+  spdlog::error("VertexAndTransitionsVec: {}", VertexAndTransitionsVec);
+  spdlog::error("TransitionsForQuery: {}", TransitionsForQuery);
   return ranges::fold_left(
-      constructVertexAndTransitionsPairVector(
-          std::move(InterestingVertices),
-          getTransitionsForQuery(Transitions_->Data, Query_)),
-      false,
+      VertexAndTransitionsVec, false,
       [this, MaybeAddEdgeFrom](bool AddedTransitions,
                                const auto &VertexAndTransitions) {
         const auto &[IndexedVertex, Transitions] = VertexAndTransitions;
+
+        spdlog::error("VertexAndTransitions: {}", VertexAndTransitions);
 
         const auto MaxAllowedTypeSetSize =
             SafePlus(Conf_->MaxPathLength, Conf_->MaxRemainingTypes);
@@ -259,7 +323,8 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
                         ranges::bind_back(SafePlus, CurrentTypeSetSize),
                         ranges::compose(ranges::size, ToRequired))) |
                 ranges::views::transform(
-                    toTransitionAndTargetTypeSetPairForVertex(IndexedVertex)),
+                    Impl_->toTransitionAndTargetTypeSetPairForVertex(
+                        IndexedVertex)),
             AddedTransitions, MaybeAddEdgeFrom(IndexedVertex));
       });
 }

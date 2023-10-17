@@ -15,8 +15,8 @@
 void queryAll(const std::shared_ptr<TransitionData> &Transitions,
               const std::shared_ptr<Config> Conf) {
   const auto Run = [Transitions, &Conf](const auto &QueriedType) {
-    const auto Query = getQueriedTypesForInput(Transitions->Data,
-                                               fmt::format("{}", QueriedType));
+    const auto Query =
+        getQueriedTypesForInput(*Transitions, fmt::format("{}", QueriedType));
     auto Data = runGraphBuilding(Transitions, Query, Conf);
     runPathFinding(Data);
   };

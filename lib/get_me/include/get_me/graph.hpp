@@ -147,7 +147,7 @@ public:
   parse(format_parse_context &Ctx) {
     const auto *Iter = Ctx.begin();
     const auto *const End = Ctx.end();
-    if (Iter != End && *Iter == 'd') {
+    if (Iter != End && (*Iter == 'd' || *Iter == 's')) {
       // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
       Presentation_ = *Iter++;
       Ctx.advance_to(Iter);
@@ -160,6 +160,18 @@ public:
     switch (Presentation_) {
     case 'd':
       return fmt::format_to(Ctx.out(), "{}", toDotFormat(Val));
+    case 's':
+      return fmt::format_to(Ctx.out(), R"(
+  VertexData: {}
+  VertexDepth: {}
+  Edges: {}
+  Paths: {}
+  Transitions: {}
+  )",
+                            ranges::size(Val.VertexData),
+                            ranges::size(Val.VertexDepth),
+                            ranges::size(Val.Edges), ranges::size(Val.Paths),
+                            ranges::size(Val.Transitions->FlatData));
     }
     return fmt::format_to(Ctx.out(), R"(
   VertexData: {}
@@ -223,6 +235,8 @@ private:
     VertexSet InterestingVertices{};
   };
 
+  class GraphBuilderImpl;
+
   [[nodiscard]] static std::int64_t
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
@@ -234,6 +248,8 @@ private:
   std::shared_ptr<Config> Conf_{};
 
   StepState CurrentState_{};
+
+  std::unique_ptr<GraphBuilderImpl> Impl_{};
 };
 
 [[nodiscard]] GraphData

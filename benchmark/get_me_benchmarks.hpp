@@ -19,8 +19,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   const auto Conf = std::make_shared<Config>();
   auto Transitions = collectTransitions(Ast, Conf);
   State.counters["transitions"] = static_cast<double>(Transitions->Data.size());
-  const auto Query =
-      getQueriedTypesForInput(Transitions->Data, QueriedTypeAsString);
+  const auto Query = getQueriedTypesForInput(*Transitions, QueriedTypeAsString);
   auto Data = runGraphBuilding(Transitions, Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
@@ -39,7 +38,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_GRAPH                                                        \
   const auto Query =                                                           \
-      getQueriedTypesForInput(Transitions->Data, QueriedTypeAsString);         \
+      getQueriedTypesForInput(*Transitions, QueriedTypeAsString);              \
   auto Data = runGraphBuilding(Transitions, Query, Conf);
 
 #define BENCHMARK_PATH_FINDING runPathFinding(Data);

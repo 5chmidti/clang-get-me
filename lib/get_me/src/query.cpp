@@ -44,14 +44,10 @@ matchesQueriedTypeName(const TypeSetValueType &Val,
 }
 } // namespace
 
-TypeSet getQueriedTypesForInput(
-    const TransitionData::associative_container_type &Transitions,
-    const std::string_view QueriedTypeAsString) {
-  if (Transitions.empty()) {
-    GetMeException::fail("getQueriedTypeForInput(): Transitions are empty");
-  }
+TypeSet getQueriedTypesForInput(const TransitionData &Transitions,
+                                const std::string_view QueriedTypeAsString) {
   auto FilteredTypes =
-      Transitions | ranges::views::transform(ToAcquired) |
+      Transitions.ConversionMap | ranges::views::keys |
       ranges::views::filter(
           [QueriedTypeAsString](const TypeSetValueType &Acquired) {
             return matchesQueriedTypeName(Acquired, QueriedTypeAsString);

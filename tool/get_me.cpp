@@ -117,7 +117,7 @@ int main(int argc, const char **argv) {
   }
 
   const auto &QueriedType = TypeName.getValue();
-  const auto Query = getQueriedTypesForInput(Transitions->Data, QueriedType);
+  const auto Query = getQueriedTypesForInput(*Transitions, QueriedType);
 
   auto Data = runGraphBuilding(Transitions, Query, Conf);
   runPathFinding(Data);

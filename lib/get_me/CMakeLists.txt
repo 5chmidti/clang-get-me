@@ -7,11 +7,13 @@ target_sources(
           src/graph.cpp
           src/propagate_inheritance.cpp
           src/propagate_type_aliasing.cpp
+          src/propagate_type_conversions.cpp
           src/query.cpp
           src/query_all.cpp
           src/tooling.cpp
           src/tooling_filters.cpp
           src/transitions.cpp
+          src/type_conversion_map.cpp
           src/type_set.cpp)
 target_sources(
   get_me_lib
@@ -28,11 +30,13 @@ target_sources(
          include/get_me/indexed_set.hpp
          include/get_me/propagate_inheritance.hpp
          include/get_me/propagate_type_aliasing.hpp
-         include/get_me/query.hpp
+         include/get_me/propagate_type_conversions.hpp
          include/get_me/query_all.hpp
-         include/get_me/tooling.hpp
+         include/get_me/query.hpp
          include/get_me/tooling_filters.hpp
+         include/get_me/tooling.hpp
          include/get_me/transitions.hpp
+         include/get_me/type_conversion_map.hpp
          include/get_me/type_set.hpp)
 
 target_compile_options(get_me_lib PUBLIC -fno-rtti)

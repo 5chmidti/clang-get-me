@@ -18,8 +18,8 @@ TEST_CASE("propagate type aliasing") {
        "B",
        {
            "(B, B getB(), {})",
-           "(B, A getA(), {})",
-           "(B, A A(), {})",
+           "(A, A getA(), {})",
+           "(A, A A(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -31,7 +31,7 @@ TEST_CASE("propagate type aliasing") {
   )",
        "A",
        {
-           "(A, B getB(), {})",
+           "(B, B getB(), {})",
            "(A, A getA(), {})",
            "(A, A A(), {})",
        },
@@ -49,7 +49,7 @@ TEST_CASE("propagate type aliasing") {
   )",
        "B",
        {
-           "(B, A A(int), {int})",
+           "(A<int>, A A(int), {int})",
            "(B, B getB(), {})",
        },
        PropagateTypeAliasConfig);
@@ -65,7 +65,6 @@ TEST_CASE("propagate type aliasing") {
        {
            "(C, C C(), {})",
            "(C, C getC(A), {A}), (A, A A(), {})",
-           "(C, C getC(A), {B}), (B, A A(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -78,8 +77,7 @@ TEST_CASE("propagate type aliasing") {
        "C",
        {
            "(C, C C(), {})",
-           "(C, C getC(B), {A}), (A, A A(), {})",
-           "(C, C getC(B), {B}), (B, A A(), {})",
+           "(C, C getC(B), {B}), (A, A A(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -92,7 +90,7 @@ TEST_CASE("propagate type aliasing") {
   )",
        "B",
        {
-           "(B, A A(), {})",
+           "(A, A A(), {})",
            "(B, B getB(), {})",
        },
        PropagateTypeAliasConfig);
@@ -106,8 +104,8 @@ TEST_CASE("propagate type aliasing") {
   )",
        "C",
        {
-           "(C, A A(), {})",
-           "(C, B getB(), {})",
+           "(A, A A(), {})",
+           "(B, B getB(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -122,10 +120,7 @@ TEST_CASE("propagate type aliasing") {
        "C",
        {
            "(C, C C(), {})",
-           "(C, C getC(B), {A}), (A, A A(), {})",
-           "(C, C getC(B), {B}), (B, A A(), {})",
-           "(C, C getC(B), {D}), (D, A A(), {})",
-           "(C, C getC(B), {E}), (E, A A(), {})",
+           "(C, C getC(B), {B}), (A, A A(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -147,10 +142,7 @@ TEST_CASE("propagate type aliasing") {
        "C1",
        {
            "(C1, C1 C1(), {})",
-           "(C1, C1 getC(B1), {A1}), (A1, A1 A1(), {})",
-           "(C1, C1 getC(B1), {B1}), (B1, A1 A1(), {})",
-           "(C1, C1 getC(B1), {D1}), (D1, A1 A1(), {})",
-           "(C1, C1 getC(B1), {E1}), (E1, A1 A1(), {})",
+           "(C1, C1 getC(B1), {B1}), (A1, A1 A1(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -182,7 +174,7 @@ TEST_CASE("propagate type aliasing") {
     )",
        "A2",
        {
-           "(A2, A A(), {})",
+           "(A, A A(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -198,7 +190,7 @@ TEST_CASE("propagate type aliasing") {
     )",
        "int",
        {
-           "(int, D getD(), {})",
+           "(D, D getD(), {})",
            "(int, int getInt(), {})",
        },
        PropagateTypeAliasConfig);
@@ -233,7 +225,7 @@ TEST_CASE("propagate type aliasing with member aliases") {
     )",
        "B::Other",
        {
-           "(B::Other, A A(), {})",
+           "(A, A A(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -258,8 +250,8 @@ TEST_CASE("propagate type aliasing with member aliases") {
     )",
        "B::Base",
        {
-           "(B::Base, A A(), {})",
-           "(B::Base, B B(), {})",
+           "(A, A A(), {})",
+           "(A, B B(), {})",
        },
        PropagateTypeAliasConfig);
 
@@ -310,8 +302,8 @@ TEST_CASE("propagate type aliasing with member aliases") {
     )",
        "B::Base",
        {
-           "(B::Base, A A(), {})",
-           "(B::Base, B B(), {})",
+           "(A, A A(), {})",
+           "(A, B B(), {})",
        },
        PropagateTypeAliasConfig);
 }

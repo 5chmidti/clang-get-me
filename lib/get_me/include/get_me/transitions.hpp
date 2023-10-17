@@ -1,7 +1,6 @@
 #ifndef get_me_lib_get_me_include_get_me_transitions_hpp
 #define get_me_lib_get_me_include_get_me_transitions_hpp
 
-#include <cstddef>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -14,6 +13,7 @@
 #include <fmt/core.h>
 
 #include "get_me/indexed_set.hpp"
+#include "get_me/type_conversion_map.hpp"
 #include "get_me/type_set.hpp"
 #include "support/concepts.hpp"
 #include "support/ranges/functional.hpp"
@@ -64,6 +64,7 @@ struct TransitionData {
 
   associative_container_type Data{};
   flat_container_type FlatData{};
+  TypeConversionMap ConversionMap{};
 };
 
 using BundeledTransitionType = TransitionData::value_type;
@@ -113,16 +114,7 @@ inline constexpr auto ToTransition =
   }
 };
 
-[[nodiscard]] inline bool independent(const TransitionType &Lhs,
-                                      const TransitionType &Rhs) {
-  return !ToRequired(Rhs).contains(ToAcquired(Lhs)) &&
-         !ToRequired(Lhs).contains(ToAcquired(Rhs));
-}
-
-[[nodiscard]] inline auto independentOf(const TransitionType &Transition) {
-  return [&Transition](const TransitionType &OtherTransition) {
-    return independent(Transition, OtherTransition);
-  };
-}
+[[nodiscard]] std::vector<TransitionType> getSmallestIndependentTransitions(
+    const std::vector<TransitionType> &Transitions);
 
 #endif

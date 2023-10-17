@@ -44,6 +44,7 @@
 #include "get_me/formatting.hpp"
 #include "get_me/propagate_inheritance.hpp"
 #include "get_me/propagate_type_aliasing.hpp"
+#include "get_me/propagate_type_conversions.hpp"
 #include "get_me/tooling_filters.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
@@ -371,8 +372,10 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
     propagateInheritance(*Transitions_, CXXRecords);
   }
   if (Conf_->EnablePropagateTypeAlias) {
-    propagateTypeAliasing(*Transitions_, TypedefNameDecls);
+    propagateTypeAliasing(Transitions_->ConversionMap, TypedefNameDecls);
   }
+
+  propagateTypeConversions(*Transitions_);
 
   Transitions_->commit();
 }

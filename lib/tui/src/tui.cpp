@@ -100,7 +100,7 @@ void runTui(const std::shared_ptr<Config> Conf,
   const auto CommitCallback = [&Conf, &PathsStr, &CollectionState,
                                &QueriedName]() {
     const auto Query = getQueriedTypesForInput(
-        CollectionState.getTransitionsPtr()->Data, QueriedName);
+        *CollectionState.getTransitionsPtr(), QueriedName);
 
     auto Data =
         runGraphBuilding(CollectionState.getTransitionsPtr(), Query, Conf);
