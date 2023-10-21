@@ -38,7 +38,7 @@ class GetMe(ConanFile):
         self.requires("range-v3/0.12.0")
         self.requires("ftxui/4.1.1")
         self.requires("rapidfuzz/cci.20210513")
-        self.requires("ctre/3.8")
+        self.requires("ctre/3.8.1")
         self.requires("onetbb/2021.10.0")
 
     def layout(self):
