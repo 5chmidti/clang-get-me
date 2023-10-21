@@ -1,15 +1,19 @@
 
 #include "get_me/backwards_path_finding.hpp"
 
+#include <cstddef>
+#include <functional>
 #include <stack>
 
-#include <boost/container/flat_set.hpp>
 #include <range/v3/action/action.hpp>
 #include <range/v3/action/reverse.hpp>
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/compose.hpp>
 #include <range/v3/iterator/operations.hpp>
+#include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
 #include <range/v3/range/primitives.hpp>

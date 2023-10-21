@@ -68,7 +68,7 @@ void verify(const bool ExpectedEqualityResult, const auto &FoundPathsAsString,
                 Seperator)));
 
   INFO(fmt::format("{1: <{0}}: {2}", Indentation, "Transitions",
-                   fmt::join(Transitions.FlatData, Seperator)));
+                   fmt::join(Transitions.BundeledData, Seperator)));
   REQUIRE(ExpectedEqualityResult ==
           ranges::equal(FoundPathsAsString, ExpectedPaths));
 }
@@ -185,5 +185,5 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionData> &Transitions,
     return {};
   }
 
-  return toString(Data.Paths, Data) | ranges::to<ResultPaths>;
+  return toStringExpanded(Data.Paths, Data) | ranges::to<ResultPaths>;
 }

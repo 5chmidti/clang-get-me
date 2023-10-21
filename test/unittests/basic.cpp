@@ -1,5 +1,8 @@
+#include <memory>
+
 #include <catch2/catch_test_macros.hpp>
 
+#include "get_me/config.hpp"
 #include "get_me_tests.hpp"
 
 TEST_CASE("simple single edges") {
@@ -83,40 +86,6 @@ B getB();
     }
   )",
               "B", {});
-}
-
-TEST_CASE("overloads") {
-  test(R"(
-struct A {};
-
-A getA();
-A getA(int);
-A getA(float, int);
-A getA(float);
-A getA(float, float);
-)",
-       "A",
-       {
-           "(A, A getA(), {})",
-           "(A, A A(), {})",
-           "(A, A getA(int), {int})",
-           "(A, A getA(float), {float})",
-           "(A, A getA(float, int), {int, float})",
-       },
-       std::make_shared<Config>(Config{.EnableFilterOverloads = true}));
-
-  test(R"(
-struct A {};
-
-A getA(float);
-A getA(float, float);
-)",
-       "A",
-       {
-           "(A, A getA(float), {float})",
-           "(A, A A(), {})",
-       },
-       std::make_shared<Config>(Config{.EnableFilterOverloads = true}));
 }
 
 TEST_CASE("special member functions") {

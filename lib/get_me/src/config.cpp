@@ -6,11 +6,11 @@
 #include <string>
 #include <system_error>
 
-#include <fmt/core.h>
 #include <fmt/std.h>
 #include <llvm/Support/YAMLTraits.h>
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/range/concepts.hpp>
 #include <range/v3/utility/tuple_algorithm.hpp>
 
 #include "support/get_me_exception.hpp"

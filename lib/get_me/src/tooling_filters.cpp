@@ -9,6 +9,7 @@
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
 #include <clang/Basic/Specifiers.h>
+#include <fmt/core.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>

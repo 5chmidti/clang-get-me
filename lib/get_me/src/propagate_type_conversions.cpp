@@ -1,14 +1,17 @@
 #include "get_me/propagate_type_conversions.hpp"
 
+#include <functional>
+#include <utility>
 #include <variant>
 
+#include <boost/container/flat_set.hpp>
 #include <clang/AST/Type.h>
-#include <fmt/ranges.h>
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/contains.hpp>
+#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
-#include <range/v3/view/cache1.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
@@ -16,12 +19,13 @@
 #include <range/v3/view/indirect.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/map.hpp>
+#include <range/v3/view/single.hpp>
 #include <range/v3/view/transform.hpp>
-#include <spdlog/spdlog.h>
 
 #include "get_me/transitions.hpp"
 #include "get_me/type_conversion_map.hpp"
 #include "get_me/type_set.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/variant.hpp"
 
 namespace {
@@ -46,10 +50,9 @@ stripPointerRef(const TypeSetValueType &SourceType) {
 
 void propagateTypeConversions(TransitionData &Transitions) {
   const auto AllTypes =
-      ranges::views::concat(Transitions.Data | ranges::views::keys,
-                            Transitions.Data | ranges::views::values |
-                                ranges::views::join |
-                                ranges::views::for_each(ToRequired)) |
+      ranges::views::concat(
+          Transitions.Data | ranges::views::transform(ToAcquired),
+          Transitions.Data | ranges::views::for_each(ToRequired)) |
       ranges::to_vector;
   const auto FlatPointerRefConversions =
       AllTypes | ranges::views::transform([](const TypeSetValueType &Type) {
@@ -124,9 +127,4 @@ void propagateTypeConversions(TransitionData &Transitions) {
               ranges::views::indirect | ranges::views::values |
               ranges::views::join | ranges::to<TypeSet>);
   });
-
-  spdlog::error("PtrRefConversionSet : {}", PtrRefConversionSet);
-  spdlog::error("PointerRefConversions : {}", PointerRefConversions);
-  spdlog::error("Transitions.ConversionMap : {}", Transitions.ConversionMap);
-  spdlog::error("Transitions.Data : {}", Transitions.Data);
 }

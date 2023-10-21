@@ -1,6 +1,7 @@
 #ifndef get_me_lib_get_me_include_get_me_tooling_filters_hpp
 #define get_me_lib_get_me_include_get_me_tooling_filters_hpp
 
+#include <concepts>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -9,6 +10,7 @@
 #include <clang/AST/DeclCXX.h>
 #include <clang/AST/Type.h>
 #include <range/v3/algorithm/any_of.hpp>
+#include <range/v3/range/concepts.hpp>
 
 #include "get_me/config.hpp"
 #include "support/concepts.hpp"

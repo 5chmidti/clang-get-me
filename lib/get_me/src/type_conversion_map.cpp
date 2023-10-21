@@ -1,5 +1,7 @@
 #include "get_me/type_conversion_map.hpp"
 
+#include <utility>
+
 #include <range/v3/algorithm/for_each.hpp>
 
 void combine(TypeConversionMap &Lhs, TypeConversionMap &&Rhs) {

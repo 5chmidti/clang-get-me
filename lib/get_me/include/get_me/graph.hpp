@@ -2,6 +2,7 @@
 #define get_me_lib_get_me_include_get_me_graph_hpp
 
 #include <compare>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -11,17 +12,21 @@
 
 #include <boost/container/flat_set.hpp>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <fmt/ranges.h>
 #include <range/v3/algorithm/lexicographical_compare.hpp>
 #include <range/v3/algorithm/permutation.hpp>
+#include <range/v3/functional/bind_back.hpp>
 #include <range/v3/functional/comparisons.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/range/traits.hpp>
+#include <range/v3/view/for_each.hpp>
+#include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/indexed_set.hpp"
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
-#include "support/ranges/functional.hpp"
 
 namespace clang {
 class CXXRecordDecl;
@@ -171,7 +176,7 @@ public:
                             ranges::size(Val.VertexData),
                             ranges::size(Val.VertexDepth),
                             ranges::size(Val.Edges), ranges::size(Val.Paths),
-                            ranges::size(Val.Transitions->FlatData));
+                            ranges::size(Val.Transitions->Data));
     }
     return fmt::format_to(Ctx.out(), R"(
   VertexData: {}
@@ -182,7 +187,7 @@ public:
     {}
   )",
                           Val.VertexData, Val.VertexDepth, Val.Edges, Val.Paths,
-                          fmt::join(Val.Transitions->FlatData, "\n\t"));
+                          fmt::join(Val.Transitions->Data, "\n\t"));
   }
 
 private:
@@ -203,7 +208,11 @@ template <typename RangeType>
   const auto FormatPath = [&Data](const PathType &Path) {
     const auto GetTransition =
         [&Data](const TransitionEdgeType &Edge) -> decltype(auto) {
-      return Value(Data.Transitions->FlatData[Edge.TransitionIndex]);
+      const auto Transition =
+          Data.Transitions->BundeledData[Edge.TransitionIndex];
+      return fmt::format("({}, {}, {})", ToAcquired(Transition),
+                         ToTransitions(Transition) | ranges::views::values,
+                         ToRequired(Transition));
     };
 
     return fmt::format(
@@ -211,7 +220,23 @@ template <typename RangeType>
   };
 
   return std::forward<RangeType>(Paths) | ranges::views::transform(FormatPath);
-};
+}
+
+[[nodiscard]] std::vector<std::vector<FlatTransitionType>>
+expandAndFlattenPath(const PathType &Path, const GraphData &Data);
+
+template <typename RangeType>
+  requires std::same_as<ranges::range_value_t<RangeType>, PathType>
+[[nodiscard]] auto toStringExpanded(RangeType &&Paths, const GraphData &Data) {
+  const auto FormatPath = [](const std::vector<FlatTransitionType> &FlatPath) {
+    return fmt::format("{}", fmt::join(FlatPath, ", "));
+  };
+
+  return std::forward<RangeType>(Paths) |
+         ranges::views::for_each(
+             ranges::bind_back(expandAndFlattenPath, Data)) |
+         ranges::views::transform(FormatPath);
+}
 
 class GraphBuilder {
 public:

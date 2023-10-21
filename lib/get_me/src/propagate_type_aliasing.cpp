@@ -19,6 +19,7 @@
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/repeat.hpp>
 #include <range/v3/view/transform.hpp>
+#include <range/v3/view/zip.hpp>
 
 #include "get_me/direct_type_dependency_propagation.hpp"
 #include "get_me/graph.hpp"

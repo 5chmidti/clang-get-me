@@ -1,12 +1,7 @@
 #include "get_me/tooling.hpp"
 
-#include <compare>
-#include <cstddef>
-#include <functional>
-#include <iterator>
 #include <memory>
 #include <optional>
-#include <string>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -29,14 +24,13 @@
 #include <clang/Basic/Specifiers.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Sema/Sema.h>
+#include <fmt/ranges.h>
 #include <llvm/Support/Casting.h>
-#include <range/v3/action/sort.hpp>
-#include <range/v3/action/unique.hpp>
+#include <range/v3/action/remove_if.hpp>
+#include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/algorithm/mismatch.hpp>
-#include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/filter.hpp>
-#include <range/v3/view/move.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/spdlog.h>
 
@@ -49,21 +43,20 @@
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
-#include "support/ranges/functional_clang.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 
+namespace {
 template <typename T>
 [[nodiscard]] TransitionType toTransitionType(const T *const Transition,
                                               const Config &Conf) {
 
   auto [Acquired, Required] = toTypeSet(Transition, Conf);
-  return {0U,
-          {std::move(Acquired), TransitionDataType{Transition},
-           std::move(Required)}};
+  return {std::pair{std::move(Acquired), std::move(Required)},
+          {0U, StrippedTransitionsSet{StrippedTransitionType{0U, Transition}}}};
 }
 
-namespace {
 // FIXME: add support for current context (i.e. current function)
 // this would mean only traversing into a function definition if it is the
 // current context
@@ -95,99 +88,6 @@ private:
           }},
       Val);
 }
-
-void filterOverloads(TransitionData &Transitions,
-                     const size_t OverloadFilterParameterCountThreshold = 0) {
-
-  const auto Comparator =
-      [OverloadFilterParameterCountThreshold](const TransitionDataType &Lhs,
-                                              const TransitionDataType &Rhs) {
-        if (const auto IndexComparison = Lhs.index() <=> Rhs.index();
-            std::is_neq(IndexComparison)) {
-          return std::is_lt(IndexComparison);
-        }
-        if (const auto NameComparison =
-                getTransitionName(Lhs) <=> getTransitionName(Rhs);
-            std::is_neq(NameComparison)) {
-          return std::is_lt(NameComparison);
-        }
-        const auto LhsParams = getParametersOpt(Lhs);
-        if (!LhsParams) {
-          return true;
-        }
-        const auto RhsParams = getParametersOpt(Rhs);
-        if (!RhsParams) {
-          return false;
-        }
-
-        if (LhsParams->empty()) {
-          return true;
-        }
-        if (RhsParams->empty()) {
-          return false;
-        }
-
-        if (const auto MismatchResult =
-                ranges::mismatch(LhsParams.value(), RhsParams.value(),
-                                 std::equal_to{}, ToQualType, ToQualType);
-            MismatchResult.in1 == LhsParams.value().end()) {
-          return static_cast<size_t>(
-                     std::distance(LhsParams->begin(), MismatchResult.in1)) <
-                 OverloadFilterParameterCountThreshold;
-        }
-        return false;
-      };
-  const auto IsOverload = [](const StrippedTransitionType &LhsTuple,
-                             const StrippedTransitionType &RhsTuple) {
-    const auto &Lhs = ToTransition(LhsTuple);
-    const auto &Rhs = ToTransition(RhsTuple);
-    if (Lhs.index() != Rhs.index()) {
-      return false;
-    }
-    if (getTransitionName(Lhs) != getTransitionName(Rhs)) {
-      return false;
-    }
-    const auto LhsParams = getParametersOpt(Lhs);
-    if (!LhsParams) {
-      return false;
-    }
-    const auto RhsParams = getParametersOpt(Rhs);
-    if (!RhsParams) {
-      return false;
-    }
-
-    if (LhsParams->empty()) {
-      return false;
-    }
-    if (RhsParams->empty()) {
-      return false;
-    }
-
-    const auto Projection = [](const clang::ParmVarDecl *const PVarDecl) {
-      return PVarDecl->getType()->getUnqualifiedDesugaredType();
-    };
-    const auto MismatchResult =
-        ranges::mismatch(LhsParams.value(), RhsParams.value(), std::equal_to{},
-                         Projection, Projection);
-    return MismatchResult.in1 == LhsParams.value().end();
-  };
-
-  // FIXME: sorting just to make sure the overloads with longer parameter lists
-  // are removed, figure out a better way. The algo also depends on this order
-  // to determine if it is an overload
-  Transitions.Data =
-      Transitions.Data | ranges::views::move |
-      ranges::views::transform([&IsOverload, &Comparator](
-                                   BundeledTransitionType BundeledTransition) {
-        return std::pair{ToAcquired(BundeledTransition),
-                         std::move(BundeledTransition.second) |
-                             ranges::actions::sort(Comparator, ToTransition) |
-                             ranges::actions::unique(IsOverload) |
-                             ranges::to<StrippedTransitionsSet>};
-      }) |
-      ranges::to<TransitionData::associative_container_type>;
-}
-
 } // namespace
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
@@ -221,7 +121,7 @@ public:
       return true;
     }
 
-    addTransition(toTransitionType(FDecl, *Conf_));
+    maybeAddTransition(toTransitionType(FDecl, *Conf_));
     return true;
   }
 
@@ -244,7 +144,7 @@ public:
       return true;
     }
 
-    addTransition(toTransitionType(FDecl, *Conf_));
+    maybeAddTransition(toTransitionType(FDecl, *Conf_));
     return true;
   }
 
@@ -278,7 +178,7 @@ public:
               return !filterOut(Function, *Conf_);
             }),
         [this](const auto *const Function) {
-          addTransition(toTransitionType(Function, *Conf_));
+          maybeAddTransition(toTransitionType(Function, *Conf_));
         });
 
     if (!ranges::empty(Definition->bases())) {
@@ -313,8 +213,9 @@ public:
       return true;
     }
 
-    Transitions_.Data[std::get<0>(toTypeSet(VDecl, *Conf_))].emplace(
-        0U, std::pair{TransitionDataType{VDecl}, TypeSet{}});
+    Value(Transitions_.Data[std::pair{std::get<0>(toTypeSet(VDecl, *Conf_)),
+                                      TypeSet{}}])
+        .emplace(StrippedTransitionType{0U, TransitionDataType{VDecl}});
     return true;
   }
 
@@ -345,9 +246,48 @@ public:
   }
 
 private:
-  void addTransition(TransitionType Transition) {
-    Transitions_.Data[ToAcquired(Transition)].emplace(
-        0U, std::pair{ToTransition(Transition), ToRequired(Transition)});
+  void maybeAddTransition(TransitionType Transition) {
+    const auto ToUnqualifiedDesugared = [](const TypeSetValueType &Val) {
+      return std::visit(
+          Overloaded{[](const clang::QualType &QType) -> TypeSetValueType {
+                       return clang::QualType(
+                           QType->getUnqualifiedDesugaredType(),
+                           QType.getLocalFastQualifiers());
+                     },
+                     [](const auto &Val) -> TypeSetValueType { return Val; }},
+          Val);
+    };
+    if (ranges::contains(ToRequired(Transition) |
+                             ranges::views::transform(ToUnqualifiedDesugared),
+                         ToUnqualifiedDesugared(ToAcquired(Transition)))) {
+      if (Conf_->EnableVerboseTransitionCollection) {
+        spdlog::trace("addTransition: filtered out {} because the acquired is "
+                      "contained in "
+                      "required when using the unqualified desugared type",
+                      Transition);
+      }
+      return;
+    }
+    const auto IsVoidOrVoidPtrType = [](const TypeSetValueType &Val) {
+      return std::visit(Overloaded{[](const clang::QualType &QType) {
+                                     const auto *const BaseType =
+                                         QType->getUnqualifiedDesugaredType();
+                                     return BaseType->isVoidType() ||
+                                            BaseType->isVoidPointerType();
+                                   },
+                                   [](const auto &) { return false; }},
+                        Val);
+    };
+
+    auto Key = Index(Transition);
+    auto &[Acquired, Required] = Key;
+    if (IsVoidOrVoidPtrType(Acquired)) {
+      return;
+    }
+    Value(Transitions_.Data[std::pair{
+              Acquired, std::move(Required) |
+                            ranges::actions::remove_if(IsVoidOrVoidPtrType)}])
+        .merge(ToTransitions(std::move(Transition)));
   }
 
   std::shared_ptr<Config> Conf_;
@@ -364,9 +304,6 @@ void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
                        Sema_};
 
   std::ignore = Visitor.TraverseDecl(Context.getTranslationUnitDecl());
-  if (Conf_->EnableFilterOverloads) {
-    filterOverloads(*Transitions_);
-  }
 
   if (Conf_->EnablePropagateInheritance) {
     propagateInheritance(*Transitions_, CXXRecords);

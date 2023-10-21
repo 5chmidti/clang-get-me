@@ -1,20 +1,24 @@
 #include "get_me/transitions.hpp"
 
 #include <cstddef>
+#include <functional>
 #include <string>
+#include <utility>
 #include <variant>
+#include <vector>
 
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclCXX.h>
 #include <fmt/core.h>
 #include <fmt/format.h>
-#include <fmt/ranges.h>
 #include <llvm/Support/Casting.h>
 #include <range/v3/action/sort.hpp>
-#include <range/v3/algorithm/all_of.hpp>
+#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/generate.hpp>
+#include <range/v3/functional/compose.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/join.hpp>
@@ -105,23 +109,31 @@ std::string getTransitionRequiredTypeNames(const TransitionDataType &Data) {
 }
 
 void TransitionData::commit() {
-  ranges::generate(Data | ranges::views::values | ranges::views::join |
-                       ranges::views::transform(Index),
+  ranges::generate(Data | ranges::views::transform(ToBundeledTransitionIndex),
                    [Counter = size_t{0U}]() mutable { return Counter++; });
+  ranges::generate(Data | ranges::views::values | ranges::views::values |
+                       ranges::views::join |
+                       ranges::views::transform(ToTransitionIndex),
+                   [Counter = size_t{0U}]() mutable { return Counter++; });
+  BundeledData =
+      Data | ranges::views::transform([](const TransitionType &Transitions) {
+        return BundeledTransitionType{
+            {ToAcquired(Transitions), ToRequired(Transitions)},
+            ToTransitions(Transitions)};
+      }) |
+      ranges::to<bundeled_container_type>;
+
   FlatData =
-      Data |
-      ranges::views::for_each(
-          [](const BundeledTransitionType &BundeledTransitions) {
-            return BundeledTransitions.second |
-                   ranges::views::transform(
-                       [Acquired = ToAcquired(BundeledTransitions)](
-                           const StrippedTransitionType &StrippedTransition) {
-                         return TransitionType{
-                             StrippedTransition.first,
-                             {Acquired, ToTransition(StrippedTransition.second),
-                              ToRequired(StrippedTransition.second)}};
-                       });
-          }) |
+      Data | ranges::views::for_each([](const TransitionType &Transitions) {
+        return ToTransitions(Transitions) |
+               ranges::views::transform(ToTransition) |
+               ranges::views::transform(
+                   [Acquired = ToAcquired(Transitions),
+                    Required = ToRequired(Transitions)](
+                       const TransitionDataType &Transition) {
+                     return FlatTransitionType{Acquired, Transition, Required};
+                   });
+      }) |
       ranges::to<flat_container_type>;
 }
 

@@ -1,6 +1,7 @@
 #ifndef get_me_lib_get_me_include_get_me_transitions_hpp
 #define get_me_lib_get_me_include_get_me_transitions_hpp
 
+#include <cstddef>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -15,7 +16,6 @@
 #include "get_me/indexed_set.hpp"
 #include "get_me/type_conversion_map.hpp"
 #include "get_me/type_set.hpp"
-#include "support/concepts.hpp"
 #include "support/ranges/functional.hpp"
 
 using TransitionDataType =
@@ -45,74 +45,231 @@ public:
   }
 };
 
-using TransitionType =
-    indexed_value<std::tuple<TypeSetValueType, TransitionDataType, TypeSet>>;
-
-using StrippedTransitionType =
-    indexed_value<std::pair<TransitionDataType, TypeSet>>;
+using StrippedTransitionType = indexed_value<TransitionDataType>;
 
 using StrippedTransitionsSet =
     boost::container::flat_set<StrippedTransitionType>;
 
+using TransitionMap =
+    boost::container::flat_map<std::pair<TypeSetValueType, TypeSet>,
+                               indexed_value<StrippedTransitionsSet>>;
+
+using TransitionType = TransitionMap::value_type;
+using BundeledTransitionType =
+    std::pair<std::pair<TypeSetValueType, TypeSet>, StrippedTransitionsSet>;
+
+using FlatTransitionType =
+    std::tuple<TypeSetValueType, TransitionDataType, TypeSet>;
+
 struct TransitionData {
-  using associative_container_type =
-      boost::container::flat_map<TypeSetValueType, StrippedTransitionsSet>;
+  using associative_container_type = TransitionMap;
   using value_type = associative_container_type::value_type;
-  using flat_container_type = std::vector<TransitionType>;
+  using bundeled_container_type = std::vector<BundeledTransitionType>;
+  using flat_container_type = std::vector<FlatTransitionType>;
 
   void commit();
 
   associative_container_type Data{};
+  bundeled_container_type BundeledData{};
   flat_container_type FlatData{};
   TypeConversionMap ConversionMap{};
 };
 
-using BundeledTransitionType = TransitionData::value_type;
+namespace detail {
+struct ToAcquiredFn {
+  [[nodiscard]] constexpr TypeSetValueType &&
+  operator()(TransitionType &&Val) const {
+    return std::move(Val).first.first;
+  }
+  [[nodiscard]] constexpr const TypeSetValueType &
+  operator()(const TransitionType &Val) const {
+    return Val.first.first;
+  }
+  [[nodiscard]] constexpr TypeSetValueType &
+  operator()(TransitionType &Val) const {
+    return Val.first.first;
+  }
 
-inline constexpr auto ToAcquired =
-    []<typename T>(T &&Transition) -> decltype(auto)
-  requires IsAnyOf<std::remove_cvref_t<T>, TransitionType,
-                   BundeledTransitionType>
-{
-  using BaseType = std::remove_cvref_t<T>;
-  if constexpr (std::is_same_v<BaseType, TransitionType>) {
-    return std::get<0>(Value(std::forward<T>(Transition)));
-  } else if constexpr (std::is_same_v<BaseType, BundeledTransitionType>) {
-    return std::get<0>(std::forward<T>(Transition));
+  [[nodiscard]] constexpr TypeSetValueType &&
+  operator()(TransitionType::first_type &&Val) const {
+    return std::move(Val).first;
+  }
+  [[nodiscard]] constexpr const TypeSetValueType &
+  operator()(const TransitionType::first_type &Val) const {
+    return Val.first;
+  }
+  [[nodiscard]] constexpr TypeSetValueType &
+  operator()(TransitionType::first_type &Val) const {
+    return Val.first;
+  }
+
+  [[nodiscard]] constexpr TypeSetValueType &&
+  operator()(BundeledTransitionType &&Val) const {
+    return std::move(Val).first.first;
+  }
+  [[nodiscard]] constexpr const TypeSetValueType &
+  operator()(const BundeledTransitionType &Val) const {
+    return Val.first.first;
+  }
+  [[nodiscard]] constexpr TypeSetValueType &
+  operator()(BundeledTransitionType &Val) const {
+    return Val.first.first;
+  }
+
+  [[nodiscard]] constexpr TypeSetValueType &&
+  operator()(FlatTransitionType &&Val) const {
+    return Element<0>(std::move(Val));
+  }
+  [[nodiscard]] constexpr const TypeSetValueType &
+  operator()(const FlatTransitionType &Val) const {
+    return Element<0>(Val);
+  }
+  [[nodiscard]] constexpr TypeSetValueType &
+  operator()(FlatTransitionType &Val) const {
+    return Element<0>(Val);
   }
 };
 
-inline constexpr auto ToRequired =
-    []<typename T>(T &&Transition) -> decltype(auto)
-  requires IsAnyOf<std::remove_cvref_t<T>, TransitionType,
-                   StrippedTransitionType, StrippedTransitionType::second_type>
-{
-  using BaseType = std::remove_cvref_t<T>;
-  if constexpr (std::is_same_v<BaseType, TransitionType>) {
-    return std::get<2>(Value(std::forward<T>(Transition)));
-  } else if constexpr (std::is_same_v<BaseType, StrippedTransitionType>) {
-    return std::get<1>(Value(std::forward<T>(Transition)));
-  } else if constexpr (std::is_same_v<BaseType,
-                                      StrippedTransitionType::second_type>) {
-    return std::get<1>(std::forward<T>(Transition));
+struct ToRequiredFn {
+  [[nodiscard]] constexpr TypeSet &&operator()(TransitionType &&Val) const {
+    return std::move(Val).first.second;
+  }
+  [[nodiscard]] constexpr const TypeSet &
+  operator()(const TransitionType &Val) const {
+    return Val.first.second;
+  }
+  [[nodiscard]] constexpr TypeSet &operator()(TransitionType &Val) const {
+    return Val.first.second;
+  }
+
+  [[nodiscard]] constexpr TypeSet &&
+  operator()(TransitionType::first_type &&Val) const {
+    return std::move(Val).second;
+  }
+  [[nodiscard]] constexpr const TypeSet &
+  operator()(const TransitionType::first_type &Val) const {
+    return Val.second;
+  }
+  [[nodiscard]] constexpr TypeSet &
+  operator()(TransitionType::first_type &Val) const {
+    return Val.second;
+  }
+
+  [[nodiscard]] constexpr TypeSet &&
+  operator()(BundeledTransitionType &&Val) const {
+    return std::move(Val).first.second;
+  }
+  [[nodiscard]] constexpr const TypeSet &
+  operator()(const BundeledTransitionType &Val) const {
+    return Val.first.second;
+  }
+  [[nodiscard]] constexpr TypeSet &
+  operator()(BundeledTransitionType &Val) const {
+    return Val.first.second;
+  }
+
+  [[nodiscard]] constexpr TypeSet &&operator()(FlatTransitionType &&Val) const {
+    return Element<2>(std::move(Val));
+  }
+  [[nodiscard]] constexpr const TypeSet &
+  operator()(const FlatTransitionType &Val) const {
+    return Element<2>(Val);
+  }
+  [[nodiscard]] constexpr TypeSet &operator()(FlatTransitionType &Val) const {
+    return Element<2>(Val);
   }
 };
 
-inline constexpr auto ToTransition =
-    []<typename T>(T &&Transition) -> decltype(auto)
-  requires IsAnyOf<std::remove_cvref_t<T>, TransitionType,
-                   StrippedTransitionType, StrippedTransitionType::second_type>
-{
-  using BaseType = std::remove_cvref_t<T>;
-  if constexpr (std::is_same_v<BaseType, TransitionType>) {
-    return std::get<1>(Value(std::forward<T>(Transition)));
-  } else if constexpr (std::is_same_v<BaseType, StrippedTransitionType>) {
-    return std::get<0>(Value(std::forward<T>(Transition)));
-  } else if constexpr (std::is_same_v<BaseType,
-                                      StrippedTransitionType::second_type>) {
-    return std::get<0>(std::forward<T>(Transition));
+struct ToTransitionsFn {
+  [[nodiscard]] constexpr StrippedTransitionsSet &&
+  operator()(TransitionType &&Val) const {
+    return Value(std::move(Val).second);
+  }
+  [[nodiscard]] constexpr const StrippedTransitionsSet &
+  operator()(const TransitionType &Val) const {
+    return Value(Val.second);
+  }
+  [[nodiscard]] constexpr StrippedTransitionsSet &
+  operator()(TransitionType &Val) const {
+    return Value(Val.second);
+  }
+
+  [[nodiscard]] constexpr StrippedTransitionsSet &&
+  operator()(BundeledTransitionType &&Val) const {
+    return Element<1>(std::move(Val));
+  }
+  [[nodiscard]] constexpr const StrippedTransitionsSet &
+  operator()(const BundeledTransitionType &Val) const {
+    return Element<1>(Val);
+  }
+  [[nodiscard]] constexpr StrippedTransitionsSet &
+  operator()(BundeledTransitionType &Val) const {
+    return Element<1>(Val);
   }
 };
+
+struct ToTransitionFn {
+  [[nodiscard]] constexpr TransitionDataType &&
+  operator()(StrippedTransitionType &&Val) const {
+    return Value(std::move(Val));
+  }
+  [[nodiscard]] constexpr const TransitionDataType &
+  operator()(const StrippedTransitionType &Val) const {
+    return Value(Val);
+  }
+  [[nodiscard]] constexpr TransitionDataType &
+  operator()(StrippedTransitionType &Val) const {
+    return Value(Val);
+  }
+  [[nodiscard]] constexpr TransitionDataType &&
+  operator()(FlatTransitionType &&Val) const {
+    return Element<1>(std::move(Val));
+  }
+  [[nodiscard]] constexpr const TransitionDataType &
+  operator()(const FlatTransitionType &Val) const {
+    return Element<1>(Val);
+  }
+  [[nodiscard]] constexpr TransitionDataType &
+  operator()(FlatTransitionType &Val) const {
+    return Element<1>(Val);
+  }
+};
+
+struct ToBundeledTransitionIndexFn {
+  [[nodiscard]] constexpr size_t &&operator()(TransitionType &&Val) const {
+    return Index(std::move(Val).second);
+  }
+  [[nodiscard]] constexpr const size_t &
+  operator()(const TransitionType &Val) const {
+    return Index(Val.second);
+  }
+  [[nodiscard]] constexpr size_t &operator()(TransitionType &Val) const {
+    return Index(Val.second);
+  }
+};
+struct ToTransitionIndexFn {
+  [[nodiscard]] constexpr size_t &&
+  operator()(StrippedTransitionType &&Val) const {
+    return Index(std::move(Val));
+  }
+  [[nodiscard]] constexpr const size_t &
+  operator()(const StrippedTransitionType &Val) const {
+    return Index(Val);
+  }
+  [[nodiscard]] constexpr size_t &
+  operator()(StrippedTransitionType &Val) const {
+    return Index(Val);
+  }
+};
+} // namespace detail
+
+inline constexpr detail::ToAcquiredFn ToAcquired{};
+inline constexpr detail::ToRequiredFn ToRequired{};
+inline constexpr detail::ToTransitionsFn ToTransitions{};
+inline constexpr detail::ToTransitionFn ToTransition{};
+inline constexpr detail::ToBundeledTransitionIndexFn
+    ToBundeledTransitionIndex{};
+inline constexpr detail::ToTransitionIndexFn ToTransitionIndex{};
 
 [[nodiscard]] std::vector<TransitionType> getSmallestIndependentTransitions(
     const std::vector<TransitionType> &Transitions);

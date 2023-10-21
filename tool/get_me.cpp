@@ -10,7 +10,6 @@
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Tooling/ArgumentsAdjusters.h>
 #include <clang/Tooling/CommonOptionsParser.h>
-#include <clang/Tooling/CompilationDatabase.h>
 #include <clang/Tooling/Tooling.h>
 #include <fmt/core.h>
 #include <fmt/format.h>
@@ -23,12 +22,13 @@
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/partial_sort.hpp>
+#include <range/v3/functional/bind_back.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/chunk_by.hpp>
 #include <range/v3/view/enumerate.hpp>
-#include <range/v3/view/indirect.hpp>
+#include <range/v3/view/for_each.hpp>
 #include <range/v3/view/take.hpp>
 #include <range/v3/view/transform.hpp>
 #include <spdlog/cfg/env.h>
@@ -156,23 +156,15 @@ int main(int argc, const char **argv) {
       });
 
   ranges::for_each(
-      Paths | ranges::views::take(OutputPathCount) | ranges::views::enumerate,
-      [&Data](const auto IndexedPath) {
+      Paths |
+          ranges::views::for_each(
+              ranges::bind_back(expandAndFlattenPath, Data)) |
+          ranges::views::enumerate | ranges::views::take(OutputPathCount),
+      [](const auto IndexedPath) {
         const auto &[Number, Path] = IndexedPath;
         spdlog::info(
             "path #{}: {} -> remaining: {}", Number,
-            fmt::join(
-                Path | ranges::views::transform([&Data](const TransitionEdgeType
-                                                            &Edge) {
-                  return fmt::format(
-                      "{}",
-                      ToTransition(
-                          Data.Transitions->FlatData[Edge.TransitionIndex]));
-                }),
-                ", "),
-            Data.VertexData[Target(Path.back())]);
+            fmt::join(Path | ranges::views::transform(ToTransition), ", "),
+            ToRequired(Path.back()));
       });
-
-  auto DotFile = fmt::output_file("graph.dot");
-  DotFile.print("{:d}", Data);
 }

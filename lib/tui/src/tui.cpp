@@ -126,14 +126,15 @@ void runTui(const std::shared_ptr<Config> Conf,
           return fmt::format(
               "path #{}: {} -> remaining: {}", Number,
               fmt::join(
-                  Path | ranges::views::transform(
-                             [&Data](const TransitionEdgeType &Edge) {
-                               return fmt::format(
-                                   "{}",
-                                   ToTransition(
-                                       Data.Transitions
-                                           ->FlatData[Edge.TransitionIndex]));
-                             }),
+                  Path |
+                      ranges::views::transform(
+                          [&Data](const TransitionEdgeType &Edge) {
+                            return fmt::format(
+                                "{}",
+                                ToTransitions(
+                                    Data.Transitions
+                                        ->BundeledData[Edge.TransitionIndex]));
+                          }),
                   ", "),
               Data.VertexData[Target(Path.back())]);
         }) |

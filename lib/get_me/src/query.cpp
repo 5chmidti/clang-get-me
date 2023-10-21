@@ -2,22 +2,20 @@
 
 #include <string>
 #include <string_view>
-#include <utility>
 #include <variant>
 
-#include <fmt/ranges.h>
+#include <clang/AST/Type.h>
+#include <fmt/core.h>
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/functional/not_fn.hpp>
 #include <range/v3/range/conversion.hpp>
-#include <range/v3/range/operations.hpp>
 #include <range/v3/view/filter.hpp>
-#include <range/v3/view/transform.hpp>
+#include <range/v3/view/map.hpp>
 #include <spdlog/spdlog.h>
 
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
-#include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 
 namespace {
@@ -71,14 +69,7 @@ TransitionData::associative_container_type getTransitionsForQuery(
   };
 
   return Transitions |
-         ranges::views::transform(
-             [&QueriedTypeIsSubset](const BundeledTransitionType &Transition) {
-               return std::pair{
-                   Transition.first,
-                   Transition.second |
-                       ranges::views::filter(
-                           ranges::not_fn(QueriedTypeIsSubset), ToRequired) |
-                       ranges::to<StrippedTransitionsSet>};
-             }) |
+         ranges::views::filter(ranges::not_fn(QueriedTypeIsSubset),
+                               ToRequired) |
          ranges::to<TransitionData::associative_container_type>;
 }

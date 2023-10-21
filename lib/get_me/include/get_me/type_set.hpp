@@ -13,7 +13,6 @@
 
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
-#include "support/variant.hpp"
 
 namespace clang {
 class FieldDecl;

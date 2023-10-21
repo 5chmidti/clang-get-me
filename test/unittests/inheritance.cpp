@@ -1,3 +1,5 @@
+#include <memory>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include "get_me/config.hpp"

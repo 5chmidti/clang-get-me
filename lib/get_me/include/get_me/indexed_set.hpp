@@ -1,6 +1,7 @@
 #ifndef get_me_lib_get_me_include_get_me_indexed_set_hpp
 #define get_me_lib_get_me_include_get_me_indexed_set_hpp
 
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <set>
@@ -8,7 +9,9 @@
 
 #include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/equal.hpp>
+#include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
 #include <range/v3/view/indices.hpp>
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/move.hpp>

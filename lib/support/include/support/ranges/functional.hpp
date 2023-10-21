@@ -1,16 +1,19 @@
 #ifndef get_me_lib_support_include_support_ranges_functional_hpp
 #define get_me_lib_support_include_support_ranges_functional_hpp
 
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <limits>
 #include <numeric>
+#include <ranges>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
 #include <range/v3/functional/comparisons.hpp>
 #include <range/v3/range/concepts.hpp>
+#include <range/v3/range/traits.hpp>
 
 template <std::size_t I>
 inline constexpr auto Element = []<typename T>
@@ -176,7 +179,7 @@ concept integral_index_subscriptable =
 
 inline constexpr auto Lookup =
     []<ranges::random_access_range T, typename Projection = std::identity>(
-        T && LookupRangeRef, Projection Proj = {}) constexpr
+        T &&LookupRangeRef, Projection Proj = {}) constexpr
   requires std::is_trivially_copy_constructible_v<Projection> &&
            ranges::borrowed_range<T>
 {

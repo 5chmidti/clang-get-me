@@ -2,12 +2,13 @@
 #define get_me_lib_get_me_include_get_me_config_hpp
 
 #include <array>
+#include <cstddef>
 #include <filesystem>
 #include <limits>
 #include <string_view>
 #include <tuple>
+#include <utility>
 
-#include <range/v3/algorithm/for_each.hpp>
 
 class Config {
 public:

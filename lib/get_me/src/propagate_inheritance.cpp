@@ -1,6 +1,5 @@
 #include "get_me/propagate_inheritance.hpp"
 
-#include <cstddef>
 #include <functional>
 #include <utility>
 #include <variant>
@@ -20,16 +19,13 @@
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/functional/not_fn.hpp>
-#include <range/v3/numeric/accumulate.hpp>
 #include <range/v3/range/access.hpp>
+#include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
-#include <range/v3/range/primitives.hpp>
-#include <range/v3/view/cache1.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/indices.hpp>
-#include <range/v3/view/map.hpp>
 #include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/view/unique.hpp>
@@ -40,6 +36,7 @@
 #include "get_me/transitions.hpp"
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
+#include "support/ranges/functional.hpp"
 #include "support/ranges/functional_clang.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
@@ -116,7 +113,7 @@ overridesConstructor(const TypeSetValueType &TypeValue,
 }
 
 [[nodiscard]] auto transitionIsMember(const TypeSetValueType &DerivedType) {
-  return [DerivedType](const StrippedTransitionType &Transition) {
+  return [DerivedType](const TransitionDataType &Transition) {
     return std::visit(
         Overloaded{[](const clang::FieldDecl *const) { return false; },
                    [DerivedType](const clang::FunctionDecl *const FDecl) {
@@ -134,7 +131,7 @@ overridesConstructor(const TypeSetValueType &TypeValue,
                      return overridesMethod(DerivedType, Method);
                    },
                    [](const auto *const) { return false; }},
-        ToTransition(Transition));
+        Transition);
   };
 }
 
@@ -249,18 +246,17 @@ template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
       });
 }
 
-[[nodiscard]] auto maybePropagate(const TypeSetValueType &SourceType,
-                                  const TypeSetValueType TargetType) {
-  return
-      [SourceType, TargetType](const StrippedTransitionType &StrippedTransition)
-          -> std::pair<bool, StrippedTransitionType> {
-        auto RequiredTS = ToRequired(StrippedTransition);
-        const auto ChangedRequiredTS = 0U != RequiredTS.erase(SourceType);
-        RequiredTS.insert(TargetType);
-        return {ChangedRequiredTS,
-                StrippedTransitionType{
-                    0U, {ToTransition(StrippedTransition), RequiredTS}}};
-      };
+[[nodiscard]] std::pair<bool, std::pair<TypeSetValueType, TypeSet>>
+swapRequiredType(TransitionType::first_type Transition,
+                 const TypeSetValueType &SourceType,
+                 const TypeSetValueType TargetType) {
+  auto Required = ToRequired(Transition);
+  const auto ChangedRequiredTS = 0U != Required.erase(SourceType);
+  if (ChangedRequiredTS) {
+    Required.insert(TargetType);
+  }
+  return std::pair{ChangedRequiredTS,
+                   std::pair{ToAcquired(Transition), Required}};
 }
 
 class InheritancePropagator {
@@ -274,18 +270,17 @@ private:
     return [this](const EdgeDescriptor &Edge) {
       return Transitions_.Data |
              ranges::views::transform(
-                 [MaybePropagate = maybePropagate(toType(Source(Edge)),
-                                                  toType(Target(Edge)))](
-                     const BundeledTransitionType &BundeledTransition)
-                     -> BundeledTransitionType {
-                   return {ToAcquired(BundeledTransition),
-                           BundeledTransition.second |
-                               ranges::views::transform(MaybePropagate) |
-                               ranges::views::cache1 |
-                               ranges::views::filter(Element<0>) |
-                               ranges::views::transform(Element<1>) |
-                               ranges::to<StrippedTransitionsSet>};
-                 });
+                 [this, Edge](const TransitionType &Transition) {
+                   return std::pair{swapRequiredType(Transition.first,
+                                                     toType(Source(Edge)),
+                                                     toType(Target(Edge))),
+                                    Transition.second};
+                 }) |
+             ranges::views::filter(Element<0>, Element<0>) |
+             ranges::views::transform([](const auto &Transition) {
+               return TransitionType{Transition.first.second,
+                                     Transition.second};
+             });
     };
   }
 
@@ -295,9 +290,9 @@ private:
     return Transitions_.Data |
            ranges::views::filter(EqualTo(DerivedType), ToAcquired) |
            ranges::views::transform(
-               [BaseType](const BundeledTransitionType &BundeledTransition)
-                   -> BundeledTransitionType {
-                 return {BaseType, BundeledTransition.second};
+               [BaseType](const TransitionType &Transition) -> TransitionType {
+                 return {std::pair{BaseType, ToRequired(Transition)},
+                         Transition.second};
                });
   }
 
@@ -307,10 +302,10 @@ private:
     return Transitions_.Data |
            ranges::views::filter(EqualTo(BaseType), ToAcquired) |
            ranges::views::transform(
-               [DerivedType](const BundeledTransitionType &BundeledTransition)
-                   -> BundeledTransitionType {
+               [DerivedType](
+                   const TransitionType &Transition) -> TransitionType {
                  const auto IsNotConstructor =
-                     [](const StrippedTransitionType &Transition) {
+                     [](const TransitionDataType &Transition) {
                        return std::visit(
                            Overloaded{
                                [](const clang::FunctionDecl *const FDecl) {
@@ -318,14 +313,20 @@ private:
                                      FDecl);
                                },
                                [](auto &&) { return true; }},
-                           ToTransition(Transition));
+                           Transition);
                      };
-                 return {DerivedType,
-                         BundeledTransition.second |
-                             ranges::views::filter(
-                                 transitionIsMember(DerivedType)) |
-                             ranges::views::filter(IsNotConstructor) |
-                             ranges::to<StrippedTransitionsSet>};
+                 return {std::pair{DerivedType, ToRequired(Transition)},
+                         {ToBundeledTransitionIndex(Transition),
+                          ToTransitions(Transition) |
+                              ranges::views::filter(
+                                  [&DerivedType, &IsNotConstructor](
+                                      const TransitionDataType &Transition2) {
+                                    return transitionIsMember(DerivedType)(
+                                               Transition2) &&
+                                           IsNotConstructor(Transition2);
+                                  },
+                                  Value) |
+                              ranges::to<StrippedTransitionsSet>}};
                });
   };
 
@@ -357,14 +358,14 @@ public:
                  propagate(propagateRequired(), propagateAcquiredInheritance());
         };
 
-    std::vector<BundeledTransitionType> Vec =
+    std::vector<TransitionType> Vec =
         VerticesToVisit |
         ranges::views::filter(ranges::not_fn(Lookup(VertexVisited_))) |
         ranges::views::for_each(PropagateTransitionsOfOutEdges) |
         ranges::to_vector;
-    ranges::for_each(Vec, [this](BundeledTransitionType NewTransitions) {
-      Transitions_.Data[ToAcquired(NewTransitions)].merge(
-          std::move(NewTransitions.second));
+    ranges::for_each(Vec, [this](TransitionType NewTransitions) {
+      Value(Transitions_.Data[NewTransitions.first])
+          .merge(std::move(ToTransitions(NewTransitions)));
     });
   }
 
