@@ -24,10 +24,10 @@ function(enable_profiling project_name)
         STRING
         "Enable clangs profiling instrumentation by providing the path to the profdata"
   )
-  string(TOUPPER ${ENABLE_PGO} ENABLE_PGO)
+  string(TOUPPER ${ENABLE_PGO} ENABLE_PGO_UPPER)
   if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang"
      AND NOT
-         ENABLE_PGO
+         ENABLE_PGO_UPPER
          STREQUAL
          "OFF"
      AND EXISTS ${ENABLE_PGO})
