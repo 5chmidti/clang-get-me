@@ -1,6 +1,7 @@
 #ifndef get_me_lib_tui_include_tui_components_enum_selection_hpp
 #define get_me_lib_tui_include_tui_components_enum_selection_hpp
 
+#include <concepts>
 #include <cstddef>
 #include <string>
 #include <type_traits>

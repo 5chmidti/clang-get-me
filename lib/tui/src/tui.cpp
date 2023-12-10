@@ -14,10 +14,8 @@
 #include <ftxui/component/screen_interactive.hpp>
 #include <ftxui/dom/elements.hpp>
 #include <range/v3/action/sort.hpp>
-#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/view/enumerate.hpp>
-#include <range/v3/view/indirect.hpp>
 #include <range/v3/view/transform.hpp>
 
 #include "get_me/backwards_path_finding.hpp"
