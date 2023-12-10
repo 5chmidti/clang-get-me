@@ -1,7 +1,6 @@
 #include "get_me/type_set.hpp"
 
 #include <utility>
-#include <variant>
 
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
@@ -26,12 +25,18 @@ namespace {
 }
 } // namespace
 
-TypeSetValueType toTypeSetValueType(const clang::QualType &QType,
-                                    const Config &Conf) {
+TypeSetValue toTypeSetValue(const clang::QualType &QType, const Config &Conf) {
   if (Conf.EnableTruncateArithmetic && QType->isArithmeticType()) {
-    return TypeSetValueType{ArithmeticType{}};
+    return TypeSetValue{ArithmeticType{}};
   }
-  return TypeSetValueType{launderType(QType)};
+  return TypeSetValue{launderType(QType)};
+}
+
+TypeSetValueType toTypeSetValueType(const clang::QualType &QType,
+                                    const clang::ASTContext &Ctx,
+                                    const Config &Conf) {
+  return {.Desugared = toTypeSetValue(QType.getDesugaredType(Ctx), Conf),
+          .Actual = toTypeSetValue(QType, Conf)};
 }
 
 clang::QualType launderType(const clang::QualType &QType) {
@@ -45,23 +50,28 @@ toTypeSet(const clang::FunctionDecl *const FDecl, const Config &Conf) {
             llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
         Constructor) {
       const auto *const Decl = Constructor->getParent();
-      return TypeSetValueType{clang::QualType{Decl->getTypeForDecl(), 0}};
+      return toTypeSetValueType(clang::QualType{Decl->getTypeForDecl(), 0},
+                                FDecl->getASTContext(), Conf);
     }
-    return toTypeSetValueType(FDecl->getReturnType(), Conf);
+    return toTypeSetValueType(FDecl->getReturnType(), FDecl->getASTContext(),
+                              Conf);
   }();
   const auto RequiredTypes = [FDecl, Conf]() {
     const auto Parameters = FDecl->parameters();
     auto Res = Parameters |
                ranges::views::transform(
                    [Conf](const clang::ParmVarDecl *const PVDecl) {
-                     return toTypeSetValueType(PVDecl->getType(), Conf);
+                     return toTypeSetValueType(PVDecl->getType(),
+                                               PVDecl->getASTContext(), Conf);
                    }) |
                ranges::to<TypeSet>;
     if (const auto *const Method =
             llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
       if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
           !Method->isStatic()) {
-        Res.emplace(clang::QualType{Method->getParent()->getTypeForDecl(), 0});
+        Res.emplace(toTypeSetValueType(
+            clang::QualType{Method->getParent()->getTypeForDecl(), 0},
+            FDecl->getASTContext(), Conf));
       }
     }
     return Res;
@@ -71,15 +81,17 @@ toTypeSet(const clang::FunctionDecl *const FDecl, const Config &Conf) {
 
 std::pair<TypeSetValueType, TypeSet>
 toTypeSet(const clang::FieldDecl *const FDecl, const Config &Conf) {
-  return {
-      {{toTypeSetValueType(FDecl->getType(), Conf)}},
-      {{toTypeSetValueType(
-          clang::QualType{FDecl->getParent()->getTypeForDecl(), 0}, Conf)}}};
+  const auto &Ctx = FDecl->getASTContext();
+  return {toTypeSetValueType(FDecl->getType(), Ctx, Conf),
+          TypeSet{{toTypeSetValueType(
+              clang::QualType{FDecl->getParent()->getTypeForDecl(), 0}, Ctx,
+              Conf)}}};
 }
 
 std::pair<TypeSetValueType, TypeSet>
 toTypeSet(const clang::VarDecl *const VDecl, const Config &Conf) {
-  return {{{toTypeSetValueType(VDecl->getType(), Conf)}}, {}};
+  return {{toTypeSetValueType(VDecl->getType(), VDecl->getASTContext(), Conf)},
+          {}};
 }
 
 bool isSubset(const TypeSet &Superset, const TypeSet &Subset) {

@@ -2,6 +2,7 @@
 #define get_me_lib_get_me_include_get_me_transitions_hpp
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <tuple>
 #include <type_traits>
@@ -12,6 +13,15 @@
 #include <boost/container/flat_map.hpp>
 #include <boost/container/flat_set.hpp>
 #include <fmt/core.h>
+#include <range/v3/action/sort.hpp>
+#include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/compose.hpp>
+#include <range/v3/range/concepts.hpp>
+#include <range/v3/range/conversion.hpp>
+#include <range/v3/range/primitives.hpp>
+#include <range/v3/view/filter.hpp>
+#include <range/v3/view/set_algorithm.hpp>
+#include <range/v3/view/transform.hpp>
 
 #include "get_me/indexed_set.hpp"
 #include "get_me/type_conversion_map.hpp"
@@ -271,7 +281,36 @@ inline constexpr detail::ToBundeledTransitionIndexFn
     ToBundeledTransitionIndex{};
 inline constexpr detail::ToTransitionIndexFn ToTransitionIndex{};
 
-[[nodiscard]] std::vector<TransitionType> getSmallestIndependentTransitions(
-    const std::vector<TransitionType> &Transitions);
+[[nodiscard]] boost::container::flat_set<TransitionType>
+getSmallestIndependentTransitions(const ranges::range auto &Transitions) {
+  auto IndependentTransitions = boost::container::flat_set<TransitionType>{};
+  auto Dependencies =
+      Transitions |
+      ranges::views::transform([&Transitions](const auto &Transition) {
+        const auto DependsOn = [](const auto &Dependee) {
+          return [&Dependee](const auto &Val) {
+            return ToRequired(Val).contains(ToAcquired(Dependee));
+          };
+        };
+        return std::pair{Transition,
+                         Transitions |
+                             ranges::views::filter(DependsOn(Transition)) |
+                             ranges::to<boost::container::flat_set>};
+      }) |
+      ranges::to_vector |
+      ranges::actions::sort(std::less<>{},
+                            ranges::compose(ranges::size, Element<1>));
+
+  ranges::for_each(
+      Dependencies, [&IndependentTransitions](auto &DependenciesPair) {
+        auto &[Transition, DependentsOfTransition] = DependenciesPair;
+        if (ranges::empty(ranges::views::set_intersection(
+                IndependentTransitions, DependentsOfTransition))) {
+          IndependentTransitions.emplace(std::move(Transition));
+        }
+      });
+
+  return IndependentTransitions;
+}
 
 #endif

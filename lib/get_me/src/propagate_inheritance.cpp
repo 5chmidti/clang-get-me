@@ -77,7 +77,7 @@ using VertexDescriptor =
                    return !ranges::any_of(Derived->methods(), OverridesMethod);
                  },
                  [](auto &&) { return false; }},
-      TypeValue);
+      TypeValue.Actual);
 }
 
 [[nodiscard]] bool isOverriddenBy(const clang::CXXMethodDecl *const Ctor,
@@ -109,7 +109,7 @@ overridesConstructor(const TypeSetValueType &TypeValue,
                    return isOverriddenBy(Ctor, Derived);
                  },
                  [](auto &&) { return false; }},
-      TypeValue);
+      TypeValue.Actual);
 }
 
 [[nodiscard]] auto transitionIsMember(const TypeSetValueType &DerivedType) {
@@ -142,9 +142,14 @@ overridesConstructor(const TypeSetValueType &TypeValue,
 
 class InheritanceGraphBuilder {
 public:
+  explicit InheritanceGraphBuilder(const Config &Conf)
+      : Conf_(Conf) {}
+
   void visit(const clang::CXXRecordDecl *const Record) {
     const auto RecordIndex =
-        addType(clang::QualType{Record->getTypeForDecl(), 0});
+        addType(toTypeSetValueType(clang::QualType{Record->getTypeForDecl(), 0},
+                                   Record->getASTContext(), Conf_));
+
     visitCXXRecordDecl(Record, RecordIndex);
   }
 
@@ -172,9 +177,10 @@ private:
     }
     ranges::for_each(
         Derived->bases(),
-        [this, DerivedIndex](const clang::CXXBaseSpecifier &BaseSpec) {
+        [this, DerivedIndex, Derived](const clang::CXXBaseSpecifier &BaseSpec) {
           const auto QType = BaseSpec.getType();
-          const auto BaseVertexIndex = addType(QType);
+          const auto BaseVertexIndex = addType(
+              toTypeSetValueType(QType, Derived->getASTContext(), Conf_));
 
           if (addEdge(DTDGraphData::EdgeType{BaseVertexIndex, DerivedIndex})) {
             visitCXXRecordDecl(QType->getAsCXXRecordDecl(), BaseVertexIndex);
@@ -195,11 +201,13 @@ private:
 
   indexed_set<TypeSetValueType> Vertices_{};
   indexed_set<DTDGraphData::EdgeType> Edges_{};
+  const Config &Conf_;
 };
 
 [[nodiscard]] DTDGraphData createInheritanceGraph(
-    const std::vector<const clang::CXXRecordDecl *> &CXXRecords) {
-  auto Builder = InheritanceGraphBuilder{};
+    const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
+    const Config &Conf) {
+  auto Builder = InheritanceGraphBuilder{Conf};
 
   const auto Visitor = [&Builder](const auto *const Value) {
     GetMeException::verify(Value != nullptr, "starts with nullptr");
@@ -379,6 +387,8 @@ private:
 
 void propagateInheritance(
     TransitionData &Transitions,
-    const std::vector<const clang::CXXRecordDecl *> &CXXRecords) {
-  InheritancePropagator{Transitions, createInheritanceGraph(CXXRecords)}();
+    const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
+    const Config &Conf) {
+  InheritancePropagator{Transitions,
+                        createInheritanceGraph(CXXRecords, Conf)}();
 }

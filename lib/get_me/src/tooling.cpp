@@ -1,7 +1,6 @@
 #include "get_me/tooling.hpp"
 
 #include <memory>
-#include <optional>
 #include <tuple>
 #include <utility>
 #include <variant>
@@ -75,26 +74,13 @@ private:
   std::shared_ptr<TransitionData> Transitions_;
   clang::Sema &Sema_;
 };
-
-[[nodiscard]] auto getParametersOpt(const TransitionDataType &Val) {
-  return std::visit(
-      Overloaded{
-          [](const clang::FunctionDecl *const CurrentDecl)
-              -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-            return CurrentDecl->parameters();
-          },
-          [](auto &&) -> std::optional<clang::ArrayRef<clang::ParmVarDecl *>> {
-            return {};
-          }},
-      Val);
-}
 } // namespace
 
 class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
   GetMeVisitor(std::shared_ptr<Config> Conf, TransitionData &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
-               std::vector<TypeAlias> &TypedefNameDeclsRef,
+               std::vector<TypeSetValueType> &TypedefNameDeclsRef,
                clang::Sema &SemaRef)
       : Conf_{std::move(Conf)},
         Transitions_{TransitionsRef},
@@ -247,19 +233,10 @@ public:
 
 private:
   void maybeAddTransition(TransitionType Transition) {
-    const auto ToUnqualifiedDesugared = [](const TypeSetValueType &Val) {
-      return std::visit(
-          Overloaded{[](const clang::QualType &QType) -> TypeSetValueType {
-                       return clang::QualType(
-                           QType->getUnqualifiedDesugaredType(),
-                           QType.getLocalFastQualifiers());
-                     },
-                     [](const auto &Val) -> TypeSetValueType { return Val; }},
-          Val);
-    };
-    if (ranges::contains(ToRequired(Transition) |
-                             ranges::views::transform(ToUnqualifiedDesugared),
-                         ToUnqualifiedDesugared(ToAcquired(Transition)))) {
+    if (ranges::contains(
+            ToRequired(Transition) |
+                ranges::views::transform(&TypeSetValueType::Desugared),
+            ToAcquired(Transition).Desugared)) {
       if (Conf_->EnableVerboseTransitionCollection) {
         spdlog::trace("addTransition: filtered out {} because the acquired is "
                       "contained in "
@@ -276,7 +253,7 @@ private:
                                             BaseType->isVoidPointerType();
                                    },
                                    [](const auto &) { return false; }},
-                        Val);
+                        Val.Desugared);
     };
 
     auto Key = Index(Transition);
@@ -293,20 +270,20 @@ private:
   std::shared_ptr<Config> Conf_;
   TransitionData &Transitions_;
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
-  std::vector<TypeAlias> &TypedefNameDecls_;
+  std::vector<TypeSetValueType> &TypedefNameDecls_;
   clang::Sema &Sema_;
 };
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
-  std::vector<TypeAlias> TypedefNameDecls{};
+  std::vector<TypeSetValueType> TypedefNameDecls{};
   GetMeVisitor Visitor{Conf_, *Transitions_, CXXRecords, TypedefNameDecls,
                        Sema_};
 
   std::ignore = Visitor.TraverseDecl(Context.getTranslationUnitDecl());
 
   if (Conf_->EnablePropagateInheritance) {
-    propagateInheritance(*Transitions_, CXXRecords);
+    propagateInheritance(*Transitions_, CXXRecords, *Conf_);
   }
   if (Conf_->EnablePropagateTypeAlias) {
     propagateTypeAliasing(Transitions_->ConversionMap, TypedefNameDecls);

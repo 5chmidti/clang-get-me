@@ -3,31 +3,12 @@
 
 #include <vector>
 
-#include <clang/AST/Type.h>
-#include <fmt/core.h>
 
-#include "get_me/formatting.hpp"
 #include "get_me/type_conversion_map.hpp"
+#include "get_me/type_set.hpp"
 
-struct TypeAlias {
-  clang::QualType Base;
-  clang::QualType Alias;
-};
-
-template <> class fmt::formatter<TypeAlias> {
-public:
-  [[nodiscard]] constexpr format_parse_context::iterator
-  parse(format_parse_context &Ctx) {
-    return Ctx.begin();
-  }
-
-  [[nodiscard]] format_context::iterator format(const TypeAlias &Val,
-                                                format_context &Ctx) const {
-    return fmt::format_to(Ctx.out(), "({}, {})", Val.Base, Val.Alias);
-  }
-};
-
-void propagateTypeAliasing(TypeConversionMap &ConversionMap,
-                           const std::vector<TypeAlias> &TypedefNameDecls);
+void propagateTypeAliasing(
+    TypeConversionMap &ConversionMap,
+    const std::vector<TypeSetValueType> &TypedefNameDecls);
 
 #endif

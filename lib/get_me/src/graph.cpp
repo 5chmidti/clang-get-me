@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <boost/algorithm/string/replace.hpp>
+#include <boost/container/flat_set.hpp>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <range/v3/action/push_back.hpp>
@@ -19,6 +20,7 @@
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/fold_left.hpp>
 #include <range/v3/functional/bind_back.hpp>
+#include <range/v3/functional/comparisons.hpp>
 #include <range/v3/functional/compose.hpp>
 #include <range/v3/functional/not_fn.hpp>
 #include <range/v3/range/conversion.hpp>
@@ -62,15 +64,17 @@ edgeWithTransitionExistsInContainer(const GraphData::EdgeContainer &Edges,
       ToBundeledTransitionIndex(Transition));
 }
 
-using FoldType = std::vector<std::pair<GraphBuilder::VertexSet::value_type,
-                                       std::vector<TransitionType>>>;
+using FoldType =
+    std::vector<std::pair<GraphBuilder::VertexSet::value_type,
+                          boost::container::flat_set<TransitionType>>>;
 [[nodiscard]] FoldType constructVertexAndTransitionsPairVector(
     GraphBuilder::VertexSet InterestingVertices,
     const TransitionMap &Transitions, const TypeConversionMap &ConversionMap) {
   return ranges::fold_left(
       Transitions,
-      ranges::views::zip(InterestingVertices,
-                         ranges::views::repeat(std::vector<TransitionType>{})) |
+      ranges::views::zip(
+          InterestingVertices,
+          ranges::views::repeat(boost::container::flat_set<TransitionType>{})) |
           ranges::to<FoldType>,
       [&ConversionMap](const FoldType &VertexAndTransitionsPair,
                        const TransitionType &Transition) {
@@ -79,7 +83,8 @@ using FoldType = std::vector<std::pair<GraphBuilder::VertexSet::value_type,
             ConversionMap |
             ranges::views::filter(ranges::bind_back(ranges::contains, Acquired),
                                   Value) |
-            ranges::views::keys | ranges::to<TypeSet>;
+            ranges::views::keys |
+            ranges::to<boost::container::flat_set<TypeSetValue>>;
         return VertexAndTransitionsPair |
                ranges::views::transform([&PossibleConversionsTypesForAcquired,
                                          &Transition](const auto &Pair) {
@@ -102,7 +107,8 @@ using FoldType = std::vector<std::pair<GraphBuilder::VertexSet::value_type,
                          const auto MatchingTypes =
                              ranges::views::set_intersection(
                                  Value(InterestingVertex),
-                                 PossibleConversionsTypesForAcquired);
+                                 PossibleConversionsTypesForAcquired,
+                                 ranges::less{}, &TypeSetValueType::Desugared);
                          return MatchingTypes |
                                 ranges::views::transform(MakeTransition);
                        };
@@ -112,7 +118,7 @@ using FoldType = std::vector<std::pair<GraphBuilder::VertexSet::value_type,
                                  ranges::views::concat(
                                      TransitionsVec,
                                      GetNewTransitions(Vertex)(Transition)) |
-                                 ranges::to<std::vector<TransitionType>>)};
+                                 ranges::to_vector)};
                }) |
                ranges::to<FoldType>;
       });
@@ -165,7 +171,7 @@ expandAndFlattenPath(const PathType &Path, const GraphData &Data) {
           ranges::views::transform(
               [](const auto &Val) { return std::vector{Val}; }) |
           ranges::to<std::vector<std::vector<FlatTransitionType>>>,
-      [](std::vector<std::vector<FlatTransitionType>> FoldRange,
+      [](const std::vector<std::vector<FlatTransitionType>> &FoldRange,
          const auto &ExpandedPathStep) {
         return ranges::views::cartesian_product(FoldRange, ExpandedPathStep) |
                ranges::views::transform([](auto Pair) {
@@ -183,7 +189,7 @@ public:
     return [&IndexedVertex, this](const TransitionType &Transition) {
       const auto Acquired = ToAcquired(Transition);
       const auto ConversionsOfAcquired =
-          Transitions->ConversionMap.find(Acquired);
+          Transitions->ConversionMap.find(Acquired.Desugared);
 
       GetMeException::verify(
           ConversionsOfAcquired != Transitions->ConversionMap.end(),

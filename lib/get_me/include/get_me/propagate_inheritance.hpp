@@ -5,10 +5,12 @@
 
 #include <clang/AST/APValue.h>
 
+#include "get_me/config.hpp"
 #include "get_me/transitions.hpp"
 
 void propagateInheritance(
     TransitionData &Transitions,
-    const std::vector<const clang::CXXRecordDecl *> &CXXRecords);
+    const std::vector<const clang::CXXRecordDecl *> &CXXRecords,
+    const Config &Conf);
 
 #endif

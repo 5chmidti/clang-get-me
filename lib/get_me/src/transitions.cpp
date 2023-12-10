@@ -1,11 +1,9 @@
 #include "get_me/transitions.hpp"
 
 #include <cstddef>
-#include <functional>
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include <boost/container/flat_set.hpp>
 #include <clang/AST/Decl.h>
@@ -13,21 +11,13 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <llvm/Support/Casting.h>
-#include <range/v3/action/sort.hpp>
-#include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/generate.hpp>
-#include <range/v3/functional/compose.hpp>
 #include <range/v3/range/conversion.hpp>
-#include <range/v3/range/primitives.hpp>
-#include <range/v3/view/filter.hpp>
 #include <range/v3/view/for_each.hpp>
 #include <range/v3/view/join.hpp>
 #include <range/v3/view/map.hpp>
-#include <range/v3/view/move.hpp>
-#include <range/v3/view/set_algorithm.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include "support/ranges/functional.hpp"
 #include "support/ranges/ranges.hpp"
 #include "support/variant.hpp"
 
@@ -135,36 +125,4 @@ void TransitionData::commit() {
                    });
       }) |
       ranges::to<flat_container_type>;
-}
-
-std::vector<TransitionType> getSmallestIndependentTransitions(
-    const std::vector<TransitionType> &Transitions) {
-  auto IndependentTransitions = boost::container::flat_set<TransitionType>{};
-  auto Dependencies =
-      Transitions |
-      ranges::views::transform([&Transitions](const auto &Transition) {
-        const auto DependsOn = [](const auto &Dependee) {
-          return [&Dependee](const auto &Val) {
-            return ToRequired(Val).contains(ToAcquired(Dependee));
-          };
-        };
-        return std::pair{Transition,
-                         Transitions |
-                             ranges::views::filter(DependsOn(Transition)) |
-                             ranges::to<boost::container::flat_set>};
-      }) |
-      ranges::to_vector |
-      ranges::actions::sort(std::less<>{},
-                            ranges::compose(ranges::size, Element<1>));
-
-  ranges::for_each(
-      Dependencies, [&IndependentTransitions](auto &DependenciesPair) {
-        auto &[Transition, DependenciesOfTransition] = DependenciesPair;
-        if (ranges::empty(ranges::views::set_intersection(
-                IndependentTransitions, DependenciesOfTransition))) {
-          IndependentTransitions.emplace(std::move(Transition));
-        }
-      });
-
-  return IndependentTransitions | ranges::views::move | ranges::to_vector;
 }
