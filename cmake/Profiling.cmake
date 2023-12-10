@@ -14,7 +14,8 @@ function(enable_profiling project_name)
 
   option(ENABLE_PROFILE_INSTRUMENTATION
          "Enable clangs profiling instrumentation" OFF)
-  if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang" AND ENABLE_TIME_TRACE)
+  if(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang"
+     AND ${ENABLE_PROFILE_INSTRUMENTATION})
     target_compile_options(${project_name} INTERFACE -fprofile-instr-generate)
   endif()
 
