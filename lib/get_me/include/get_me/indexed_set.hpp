@@ -30,8 +30,9 @@ struct IndexedSetComparator {
   using is_transparent = void;
 
   template <std::three_way_comparable ValueType>
-  [[nodiscard]] bool operator()(const indexed_value<ValueType> &Lhs,
-                                const indexed_value<ValueType> &Rhs) const {
+  [[nodiscard]] static constexpr bool
+  operator()(const indexed_value<ValueType> &Lhs,
+             const indexed_value<ValueType> &Rhs) {
     using ordering = std::compare_three_way_result_t<ValueType>;
     const auto Cmp = Value(Lhs) <=> Value(Rhs);
     if (Cmp == ordering::less) {
@@ -44,21 +45,22 @@ struct IndexedSetComparator {
   }
 
   template <std::three_way_comparable ValueType>
-  [[nodiscard]] bool operator()(const indexed_value<ValueType> &Lhs,
-                                const ValueType &Rhs) const {
+  [[nodiscard]] static constexpr bool
+  operator()(const indexed_value<ValueType> &Lhs, const ValueType &Rhs) {
     return Value(Lhs) < Rhs;
   }
 
   template <std::three_way_comparable ValueType>
-  [[nodiscard]] bool operator()(const ValueType &Lhs,
-                                const indexed_value<ValueType> &Rhs) const {
+  [[nodiscard]] static constexpr bool
+  operator()(const ValueType &Lhs, const indexed_value<ValueType> &Rhs) {
     return Lhs < Value(Rhs);
   }
 
   template <ranges::range ValueType>
     requires std::three_way_comparable<ranges::range_value_t<ValueType>>
-  [[nodiscard]] bool operator()(const indexed_value<ValueType> &Lhs,
-                                const indexed_value<ValueType> &Rhs) const {
+  [[nodiscard]] static constexpr bool
+  operator()(const indexed_value<ValueType> &Lhs,
+             const indexed_value<ValueType> &Rhs) {
     using ordering =
         std::compare_three_way_result_t<ranges::range_value_t<ValueType>>;
     const auto Cmp = std::lexicographical_compare_three_way(
@@ -74,14 +76,14 @@ struct IndexedSetComparator {
   }
   template <ranges::range ValueType>
     requires std::three_way_comparable<ranges::range_value_t<ValueType>>
-  [[nodiscard]] bool operator()(const indexed_value<ValueType> &Lhs,
-                                const ValueType &Rhs) const {
+  [[nodiscard]] static constexpr bool
+  operator()(const indexed_value<ValueType> &Lhs, const ValueType &Rhs) {
     return Value(Lhs) < Rhs;
   }
   template <ranges::range ValueType>
     requires std::three_way_comparable<ranges::range_value_t<ValueType>>
-  [[nodiscard]] bool operator()(const ValueType &Lhs,
-                                const indexed_value<ValueType> &Rhs) const {
+  [[nodiscard]] static constexpr bool
+  operator()(const ValueType &Lhs, const indexed_value<ValueType> &Rhs) {
     return Lhs < Value(Rhs);
   }
 };
