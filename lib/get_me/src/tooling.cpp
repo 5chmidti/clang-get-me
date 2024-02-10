@@ -246,11 +246,9 @@ private:
       return;
     }
     const auto IsVoidOrVoidPtrType = [](const TypeSetValueType &Val) {
-      return std::visit(Overloaded{[](const clang::QualType &QType) {
-                                     const auto *const BaseType =
-                                         QType->getUnqualifiedDesugaredType();
-                                     return BaseType->isVoidType() ||
-                                            BaseType->isVoidPointerType();
+      return std::visit(Overloaded{[](const clang::QualType &DesugardType) {
+                                     return DesugardType->isVoidType() ||
+                                            DesugardType->isVoidPointerType();
                                    },
                                    [](const auto &) { return false; }},
                         Val.Desugared);
