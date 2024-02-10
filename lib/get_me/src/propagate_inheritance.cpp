@@ -285,6 +285,8 @@ private:
 
   [[nodiscard]] auto propagateRequired() {
     return [this](const EdgeDescriptor &Edge) {
+      static constexpr auto HaveSwappedRequiredType =
+          ranges::compose(Element<0>, Element<0>);
       return Transitions_.Data |
              ranges::views::transform([this,
                                        Edge](const TransitionType &Transition) {
@@ -293,7 +295,7 @@ private:
                                                           toType(Target(Edge))),
                                 Transition.second};
              }) |
-             ranges::views::filter(Element<0>, Element<0>) |
+             ranges::views::filter(HaveSwappedRequiredType) |
              ranges::views::transform([](const auto &Transition) {
                return TransitionType{Transition.first.second,
                                      Transition.second};
