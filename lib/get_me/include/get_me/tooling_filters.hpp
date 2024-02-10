@@ -56,7 +56,7 @@ template <typename T>
                    clang::TypedefNameDecl> ||
            std::derived_from<T, clang::RecordDecl>
 {
-  if (Decl->getDeclName().isIdentifier() && Decl->getName().startswith("_")) {
+  if (Decl->getDeclName().isIdentifier() && Decl->getName().starts_with("_")) {
     return true;
   }
   if (hasReservedIdentifierTypeOrReturnType(Decl)) {
