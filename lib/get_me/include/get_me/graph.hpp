@@ -202,24 +202,29 @@ getRootVertices(const GraphData &Data);
 [[nodiscard]] std::vector<VertexDescriptor>
 getLeafVertices(const GraphData &Data);
 
+namespace detail {
+[[nodiscard]] inline std::string
+formatTransition(const TransitionEdgeType &Edge, const GraphData &Data) {
+  const auto Transition = Data.Transitions->BundeledData[Edge.TransitionIndex];
+  return fmt::format("({}, {}, {})", ToAcquired(Transition),
+                     ToTransitions(Transition) | ranges::views::values,
+                     ToRequired(Transition));
+};
+
+[[nodiscard]] inline std::string formatPath(const PathType &Path,
+                                            const GraphData &Data) {
+  return fmt::format(
+      "{}", fmt::join(Path | ranges::views::transform(
+                                 ranges::bind_back(formatTransition, Data)),
+                      ", "));
+};
+} // namespace detail
+
 template <typename RangeType>
   requires std::same_as<ranges::range_value_t<RangeType>, PathType>
-[[nodiscard]] auto toString(RangeType &&Paths, const GraphData &Data) {
-  const auto FormatPath = [&Data](const PathType &Path) {
-    const auto GetTransition =
-        [&Data](const TransitionEdgeType &Edge) -> decltype(auto) {
-      const auto Transition =
-          Data.Transitions->BundeledData[Edge.TransitionIndex];
-      return fmt::format("({}, {}, {})", ToAcquired(Transition),
-                         ToTransitions(Transition) | ranges::views::values,
-                         ToRequired(Transition));
-    };
-
-    return fmt::format(
-        "{}", fmt::join(Path | ranges::views::transform(GetTransition), ", "));
-  };
-
-  return std::forward<RangeType>(Paths) | ranges::views::transform(FormatPath);
+[[nodiscard]] auto formatPaths(RangeType &&Paths, const GraphData &Data) {
+  return std::forward<RangeType>(Paths) |
+         ranges::views::transform(ranges::bind_back(detail::formatPath, Data));
 }
 
 [[nodiscard]] std::vector<std::vector<FlatTransitionType>>
