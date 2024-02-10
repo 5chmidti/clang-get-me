@@ -255,9 +255,9 @@ template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
 }
 
 [[nodiscard]] std::pair<bool, std::pair<TypeSetValueType, TypeSet>>
-swapRequiredType(TransitionType::first_type Transition,
-                 const TypeSetValueType &SourceType,
-                 const TypeSetValueType TargetType) {
+swapRequiredTypeIfPresent(TransitionType::first_type Transition,
+                          const TypeSetValueType &SourceType,
+                          const TypeSetValueType TargetType) {
   auto Required = ToRequired(Transition);
   const auto ChangedRequiredTS = 0U != Required.erase(SourceType);
   if (ChangedRequiredTS) {
@@ -286,13 +286,13 @@ private:
   [[nodiscard]] auto propagateRequired() {
     return [this](const EdgeDescriptor &Edge) {
       return Transitions_.Data |
-             ranges::views::transform(
-                 [this, Edge](const TransitionType &Transition) {
-                   return std::pair{swapRequiredType(Transition.first,
-                                                     toType(Source(Edge)),
-                                                     toType(Target(Edge))),
-                                    Transition.second};
-                 }) |
+             ranges::views::transform([this,
+                                       Edge](const TransitionType &Transition) {
+               return std::pair{swapRequiredTypeIfPresent(Transition.first,
+                                                          toType(Source(Edge)),
+                                                          toType(Target(Edge))),
+                                Transition.second};
+             }) |
              ranges::views::filter(Element<0>, Element<0>) |
              ranges::views::transform([](const auto &Transition) {
                return TransitionType{Transition.first.second,
