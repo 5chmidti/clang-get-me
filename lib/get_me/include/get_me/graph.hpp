@@ -59,6 +59,7 @@ struct TransitionEdgeType {
 
 template <> class fmt::formatter<TransitionEdgeType> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     return Ctx.begin();
@@ -68,6 +69,7 @@ public:
                                                 format_context &Ctx) const {
     return fmt::format_to(Ctx.out(), "({}, {})", Val.Edge, Val.TransitionIndex);
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 using PathType = std::vector<TransitionEdgeType>;
@@ -148,6 +150,7 @@ inline constexpr auto Target = []<typename T>(const T &Edge) -> VertexDescriptor
 
 template <> class fmt::formatter<GraphData> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     const auto *Iter = Ctx.begin();
@@ -189,6 +192,7 @@ public:
                           Val.VertexData, Val.VertexDepth, Val.Edges, Val.Paths,
                           fmt::join(Val.Transitions->Data, "\n\t"));
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 
 private:
   [[nodiscard]] static std::string toDotFormat(const GraphData &Data);

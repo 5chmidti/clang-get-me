@@ -23,6 +23,7 @@ normalize(clang::PrintingPolicy PrintingPolicy) {
 
 template <> class fmt::formatter<clang::QualType> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     return Ctx.begin();
@@ -34,6 +35,7 @@ public:
         ::detail::normalize(clang::PrintingPolicy{clang::LangOptions{}});
     return fmt::format_to(Ctx.out(), "{}", Val.getAsString(Policy));
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 [[nodiscard]] std::string toString(const clang::NamedDecl *NDecl);

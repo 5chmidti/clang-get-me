@@ -32,6 +32,7 @@ struct ArithmeticType {
 
 template <> class fmt::formatter<ArithmeticType> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     return Ctx.begin();
@@ -41,6 +42,7 @@ public:
   format(const ArithmeticType & /*unused*/, format_context &Ctx) const {
     return fmt::format_to(Ctx.out(), "arithmetic");
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 [[nodiscard]] clang::QualType launderType(const clang::QualType &Type);
@@ -83,6 +85,7 @@ public:
 
 template <> class fmt::formatter<TypeSetValue> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     return Ctx.begin();
@@ -95,6 +98,7 @@ public:
         std::visit([](const auto &Value) { return fmt::format("{}", Value); },
                    Val));
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 struct TypeSetValueType {
@@ -120,6 +124,7 @@ struct TypeSetValueTypeLessDesugared {
 
 template <> class fmt::formatter<TypeSetValueType> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     const auto *Iter = Ctx.begin();
@@ -139,6 +144,7 @@ public:
     }
     return fmt::format_to(Ctx.out(), "({}, {})", Val.Actual, Val.Desugared);
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 
 private:
   char Presentation_{};

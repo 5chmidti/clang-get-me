@@ -42,6 +42,7 @@ getTransitionRequiredTypeNames(const TransitionDataType &Data);
 
 template <> class fmt::formatter<TransitionDataType> {
 public:
+  // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
   parse(format_parse_context &Ctx) {
     return Ctx.begin();
@@ -53,6 +54,7 @@ public:
         Ctx.out(), "{} {}({})", getTransitionAcquiredTypeNames(Val),
         getTransitionName(Val), getTransitionRequiredTypeNames(Val));
   }
+  // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
 using StrippedTransitionType = indexed_value<TransitionDataType>;
