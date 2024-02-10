@@ -267,6 +267,15 @@ swapRequiredType(TransitionType::first_type Transition,
                    std::pair{ToAcquired(Transition), Required}};
 }
 
+[[nodiscard]] auto isAConstructor(const TransitionDataType &Transition) {
+  return std::visit(Overloaded{[](const clang::FunctionDecl *const FDecl) {
+                                 return llvm::isa<clang::CXXConstructorDecl>(
+                                     FDecl);
+                               },
+                               [](auto &&) { return false; }},
+                    Transition);
+};
+
 class InheritancePropagator {
 private:
   [[nodiscard]] const TypeSetValueType &
@@ -312,26 +321,15 @@ private:
            ranges::views::transform(
                [DerivedType](
                    const TransitionType &Transition) -> TransitionType {
-                 const auto IsNotConstructor =
-                     [](const TransitionDataType &Transition) {
-                       return std::visit(
-                           Overloaded{
-                               [](const clang::FunctionDecl *const FDecl) {
-                                 return !llvm::isa<clang::CXXConstructorDecl>(
-                                     FDecl);
-                               },
-                               [](auto &&) { return true; }},
-                           Transition);
-                     };
                  return {std::pair{DerivedType, ToRequired(Transition)},
                          {ToBundeledTransitionIndex(Transition),
                           ToTransitions(Transition) |
                               ranges::views::filter(
-                                  [&DerivedType, &IsNotConstructor](
+                                  [&DerivedType](
                                       const TransitionDataType &Transition2) {
                                     return transitionIsMember(DerivedType)(
                                                Transition2) &&
-                                           IsNotConstructor(Transition2);
+                                           !isAConstructor(Transition2);
                                   },
                                   Value) |
                               ranges::to<StrippedTransitionsSet>}};
