@@ -132,7 +132,7 @@ bool filterOut(const clang::CXXMethodDecl *const Method, const Config &Conf) {
     // FIXME: add transitive parents
     // FIXME: add caching for parents
     if (ranges::any_of(Method->getParent()->methods() | ranges::views::indirect,
-                       &clang::CXXMethodDecl::isPure)) {
+                       &clang::CXXMethodDecl::isPureVirtual)) {
       if (Conf.EnableVerboseTransitionCollection) {
         spdlog::trace("filtered out {} due to inheriting from a class with "
                       "pure functions",
