@@ -130,7 +130,8 @@ int main(int argc, const char **argv) {
   spdlog::info("Graph size: |V| = {}, |E| = {}", Data.VertexData.size(),
                Data.Edges.size());
 
-  auto Paths = Data.Paths | ranges::to_vector;
+  auto Paths = Data.Paths | ranges::to_vector |
+               ranges::actions::sort(ranges::less{}, ranges::size);
   spdlog::info(
       "path length distribution: {}",
       Paths |
