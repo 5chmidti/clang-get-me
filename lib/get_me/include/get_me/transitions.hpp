@@ -87,187 +87,189 @@ struct TransitionData {
 
 namespace detail {
 struct ToAcquiredFn {
-  [[nodiscard]] constexpr TypeSetValueType &&
-  operator()(TransitionType &&Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &&
+  operator()(TransitionType &&Val) {
     return std::move(Val).first.first;
   }
-  [[nodiscard]] constexpr const TypeSetValueType &
-  operator()(const TransitionType &Val) const {
+  [[nodiscard]] static constexpr const TypeSetValueType &
+  operator()(const TransitionType &Val) {
     return Val.first.first;
   }
-  [[nodiscard]] constexpr TypeSetValueType &
-  operator()(TransitionType &Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &
+  operator()(TransitionType &Val) {
     return Val.first.first;
   }
 
-  [[nodiscard]] constexpr TypeSetValueType &&
-  operator()(TransitionType::first_type &&Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &&
+  operator()(TransitionType::first_type &&Val) {
     return std::move(Val).first;
   }
-  [[nodiscard]] constexpr const TypeSetValueType &
-  operator()(const TransitionType::first_type &Val) const {
+  [[nodiscard]] static constexpr const TypeSetValueType &
+  operator()(const TransitionType::first_type &Val) {
     return Val.first;
   }
-  [[nodiscard]] constexpr TypeSetValueType &
-  operator()(TransitionType::first_type &Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &
+  operator()(TransitionType::first_type &Val) {
     return Val.first;
   }
 
-  [[nodiscard]] constexpr TypeSetValueType &&
-  operator()(BundeledTransitionType &&Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &&
+  operator()(BundeledTransitionType &&Val) {
     return std::move(Val).first.first;
   }
-  [[nodiscard]] constexpr const TypeSetValueType &
-  operator()(const BundeledTransitionType &Val) const {
+  [[nodiscard]] static constexpr const TypeSetValueType &
+  operator()(const BundeledTransitionType &Val) {
     return Val.first.first;
   }
-  [[nodiscard]] constexpr TypeSetValueType &
-  operator()(BundeledTransitionType &Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &
+  operator()(BundeledTransitionType &Val) {
     return Val.first.first;
   }
 
-  [[nodiscard]] constexpr TypeSetValueType &&
-  operator()(FlatTransitionType &&Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &&
+  operator()(FlatTransitionType &&Val) {
     return Element<0>(std::move(Val));
   }
-  [[nodiscard]] constexpr const TypeSetValueType &
-  operator()(const FlatTransitionType &Val) const {
+  [[nodiscard]] static constexpr const TypeSetValueType &
+  operator()(const FlatTransitionType &Val) {
     return Element<0>(Val);
   }
-  [[nodiscard]] constexpr TypeSetValueType &
-  operator()(FlatTransitionType &Val) const {
+  [[nodiscard]] static constexpr TypeSetValueType &
+  operator()(FlatTransitionType &Val) {
     return Element<0>(Val);
   }
 };
 
 struct ToRequiredFn {
-  [[nodiscard]] constexpr TypeSet &&operator()(TransitionType &&Val) const {
+  [[nodiscard]] static constexpr TypeSet &&operator()(TransitionType &&Val) {
     return std::move(Val).first.second;
   }
-  [[nodiscard]] constexpr const TypeSet &
-  operator()(const TransitionType &Val) const {
+  [[nodiscard]] static constexpr const TypeSet &
+  operator()(const TransitionType &Val) {
     return Val.first.second;
   }
-  [[nodiscard]] constexpr TypeSet &operator()(TransitionType &Val) const {
+  [[nodiscard]] static constexpr TypeSet &operator()(TransitionType &Val) {
     return Val.first.second;
   }
 
-  [[nodiscard]] constexpr TypeSet &&
-  operator()(TransitionType::first_type &&Val) const {
+  [[nodiscard]] static constexpr TypeSet &&
+  operator()(TransitionType::first_type &&Val) {
     return std::move(Val).second;
   }
-  [[nodiscard]] constexpr const TypeSet &
-  operator()(const TransitionType::first_type &Val) const {
+  [[nodiscard]] static constexpr const TypeSet &
+  operator()(const TransitionType::first_type &Val) {
     return Val.second;
   }
-  [[nodiscard]] constexpr TypeSet &
-  operator()(TransitionType::first_type &Val) const {
+  [[nodiscard]] static constexpr TypeSet &
+  operator()(TransitionType::first_type &Val) {
     return Val.second;
   }
 
-  [[nodiscard]] constexpr TypeSet &&
-  operator()(BundeledTransitionType &&Val) const {
+  [[nodiscard]] static constexpr TypeSet &&
+  operator()(BundeledTransitionType &&Val) {
     return std::move(Val).first.second;
   }
-  [[nodiscard]] constexpr const TypeSet &
-  operator()(const BundeledTransitionType &Val) const {
+  [[nodiscard]] static constexpr const TypeSet &
+  operator()(const BundeledTransitionType &Val) {
     return Val.first.second;
   }
-  [[nodiscard]] constexpr TypeSet &
-  operator()(BundeledTransitionType &Val) const {
+  [[nodiscard]] static constexpr TypeSet &
+  operator()(BundeledTransitionType &Val) {
     return Val.first.second;
   }
 
-  [[nodiscard]] constexpr TypeSet &&operator()(FlatTransitionType &&Val) const {
+  [[nodiscard]] static constexpr TypeSet &&
+  operator()(FlatTransitionType &&Val) {
     return Element<2>(std::move(Val));
   }
-  [[nodiscard]] constexpr const TypeSet &
-  operator()(const FlatTransitionType &Val) const {
+  [[nodiscard]] static constexpr const TypeSet &
+  operator()(const FlatTransitionType &Val) {
     return Element<2>(Val);
   }
-  [[nodiscard]] constexpr TypeSet &operator()(FlatTransitionType &Val) const {
+  [[nodiscard]] static constexpr TypeSet &operator()(FlatTransitionType &Val) {
     return Element<2>(Val);
   }
 };
 
 struct ToTransitionsFn {
-  [[nodiscard]] constexpr StrippedTransitionsSet &&
-  operator()(TransitionType &&Val) const {
+  [[nodiscard]] static constexpr StrippedTransitionsSet &&
+  operator()(TransitionType &&Val) {
     return Value(std::move(Val).second);
   }
-  [[nodiscard]] constexpr const StrippedTransitionsSet &
-  operator()(const TransitionType &Val) const {
+  [[nodiscard]] static constexpr const StrippedTransitionsSet &
+  operator()(const TransitionType &Val) {
     return Value(Val.second);
   }
-  [[nodiscard]] constexpr StrippedTransitionsSet &
-  operator()(TransitionType &Val) const {
+  [[nodiscard]] static constexpr StrippedTransitionsSet &
+  operator()(TransitionType &Val) {
     return Value(Val.second);
   }
 
-  [[nodiscard]] constexpr StrippedTransitionsSet &&
-  operator()(BundeledTransitionType &&Val) const {
+  [[nodiscard]] static constexpr StrippedTransitionsSet &&
+  operator()(BundeledTransitionType &&Val) {
     return Element<1>(std::move(Val));
   }
-  [[nodiscard]] constexpr const StrippedTransitionsSet &
-  operator()(const BundeledTransitionType &Val) const {
+  [[nodiscard]] static constexpr const StrippedTransitionsSet &
+  operator()(const BundeledTransitionType &Val) {
     return Element<1>(Val);
   }
-  [[nodiscard]] constexpr StrippedTransitionsSet &
-  operator()(BundeledTransitionType &Val) const {
+  [[nodiscard]] static constexpr StrippedTransitionsSet &
+  operator()(BundeledTransitionType &Val) {
     return Element<1>(Val);
   }
 };
 
 struct ToTransitionFn {
-  [[nodiscard]] constexpr TransitionDataType &&
-  operator()(StrippedTransitionType &&Val) const {
+  [[nodiscard]] static constexpr TransitionDataType &&
+  operator()(StrippedTransitionType &&Val) {
     return Value(std::move(Val));
   }
-  [[nodiscard]] constexpr const TransitionDataType &
-  operator()(const StrippedTransitionType &Val) const {
+  [[nodiscard]] static constexpr const TransitionDataType &
+  operator()(const StrippedTransitionType &Val) {
     return Value(Val);
   }
-  [[nodiscard]] constexpr TransitionDataType &
-  operator()(StrippedTransitionType &Val) const {
+  [[nodiscard]] static constexpr TransitionDataType &
+  operator()(StrippedTransitionType &Val) {
     return Value(Val);
   }
-  [[nodiscard]] constexpr TransitionDataType &&
-  operator()(FlatTransitionType &&Val) const {
+  [[nodiscard]] static constexpr TransitionDataType &&
+  operator()(FlatTransitionType &&Val) {
     return Element<1>(std::move(Val));
   }
-  [[nodiscard]] constexpr const TransitionDataType &
-  operator()(const FlatTransitionType &Val) const {
+  [[nodiscard]] static constexpr const TransitionDataType &
+  operator()(const FlatTransitionType &Val) {
     return Element<1>(Val);
   }
-  [[nodiscard]] constexpr TransitionDataType &
-  operator()(FlatTransitionType &Val) const {
+  [[nodiscard]] static constexpr TransitionDataType &
+  operator()(FlatTransitionType &Val) {
     return Element<1>(Val);
   }
 };
 
 struct ToBundeledTransitionIndexFn {
-  [[nodiscard]] constexpr size_t &&operator()(TransitionType &&Val) const {
+  [[nodiscard]] static constexpr size_t &&operator()(TransitionType &&Val) {
     return Index(std::move(Val).second);
   }
-  [[nodiscard]] constexpr const size_t &
-  operator()(const TransitionType &Val) const {
+  [[nodiscard]] static constexpr const size_t &
+  operator()(const TransitionType &Val) {
     return Index(Val.second);
   }
-  [[nodiscard]] constexpr size_t &operator()(TransitionType &Val) const {
+  [[nodiscard]] static constexpr size_t &operator()(TransitionType &Val) {
     return Index(Val.second);
   }
 };
+
 struct ToTransitionIndexFn {
-  [[nodiscard]] constexpr size_t &&
-  operator()(StrippedTransitionType &&Val) const {
+  [[nodiscard]] static constexpr size_t &&
+  operator()(StrippedTransitionType &&Val) {
     return Index(std::move(Val));
   }
-  [[nodiscard]] constexpr const size_t &
-  operator()(const StrippedTransitionType &Val) const {
+  [[nodiscard]] static constexpr const size_t &
+  operator()(const StrippedTransitionType &Val) {
     return Index(Val);
   }
-  [[nodiscard]] constexpr size_t &
-  operator()(StrippedTransitionType &Val) const {
+  [[nodiscard]] static constexpr size_t &
+  operator()(StrippedTransitionType &Val) {
     return Index(Val);
   }
 };
