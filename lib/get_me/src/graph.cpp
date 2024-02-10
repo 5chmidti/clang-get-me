@@ -255,13 +255,19 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
   CurrentState_.InterestingVertices.clear();
   ++CurrentState_.IterationIndex;
 
-  auto MaybeAddEdgeFrom =
-      [this](const indexed_value<VertexType> &IndexedSourceVertex) {
-        const auto SourceDepth = VertexDepth_[Index(IndexedSourceVertex)];
-        return [this, &IndexedSourceVertex,
-                SourceDepth](bool AddedTransitions,
-                             const std::pair<TransitionType, TypeSet>
-                                 &TransitionAndTargetTS) {
+  const auto NumGraphBuildingStepsLeft =
+      Conf_->MaxGraphDepth - this->CurrentState_.IterationIndex;
+  const auto MaxAllowedSizeOfTargetVertex =
+      (SafePlus(Conf_->MaxLeafVertexSize, NumGraphBuildingStepsLeft));
+
+  auto MaybeAddEdgeFrom = [this, MaxAllowedSizeOfTargetVertex](
+                              const indexed_value<VertexType>
+                                  &IndexedSourceVertex) {
+    const auto SourceDepth = VertexDepth_[Index(IndexedSourceVertex)];
+    return
+        [this, &IndexedSourceVertex, SourceDepth, MaxAllowedSizeOfTargetVertex](
+            bool AddedTransitions,
+            const std::pair<TransitionType, TypeSet> &TransitionAndTargetTS) {
           const auto &[Transition, TargetTypeSet] = TransitionAndTargetTS;
           const auto TargetVertexIter = VertexData_.find(TargetTypeSet);
           const auto TargetVertexExists = TargetVertexIter != VertexData_.end();
@@ -272,6 +278,9 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
           const auto EdgeToAdd = TransitionEdgeType{
               {Index(IndexedSourceVertex), TargetVertexIndex},
               ToBundeledTransitionIndex(Transition)};
+          if (ranges::size(TargetTypeSet) > MaxAllowedSizeOfTargetVertex) {
+            return AddedTransitions;
+          }
 
           if (TargetVertexExists) {
             if (!isEmptyTargetTS(TargetVertexIndex) &&
@@ -298,7 +307,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
 
           return AddedTransitions;
         };
-      };
+  };
 
   auto TransitionsForQuery = getTransitionsForQuery(Transitions_->Data, Query_);
   auto VertexAndTransitionsVec = constructVertexAndTransitionsPairVector(
