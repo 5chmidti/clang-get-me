@@ -74,7 +74,7 @@ void propagateTypeConversions(TransitionData &Transitions) {
                          ranges::views::concat(
                              ranges::views::single(KeyType),
                              Group | ranges::views::transform(Element<1>)) |
-                ranges::to<TypeSet>};
+                             ranges::to<TypeSet>};
       }) |
       ranges::views::values | ranges::to_vector;
 
@@ -92,44 +92,44 @@ void propagateTypeConversions(TransitionData &Transitions) {
   auto &ConversionMap = Transitions.ConversionMap;
 
   combine(ConversionMap,
-      PtrRefConversionSet |
-          ranges::views::for_each([](const TypeSet &ConversionSet) {
-            return ConversionSet |
+          PtrRefConversionSet |
+              ranges::views::for_each([](const TypeSet &ConversionSet) {
+                return ConversionSet |
                        ranges::views::transform(
                            [&ConversionSet](const TypeSetValueType &Type) {
                              return TypeConversionMap::value_type{
                                  Type.Desugared, ConversionSet};
-                   });
-          }) |
-          ranges::to<TypeConversionMap>);
+                           });
+              }) |
+              ranges::to<TypeConversionMap>);
 
   ranges::for_each(
       ConversionMap | ranges::views::values, [&ConversionMap](TypeSet &Val) {
-    Val.merge(
-        Val | ranges::views::transform([](const TypeSetValueType &Type) {
+        Val.merge(
+            Val | ranges::views::transform([](const TypeSetValueType &Type) {
               const auto RemoveConst = Overloaded{
                   [](const clang::QualType &QType) -> TypeSetValue {
-                           auto NewType = QType;
-                           NewType.removeLocalConst();
-                           return NewType;
-                         },
+                    auto NewType = QType;
+                    NewType.removeLocalConst();
+                    return NewType;
+                  },
                   [](const auto &Default) -> TypeSetValue { return Default; }};
 
               return TypeSetValueType{
                   .Desugared = std::visit(RemoveConst, Type.Desugared),
                   .Actual = std::visit(RemoveConst, Type.Actual)};
-        }) |
-        ranges::to<TypeSet>);
+            }) |
+            ranges::to<TypeSet>);
 
-    Val.merge(Val |
+        Val.merge(Val |
                   ranges::views::transform(
                       [&ConversionMap](const TypeSet::value_type &Type) {
                         return ConversionMap.find(Type.Desugared);
-              }) |
-              ranges::views::filter([&ConversionMap](const auto Iter) {
-                return Iter != ConversionMap.end();
-              }) |
-              ranges::views::indirect | ranges::views::values |
-              ranges::views::join | ranges::to<TypeSet>);
-  });
+                      }) |
+                  ranges::views::filter([&ConversionMap](const auto Iter) {
+                    return Iter != ConversionMap.end();
+                  }) |
+                  ranges::views::indirect | ranges::views::values |
+                  ranges::views::join | ranges::to<TypeSet>);
+      });
 }
