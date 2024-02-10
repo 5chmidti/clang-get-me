@@ -120,6 +120,10 @@ int main(int argc, const char **argv) {
   const auto Query = getQueriedTypesForInput(*Transitions, QueriedType);
 
   auto Data = runGraphBuilding(Transitions, Query, Conf);
+  {
+    auto DotFile = fmt::output_file("graph.dot");
+    DotFile.print("{:d}", Data);
+  }
   runPathFinding(Data);
 
   spdlog::info("|Transitions|: {}", ranges::size(Data.Transitions->FlatData));
