@@ -106,14 +106,14 @@ struct TypeSetValueType {
 };
 
 struct TypeSetValueTypeLessActual {
-  [[nodiscard]] bool operator()(const TypeSetValueType &Lhs,
-                                const TypeSetValueType &Rhs) const {
+  [[nodiscard]] static bool operator()(const TypeSetValueType &Lhs,
+                                       const TypeSetValueType &Rhs) {
     return Lhs.Actual < Rhs.Actual;
   }
 };
 struct TypeSetValueTypeLessDesugared {
-  [[nodiscard]] bool operator()(const TypeSetValueType &Lhs,
-                                const TypeSetValueType &Rhs) const {
+  [[nodiscard]] static bool operator()(const TypeSetValueType &Lhs,
+                                       const TypeSetValueType &Rhs) {
     return Lhs.Desugared < Rhs.Desugared;
   }
 };
@@ -144,6 +144,8 @@ private:
   char Presentation_{};
 };
 
+// FIXME: figure out if comparing with Desugared would be possible, and simplify
+// other logic
 using TypeSet = boost::container::flat_set<TypeSetValueType>;
 
 [[nodiscard]] std::pair<TypeSetValueType, TypeSet>
