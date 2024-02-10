@@ -270,8 +270,14 @@ private:
   [[nodiscard]] static std::int64_t
   getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
 
+  [[nodiscard]] bool
+  isEmptyTargetTS(const VertexSet::key_type::first_type VertexIndex) const {
+    return VertexIndex == EmptyTsIndex_;
+  }
+
   std::shared_ptr<TransitionData> Transitions_;
   TypeSet Query_;
+  VertexSet::value_type::first_type EmptyTsIndex_;
   VertexSet VertexData_{};
   std::vector<size_t> VertexDepth_{};
   GraphData::EdgeContainer Edges_{};

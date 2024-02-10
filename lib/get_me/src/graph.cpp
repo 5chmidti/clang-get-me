@@ -211,6 +211,7 @@ GraphBuilder::GraphBuilder(std::shared_ptr<TransitionData> Transitions,
                            TypeSet Query, std::shared_ptr<Config> Conf)
     : Transitions_{std::move(Transitions)},
       Query_{std::move(Query)},
+      EmptyTsIndex_{ranges::size(Query_)},
       VertexData_{ranges::views::concat(
                       ranges::views::enumerate(Query_) |
                           ranges::views::transform(
@@ -275,9 +276,9 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
               {Index(IndexedSourceVertex), TargetVertexIndex},
               ToBundeledTransitionIndex(Transition)};
 
-          const auto IsEmptyTargetTS = TargetVertexIndex == 1U;
           if (TargetVertexExists) {
-            if (!IsEmptyTargetTS && !Conf_->EnableGraphBackwardsEdge &&
+            if (!isEmptyTargetTS(TargetVertexIndex) &&
+                !Conf_->EnableGraphBackwardsEdge &&
                 SourceDepth >= VertexDepth_[TargetVertexIndex]) {
               return AddedTransitions;
             }
