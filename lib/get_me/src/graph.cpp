@@ -355,7 +355,7 @@ std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
     const auto TargetVertex = Target(Edge);
     const auto SourceVertex = Source(Edge);
 
-    auto EdgeWeightAsString = fmt::format("{}", Transition);
+    auto EdgeWeightAsString = fmt::format("{}", fmt::join(Transition, ",\n"));
     boost::replace_all(EdgeWeightAsString, "\"", "\\\"");
     return fmt::format(R"(  {} -> {}[label="{}"])", SourceVertex, TargetVertex,
                        EdgeWeightAsString);
