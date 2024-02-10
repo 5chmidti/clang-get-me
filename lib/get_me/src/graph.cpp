@@ -153,12 +153,9 @@ expandAndFlattenPath(const PathType &Path, const GraphData &Data) {
       [&Data](const TransitionEdgeType &Edge) -> decltype(auto) {
     const auto &Transition =
         Data.Transitions->BundeledData[Edge.TransitionIndex];
-    return ranges::views::zip(
-        ranges::views::repeat(ToAcquired(Transition)),
-        ToTransitions(Transition) | ranges::views::values |
-            ranges::views::transform(
-                [](const TransitionDataType &Val) { return Val; }),
-        ranges::views::repeat(ToRequired(Transition)));
+    return ranges::views::zip(ranges::views::repeat(ToAcquired(Transition)),
+                              ToTransitions(Transition) | ranges::views::values,
+                              ranges::views::repeat(ToRequired(Transition)));
   };
   auto ExpandedPath =
       Path | ranges::views::transform(ExpandEdge) | ranges::to_vector;
