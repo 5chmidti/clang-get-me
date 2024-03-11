@@ -288,7 +288,7 @@ inline constexpr detail::ToTransitionIndexFn ToTransitionIndex{};
 [[nodiscard]] boost::container::flat_set<TransitionType>
 getSmallestIndependentTransitions(const ranges::range auto &Transitions) {
   auto IndependentTransitions = boost::container::flat_set<TransitionType>{};
-  auto Dependencies =
+  const auto Dependencies =
       Transitions |
       ranges::views::transform([&Transitions](const auto &Transition) {
         const auto DependsOn = [](const auto &Dependee) {
