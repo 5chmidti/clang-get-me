@@ -45,7 +45,7 @@ public:
 
     AcquiredTypeNames_ =
         Transitions_->Data | ranges::views::transform(ToAcquired) |
-        ranges::views::transform([](const TypeSetValueType Acquired) {
+        ranges::views::transform([](const TransparentType Acquired) {
           return fmt::format("{}", Acquired);
         }) |
         ranges::to_vector;

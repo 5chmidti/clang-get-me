@@ -47,7 +47,7 @@ public:
 
 [[nodiscard]] clang::QualType launderType(const clang::QualType &Type);
 
-class TypeSetValue : public std::variant<clang::QualType, ArithmeticType> {
+class Type : public std::variant<clang::QualType, ArithmeticType> {
 public:
   using Base = std::variant<clang::QualType, ArithmeticType>;
   using Base::variant;
@@ -57,12 +57,11 @@ public:
     requires std::same_as<clang::QualType, std::remove_cvref_t<T>>
   // NOLINTBEGIN(bugprone-forwarding-reference-overload,
   // google-explicit-constructor, hicpp-explicit-conversions)
-  explicit(false) TypeSetValue(T &&QType)
+  explicit(false) Type(T &&QType)
       : Base{launderType(std::forward<T>(QType))} {}
   // NOLINTEND
 
-  [[nodiscard]] friend auto operator<=>(const TypeSetValue &Lhs,
-                                        const TypeSetValue &Rhs) {
+  [[nodiscard]] friend auto operator<=>(const Type &Lhs, const Type &Rhs) {
 
     if (const auto Cmp = Lhs.index() <=> Rhs.index();
         Cmp != std::strong_ordering::equal) {
@@ -83,7 +82,7 @@ public:
   }
 };
 
-template <> class fmt::formatter<TypeSetValue> {
+template <> class fmt::formatter<Type> {
 public:
   // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
@@ -91,7 +90,7 @@ public:
     return Ctx.begin();
   }
 
-  [[nodiscard]] format_context::iterator format(const TypeSetValue &Val,
+  [[nodiscard]] format_context::iterator format(const Type &Val,
                                                 format_context &Ctx) const {
     return fmt::format_to(
         Ctx.out(), "{}",
@@ -101,28 +100,28 @@ public:
   // NOLINTEND(readability-convert-member-functions-to-static)
 };
 
-struct TypeSetValueType {
-  TypeSetValue Desugared;
-  TypeSetValue Actual;
+struct TransparentType {
+  Type Desugared;
+  Type Actual;
 
-  [[nodiscard]] friend auto operator<=>(const TypeSetValueType &Lhs,
-                                        const TypeSetValueType &Rhs) = default;
+  [[nodiscard]] friend auto operator<=>(const TransparentType &Lhs,
+                                        const TransparentType &Rhs) = default;
 };
 
 struct TypeSetValueTypeLessActual {
-  [[nodiscard]] static bool operator()(const TypeSetValueType &Lhs,
-                                       const TypeSetValueType &Rhs) {
+  [[nodiscard]] static bool operator()(const TransparentType &Lhs,
+                                       const TransparentType &Rhs) {
     return Lhs.Actual < Rhs.Actual;
   }
 };
 struct TypeSetValueTypeLessDesugared {
-  [[nodiscard]] static bool operator()(const TypeSetValueType &Lhs,
-                                       const TypeSetValueType &Rhs) {
+  [[nodiscard]] static bool operator()(const TransparentType &Lhs,
+                                       const TransparentType &Rhs) {
     return Lhs.Desugared < Rhs.Desugared;
   }
 };
 
-template <> class fmt::formatter<TypeSetValueType> {
+template <> class fmt::formatter<TransparentType> {
 public:
   // NOLINTBEGIN(readability-convert-member-functions-to-static)
   [[nodiscard]] constexpr format_parse_context::iterator
@@ -137,7 +136,7 @@ public:
     return Iter;
   }
 
-  [[nodiscard]] format_context::iterator format(const TypeSetValueType &Val,
+  [[nodiscard]] format_context::iterator format(const TransparentType &Val,
                                                 format_context &Ctx) const {
     if (Presentation_ != 'a') {
       return fmt::format_to(Ctx.out(), "{}", Val.Actual);
@@ -152,22 +151,22 @@ private:
 
 // FIXME: figure out if comparing with Desugared would be possible, and simplify
 // other logic
-using TypeSet = boost::container::flat_set<TypeSetValueType>;
+using TypeSet = boost::container::flat_set<TransparentType>;
 
-[[nodiscard]] std::pair<TypeSetValueType, TypeSet>
+[[nodiscard]] std::pair<TransparentType, TypeSet>
 toTypeSet(const clang::FieldDecl *FDecl, const Config &Conf);
 
-[[nodiscard]] std::pair<TypeSetValueType, TypeSet>
+[[nodiscard]] std::pair<TransparentType, TypeSet>
 toTypeSet(const clang::VarDecl *VDecl, const Config &Conf);
 
-[[nodiscard]] std::pair<TypeSetValueType, TypeSet>
+[[nodiscard]] std::pair<TransparentType, TypeSet>
 toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
 
-[[nodiscard]] TypeSetValue toTypeSetValue(const clang::QualType &QType,
-                                          const Config &Conf);
-[[nodiscard]] TypeSetValueType toTypeSetValueType(const clang::QualType &QType,
-                                                  const clang::ASTContext &Ctx,
-                                                  const Config &Conf);
+[[nodiscard]] Type toTypeSetValue(const clang::QualType &QType,
+                                  const Config &Conf);
+[[nodiscard]] TransparentType toTypeSetValueType(const clang::QualType &QType,
+                                                 const clang::ASTContext &Ctx,
+                                                 const Config &Conf);
 
 [[nodiscard]] bool isSubset(const TypeSet &Superset, const TypeSet &Subset);
 

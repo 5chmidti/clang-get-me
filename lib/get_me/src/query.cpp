@@ -23,7 +23,7 @@
 
 namespace {
 [[nodiscard]] bool
-matchesQueriedTypeName(const TypeSetValueType &Val,
+matchesQueriedTypeName(const TransparentType &Val,
                        const std::string_view QueriedTypeAsString) {
   const auto MatchesName = Overloaded{
       [QueriedTypeAsString](const clang::QualType &QType) {
@@ -49,7 +49,7 @@ TypeSet getQueriedTypesForInput(const TransitionData &Transitions,
   const auto QueriedTypesIter = ranges::find_if(
       Transitions.ConversionMap,
       ranges::bind_back(ranges::any_of,
-                        [QueriedTypeAsString](const TypeSetValueType &Type) {
+                        [QueriedTypeAsString](const TransparentType &Type) {
                           return matchesQueriedTypeName(Type,
                                                         QueriedTypeAsString);
                         }),
@@ -67,7 +67,7 @@ TransitionData::associative_container_type getTransitionsForQuery(
     const TypeSet &Query) {
   const auto QueriedTypeIsSubset = [&Query](const auto &Required) {
     return ranges::any_of(Query,
-                          [&Required](const TypeSetValueType &QueriedType) {
+                          [&Required](const TransparentType &QueriedType) {
                             return Required.contains(QueriedType);
                           });
   };

@@ -18,7 +18,7 @@
 
 void propagateTypeAliasing(
     TypeConversionMap &ConversionMap,
-    const std::vector<TypeSetValueType> &TypedefNameDecls) {
+    const std::vector<TransparentType> &TypedefNameDecls) {
   auto Sorted = Copy(TypedefNameDecls) | ranges::actions::sort(ranges::less{});
 
   const auto EqualDesugaredTypes = [](const auto &Lhs, const auto &Rhs) {
@@ -28,11 +28,11 @@ void propagateTypeAliasing(
   combine(ConversionMap,
           Sorted | ranges::views::chunk_by(EqualDesugaredTypes) |
               ranges::views::transform(
-                  [](const auto &Group) -> std::pair<TypeSetValue, TypeSet> {
-                    const auto KeyType = ranges::front(Group);
-                    const auto Desugared = KeyType.Desugared;
+                  [](const auto &Group) -> std::pair<Type, TypeSet> {
+                    const auto &KeyType = ranges::front(Group);
+                    const auto &Desugared = KeyType.Desugared;
                     const auto DesugaredIdentity =
-                        TypeSetValueType{Desugared, Desugared};
+                        TransparentType{Desugared, Desugared};
                     return std::pair{
                         Desugared,
                         ranges::views::concat(

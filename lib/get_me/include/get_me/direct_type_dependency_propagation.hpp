@@ -10,7 +10,7 @@
 struct DTDGraphData {
   using EdgeType = std::pair<VertexDescriptor, VertexDescriptor>;
 
-  std::vector<TypeSetValueType> VertexData{};
+  std::vector<TransparentType> VertexData{};
   std::vector<EdgeType> Edges{};
 };
 

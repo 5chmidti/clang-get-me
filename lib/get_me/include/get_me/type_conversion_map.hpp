@@ -5,7 +5,7 @@
 
 #include "get_me/type_set.hpp"
 
-using TypeConversionMap = std::map<TypeSetValue, TypeSet>;
+using TypeConversionMap = std::map<Type, TypeSet>;
 
 void combine(TypeConversionMap &Lhs, TypeConversionMap &&Rhs);
 

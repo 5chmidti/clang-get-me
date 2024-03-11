@@ -63,15 +63,15 @@ using StrippedTransitionsSet =
     boost::container::flat_set<StrippedTransitionType>;
 
 using TransitionMap =
-    boost::container::flat_map<std::pair<TypeSetValueType, TypeSet>,
+    boost::container::flat_map<std::pair<TransparentType, TypeSet>,
                                indexed_value<StrippedTransitionsSet>>;
 
 using TransitionType = TransitionMap::value_type;
 using BundeledTransitionType =
-    std::pair<std::pair<TypeSetValueType, TypeSet>, StrippedTransitionsSet>;
+    std::pair<std::pair<TransparentType, TypeSet>, StrippedTransitionsSet>;
 
 using FlatTransitionType =
-    std::tuple<TypeSetValueType, TransitionDataType, TypeSet>;
+    std::tuple<TransparentType, TransitionDataType, TypeSet>;
 
 struct TransitionData {
   using associative_container_type = TransitionMap;
@@ -89,54 +89,54 @@ struct TransitionData {
 
 namespace detail {
 struct ToAcquiredFn {
-  [[nodiscard]] static constexpr TypeSetValueType &&
+  [[nodiscard]] static constexpr TransparentType &&
   operator()(TransitionType &&Val) {
     return std::move(Val).first.first;
   }
-  [[nodiscard]] static constexpr const TypeSetValueType &
+  [[nodiscard]] static constexpr const TransparentType &
   operator()(const TransitionType &Val) {
     return Val.first.first;
   }
-  [[nodiscard]] static constexpr TypeSetValueType &
+  [[nodiscard]] static constexpr TransparentType &
   operator()(TransitionType &Val) {
     return Val.first.first;
   }
 
-  [[nodiscard]] static constexpr TypeSetValueType &&
+  [[nodiscard]] static constexpr TransparentType &&
   operator()(TransitionType::first_type &&Val) {
     return std::move(Val).first;
   }
-  [[nodiscard]] static constexpr const TypeSetValueType &
+  [[nodiscard]] static constexpr const TransparentType &
   operator()(const TransitionType::first_type &Val) {
     return Val.first;
   }
-  [[nodiscard]] static constexpr TypeSetValueType &
+  [[nodiscard]] static constexpr TransparentType &
   operator()(TransitionType::first_type &Val) {
     return Val.first;
   }
 
-  [[nodiscard]] static constexpr TypeSetValueType &&
+  [[nodiscard]] static constexpr TransparentType &&
   operator()(BundeledTransitionType &&Val) {
     return std::move(Val).first.first;
   }
-  [[nodiscard]] static constexpr const TypeSetValueType &
+  [[nodiscard]] static constexpr const TransparentType &
   operator()(const BundeledTransitionType &Val) {
     return Val.first.first;
   }
-  [[nodiscard]] static constexpr TypeSetValueType &
+  [[nodiscard]] static constexpr TransparentType &
   operator()(BundeledTransitionType &Val) {
     return Val.first.first;
   }
 
-  [[nodiscard]] static constexpr TypeSetValueType &&
+  [[nodiscard]] static constexpr TransparentType &&
   operator()(FlatTransitionType &&Val) {
     return Element<0>(std::move(Val));
   }
-  [[nodiscard]] static constexpr const TypeSetValueType &
+  [[nodiscard]] static constexpr const TransparentType &
   operator()(const FlatTransitionType &Val) {
     return Element<0>(Val);
   }
-  [[nodiscard]] static constexpr TypeSetValueType &
+  [[nodiscard]] static constexpr TransparentType &
   operator()(FlatTransitionType &Val) {
     return Element<0>(Val);
   }

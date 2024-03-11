@@ -57,7 +57,7 @@ using VertexDescriptor =
                                        ranges::views::unique);
 }
 
-[[nodiscard]] bool overridesMethod(const TypeSetValueType &TypeValue,
+[[nodiscard]] bool overridesMethod(const TransparentType &TypeValue,
                                    const clang::CXXMethodDecl *const Method) {
   return std::visit(
       Overloaded{[Method](const clang::QualType &QType) {
@@ -92,7 +92,7 @@ using VertexDescriptor =
 }
 
 [[nodiscard]] bool
-overridesConstructor(const TypeSetValueType &TypeValue,
+overridesConstructor(const TransparentType &TypeValue,
                      const clang::CXXMethodDecl *const Ctor) {
   return std::visit(
       Overloaded{[Ctor](const clang::QualType &QType) {
@@ -112,27 +112,26 @@ overridesConstructor(const TypeSetValueType &TypeValue,
       TypeValue.Actual);
 }
 
-[[nodiscard]] auto transitionIsMember(const TypeSetValueType &DerivedType) {
-  return [DerivedType](const TransitionDataType &Transition) {
-    return std::visit(
-        Overloaded{[](const clang::FieldDecl *const) { return false; },
-                   [DerivedType](const clang::FunctionDecl *const FDecl) {
-                     const auto *const Method =
-                         llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
-                     if (Method == nullptr) {
-                       return false;
-                     }
-                     if (const auto *const Ctor =
-                             llvm::dyn_cast<clang::CXXConstructorDecl>(Method);
-                         Ctor != nullptr) {
-                       return overridesConstructor(DerivedType, Ctor);
-                     }
+[[nodiscard]] bool transitionIsMemberOf(const TransparentType &DerivedType,
+                                        const TransitionDataType &Transition) {
+  return std::visit(
+      Overloaded{[](const clang::FieldDecl *const) { return false; },
+                 [DerivedType](const clang::FunctionDecl *const FDecl) {
+                   const auto *const Method =
+                       llvm::dyn_cast<clang::CXXMethodDecl>(FDecl);
+                   if (Method == nullptr) {
+                     return false;
+                   }
+                   if (const auto *const Ctor =
+                           llvm::dyn_cast<clang::CXXConstructorDecl>(Method);
+                       Ctor != nullptr) {
+                     return overridesConstructor(DerivedType, Ctor);
+                   }
 
-                     return overridesMethod(DerivedType, Method);
-                   },
-                   [](const auto *const) { return false; }},
-        Transition);
-  };
+                   return overridesMethod(DerivedType, Method);
+                 },
+                 [](const auto *const) { return false; }},
+      Transition);
 }
 
 [[nodiscard]] InheritanceGraph createGraph(const DTDGraphData &Data) {
@@ -159,7 +158,7 @@ public:
   }
 
 private:
-  [[nodiscard]] VertexDescriptor addType(const TypeSetValueType &Type) {
+  [[nodiscard]] VertexDescriptor addType(const TransparentType &Type) {
     const auto BaseTypeIter = Vertices_.find(Type);
     const auto BaseTypeExists = BaseTypeIter != Vertices_.end();
     const auto BaseVertexIndex =
@@ -199,7 +198,7 @@ private:
     return false;
   }
 
-  indexed_set<TypeSetValueType> Vertices_{};
+  indexed_set<TransparentType> Vertices_{};
   indexed_set<DTDGraphData::EdgeType> Edges_{};
   const Config &Conf_;
 };
@@ -254,10 +253,10 @@ template <typename... Ts> [[nodiscard]] auto propagate(Ts &&...Propagators) {
       });
 }
 
-[[nodiscard]] std::pair<bool, std::pair<TypeSetValueType, TypeSet>>
+[[nodiscard]] std::pair<bool, std::pair<TransparentType, TypeSet>>
 swapRequiredTypeIfPresent(TransitionType::first_type Transition,
-                          const TypeSetValueType &SourceType,
-                          const TypeSetValueType TargetType) {
+                          const TransparentType &SourceType,
+                          const TransparentType TargetType) {
   auto Required = ToRequired(Transition);
   const auto ChangedRequiredTS = 0U != Required.erase(SourceType);
   if (ChangedRequiredTS) {
@@ -278,7 +277,7 @@ swapRequiredTypeIfPresent(TransitionType::first_type Transition,
 
 class InheritancePropagator {
 private:
-  [[nodiscard]] const TypeSetValueType &
+  [[nodiscard]] const TransparentType &
   toType(const VertexDescriptor Vertex) const {
     return Data_.VertexData[Vertex];
   }
@@ -304,8 +303,8 @@ private:
   }
 
   [[nodiscard]] auto
-  propagatedForAcquired(const TypeSetValueType &DerivedType,
-                        const TypeSetValueType &BaseType) const {
+  propagatedForAcquired(const TransparentType &DerivedType,
+                        const TransparentType &BaseType) const {
     return Transitions_.Data |
            ranges::views::filter(EqualTo(DerivedType), ToAcquired) |
            ranges::views::transform(
@@ -316,8 +315,8 @@ private:
   }
 
   [[nodiscard]] auto propagatedInheritedMethodsForAcquired(
-      const TypeSetValueType &BaseType,
-      const TypeSetValueType &DerivedType) const {
+      const TransparentType &BaseType,
+      const TransparentType &DerivedType) const {
     return Transitions_.Data |
            ranges::views::filter(EqualTo(BaseType), ToAcquired) |
            ranges::views::transform(
@@ -329,8 +328,8 @@ private:
                               ranges::views::filter(
                                   [&DerivedType](
                                       const TransitionDataType &Transition2) {
-                                    return transitionIsMember(DerivedType)(
-                                               Transition2) &&
+                                    return transitionIsMemberOf(DerivedType,
+                                                                Transition2) &&
                                            !isAConstructor(Transition2);
                                   },
                                   Value) |

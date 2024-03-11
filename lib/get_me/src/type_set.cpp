@@ -25,16 +25,16 @@ namespace {
 }
 } // namespace
 
-TypeSetValue toTypeSetValue(const clang::QualType &QType, const Config &Conf) {
+Type toTypeSetValue(const clang::QualType &QType, const Config &Conf) {
   if (Conf.EnableTruncateArithmetic && QType->isArithmeticType()) {
-    return TypeSetValue{ArithmeticType{}};
+    return ArithmeticType{};
   }
-  return TypeSetValue{launderType(QType)};
+  return QType;
 }
 
-TypeSetValueType toTypeSetValueType(const clang::QualType &QType,
-                                    const clang::ASTContext &Ctx,
-                                    const Config &Conf) {
+TransparentType toTypeSetValueType(const clang::QualType &QType,
+                                   const clang::ASTContext &Ctx,
+                                   const Config &Conf) {
   return {.Desugared = toTypeSetValue(QType.getDesugaredType(Ctx), Conf),
           .Actual = toTypeSetValue(QType, Conf)};
 }
@@ -43,7 +43,7 @@ clang::QualType launderType(const clang::QualType &QType) {
   return {launderType(QType.getTypePtr()), QType.getLocalFastQualifiers()};
 }
 
-std::pair<TypeSetValueType, TypeSet>
+std::pair<TransparentType, TypeSet>
 toTypeSet(const clang::FunctionDecl *const FDecl, const Config &Conf) {
   const auto AcquiredType = [FDecl, Conf]() {
     if (const auto *const Constructor =
@@ -79,7 +79,7 @@ toTypeSet(const clang::FunctionDecl *const FDecl, const Config &Conf) {
   return {{AcquiredType}, RequiredTypes};
 }
 
-std::pair<TypeSetValueType, TypeSet>
+std::pair<TransparentType, TypeSet>
 toTypeSet(const clang::FieldDecl *const FDecl, const Config &Conf) {
   const auto &Ctx = FDecl->getASTContext();
   return {toTypeSetValueType(FDecl->getType(), Ctx, Conf),
@@ -88,8 +88,8 @@ toTypeSet(const clang::FieldDecl *const FDecl, const Config &Conf) {
               Conf)}}};
 }
 
-std::pair<TypeSetValueType, TypeSet>
-toTypeSet(const clang::VarDecl *const VDecl, const Config &Conf) {
+std::pair<TransparentType, TypeSet> toTypeSet(const clang::VarDecl *const VDecl,
+                                              const Config &Conf) {
   return {{toTypeSetValueType(VDecl->getType(), VDecl->getASTContext(), Conf)},
           {}};
 }

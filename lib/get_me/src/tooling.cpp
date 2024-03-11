@@ -80,7 +80,7 @@ class GetMeVisitor : public clang::RecursiveASTVisitor<GetMeVisitor> {
 public:
   GetMeVisitor(std::shared_ptr<Config> Conf, TransitionData &TransitionsRef,
                std::vector<const clang::CXXRecordDecl *> &CXXRecordsRef,
-               std::vector<TypeSetValueType> &TypedefNameDeclsRef,
+               std::vector<TransparentType> &TypedefNameDeclsRef,
                clang::Sema &SemaRef)
       : Conf_{std::move(Conf)},
         Transitions_{TransitionsRef},
@@ -235,7 +235,7 @@ private:
   void maybeAddTransition(TransitionType Transition) {
     if (ranges::contains(
             ToRequired(Transition) |
-                ranges::views::transform(&TypeSetValueType::Desugared),
+                ranges::views::transform(&TransparentType::Desugared),
             ToAcquired(Transition).Desugared)) {
       if (Conf_->EnableVerboseTransitionCollection) {
         spdlog::trace("addTransition: filtered out {} because the acquired is "
@@ -245,7 +245,7 @@ private:
       }
       return;
     }
-    const auto IsVoidOrVoidPtrType = [](const TypeSetValueType &Val) {
+    const auto IsVoidOrVoidPtrType = [](const TransparentType &Val) {
       return std::visit(Overloaded{[](const clang::QualType &DesugardType) {
                                      return DesugardType->isVoidType() ||
                                             DesugardType->isVoidPointerType();
@@ -268,13 +268,13 @@ private:
   std::shared_ptr<Config> Conf_;
   TransitionData &Transitions_;
   std::vector<const clang::CXXRecordDecl *> &CxxRecords_;
-  std::vector<TypeSetValueType> &TypedefNameDecls_;
+  std::vector<TransparentType> &TypedefNameDecls_;
   clang::Sema &Sema_;
 };
 
 void GetMe::HandleTranslationUnit(clang::ASTContext &Context) {
   std::vector<const clang::CXXRecordDecl *> CXXRecords{};
-  std::vector<TypeSetValueType> TypedefNameDecls{};
+  std::vector<TransparentType> TypedefNameDecls{};
   GetMeVisitor Visitor{Conf_, *Transitions_, CXXRecords, TypedefNameDecls,
                        Sema_};
 

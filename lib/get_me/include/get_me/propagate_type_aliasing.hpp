@@ -3,12 +3,11 @@
 
 #include <vector>
 
-
 #include "get_me/type_conversion_map.hpp"
 #include "get_me/type_set.hpp"
 
 void propagateTypeAliasing(
     TypeConversionMap &ConversionMap,
-    const std::vector<TypeSetValueType> &TypedefNameDecls);
+    const std::vector<TransparentType> &TypedefNameDecls);
 
 #endif

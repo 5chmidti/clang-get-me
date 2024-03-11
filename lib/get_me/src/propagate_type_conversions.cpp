@@ -29,23 +29,21 @@
 #include "support/variant.hpp"
 
 namespace {
-[[nodiscard]] TypeSetValue stripPointerRef(const TypeSetValue &SourceType) {
-  const auto HandleQualType = [](const clang::QualType &Type) -> TypeSetValue {
-    if (Type->isReferenceType()) {
-      return Type.getNonReferenceType();
+[[nodiscard]] Type stripPointerRef(const Type &SourceType) {
+  const auto HandleQualType = [](const clang::QualType &QType) -> Type {
+    if (QType->isReferenceType()) {
+      return QType.getNonReferenceType();
     }
-    if (Type->isPointerType()) {
-      return Type->getPointeeType();
+    if (QType->isPointerType()) {
+      return QType->getPointeeType();
     }
-    return Type;
+    return QType;
   };
-  const auto HandleDefault = [](const auto &Type) -> TypeSetValue {
-    return Type;
-  };
+  const auto HandleDefault = [](const auto &T) -> Type { return T; };
   return std::visit(Overloaded{HandleQualType, HandleDefault}, SourceType);
 }
-[[nodiscard]] TypeSetValueType
-stripPointerRef(const TypeSetValueType &SourceType) {
+[[nodiscard]] TransparentType
+stripPointerRef(const TransparentType &SourceType) {
   return {.Desugared = stripPointerRef(SourceType.Desugared),
           .Actual = stripPointerRef(SourceType.Actual)};
 }
@@ -58,7 +56,7 @@ void propagateTypeConversions(TransitionData &Transitions) {
           Transitions.Data | ranges::views::for_each(ToRequired)) |
       ranges::to_vector;
   const auto FlatPointerRefConversions =
-      AllTypes | ranges::views::transform([](const TypeSetValueType &Type) {
+      AllTypes | ranges::views::transform([](const TransparentType &Type) {
         return std::pair{stripPointerRef(Type), Type};
       }) |
       ranges::to_vector | ranges::actions::sort(std::less<>{}, Element<0>);
@@ -81,7 +79,7 @@ void propagateTypeConversions(TransitionData &Transitions) {
   const auto PtrRefConversionSet =
       AllTypes |
       ranges::views::transform(
-          [&PointerRefConversions](const TypeSetValueType &Type) {
+          [&PointerRefConversions](const TransparentType &Type) {
             return PointerRefConversions |
                    ranges::views::filter(
                        ranges::bind_back(ranges::contains, Type)) |
@@ -96,40 +94,38 @@ void propagateTypeConversions(TransitionData &Transitions) {
               ranges::views::for_each([](const TypeSet &ConversionSet) {
                 return ConversionSet |
                        ranges::views::transform(
-                           [&ConversionSet](const TypeSetValueType &Type) {
+                           [&ConversionSet](const TransparentType &Type) {
                              return TypeConversionMap::value_type{
                                  Type.Desugared, ConversionSet};
                            });
               }) |
               ranges::to<TypeConversionMap>);
 
-  ranges::for_each(
-      ConversionMap | ranges::views::values, [&ConversionMap](TypeSet &Val) {
-        Val.merge(
-            Val | ranges::views::transform([](const TypeSetValueType &Type) {
-              const auto RemoveConst = Overloaded{
-                  [](const clang::QualType &QType) -> TypeSetValue {
-                    auto NewType = QType;
-                    NewType.removeLocalConst();
-                    return NewType;
-                  },
-                  [](const auto &Default) -> TypeSetValue { return Default; }};
+  ranges::for_each(ConversionMap | ranges::views::values, [&ConversionMap](
+                                                              TypeSet &Val) {
+    Val.merge(Val | ranges::views::transform([](const TransparentType &TType) {
+                const auto RemoveConst = Overloaded{
+                    [](const clang::QualType &QType) -> Type {
+                      auto NewType = QType;
+                      NewType.removeLocalConst();
+                      return NewType;
+                    },
+                    [](const auto &Default) -> Type { return Default; }};
 
-              return TypeSetValueType{
-                  .Desugared = std::visit(RemoveConst, Type.Desugared),
-                  .Actual = std::visit(RemoveConst, Type.Actual)};
+                return TransparentType{
+                    .Desugared = std::visit(RemoveConst, TType.Desugared),
+                    .Actual = std::visit(RemoveConst, TType.Actual)};
+              }) |
+              ranges::to<TypeSet>);
+
+    Val.merge(
+        Val |
+        ranges::views::transform(
+            [&ConversionMap](const TypeSet::value_type &Type) {
+              return ConversionMap.find(Type.Desugared);
             }) |
-            ranges::to<TypeSet>);
-
-        Val.merge(Val |
-                  ranges::views::transform(
-                      [&ConversionMap](const TypeSet::value_type &Type) {
-                        return ConversionMap.find(Type.Desugared);
-                      }) |
-                  ranges::views::filter([&ConversionMap](const auto Iter) {
-                    return Iter != ConversionMap.end();
-                  }) |
-                  ranges::views::indirect | ranges::views::values |
-                  ranges::views::join | ranges::to<TypeSet>);
-      });
+        ranges::views::filter(ranges::not_fn(EqualTo(ConversionMap.end()))) |
+        ranges::views::indirect | ranges::views::values | ranges::views::join |
+        ranges::to<TypeSet>);
+  });
 }
