@@ -64,6 +64,25 @@ edgeWithTransitionExistsInContainer(const GraphData::EdgeContainer &Edges,
       ToBundeledTransitionIndex(Transition));
 }
 
+[[nodiscard]] TransitionType replaceAcquiredTypeOfTransition(
+    const TypeSetValueType &ConversionTypeOfAcquired,
+    TransitionType Transition) {
+  ToAcquired(Transition) = ConversionTypeOfAcquired;
+  return Transition;
+}
+
+[[nodiscard]] auto generateTransitionsFromConversionTypes(
+    const boost::container::flat_set<TypeSetValue>
+        &PossibleConversionsTypesForAcquired,
+    const GraphBuilder::VertexType &InterestingVertex,
+    const TransitionType &Transition) {
+  const auto MatchingTypes = ranges::views::set_intersection(
+      InterestingVertex, PossibleConversionsTypesForAcquired, ranges::less{},
+      &TypeSetValueType::Desugared);
+  return MatchingTypes | ranges::views::transform(ranges::bind_back(
+                             replaceAcquiredTypeOfTransition, Transition));
+}
+
 using FoldType =
     std::vector<std::pair<GraphBuilder::VertexSet::value_type,
                           boost::container::flat_set<TransitionType>>>;
@@ -76,48 +95,26 @@ using FoldType =
           InterestingVertices,
           ranges::views::repeat(boost::container::flat_set<TransitionType>{})) |
           ranges::to<FoldType>,
-      [&ConversionMap](const FoldType &VertexAndTransitionsPair,
+      [&ConversionMap](const FoldType &VertexAndTransitionsPairs,
                        const TransitionType &Transition) {
-        const auto Acquired = ToAcquired(Transition);
         const auto PossibleConversionsTypesForAcquired =
             ConversionMap |
-            ranges::views::filter(ranges::bind_back(ranges::contains, Acquired),
-                                  Value) |
+            ranges::views::filter(
+                ranges::bind_back(ranges::contains, ToAcquired(Transition)),
+                Value) |
             ranges::views::keys |
             ranges::to<boost::container::flat_set<TypeSetValue>>;
-        return VertexAndTransitionsPair |
+        return VertexAndTransitionsPairs |
                ranges::views::transform([&PossibleConversionsTypesForAcquired,
                                          &Transition](const auto &Pair) {
                  const auto &[Vertex, TransitionsVec] = Pair;
-                 const auto GetNewTransitions =
-                     [&PossibleConversionsTypesForAcquired](
-                         auto &InterestingVertex) {
-                       return [&InterestingVertex,
-                               &PossibleConversionsTypesForAcquired](
-                                  const TransitionType &Transition2) {
-                         const auto MakeTransition =
-                             [&Transition2](const TypeSetValueType
-                                                &ConversionTypeOfAcquired) {
-                               return TransitionType{
-                                   std::pair<TypeSetValueType, TypeSet>{
-                                       ConversionTypeOfAcquired,
-                                       ToRequired(Transition2)},
-                                   Transition2.second};
-                             };
-                         const auto MatchingTypes =
-                             ranges::views::set_intersection(
-                                 Value(InterestingVertex),
-                                 PossibleConversionsTypesForAcquired,
-                                 ranges::less{}, &TypeSetValueType::Desugared);
-                         return MatchingTypes |
-                                ranges::views::transform(MakeTransition);
-                       };
-                     };
                  return std::pair{
                      Vertex, getSmallestIndependentTransitions(
                                  ranges::views::concat(
                                      TransitionsVec,
-                                     GetNewTransitions(Vertex)(Transition)) |
+                                     generateTransitionsFromConversionTypes(
+                                         PossibleConversionsTypesForAcquired,
+                                         Value(Vertex), Transition)) |
                                  ranges::to_vector)};
                }) |
                ranges::to<FoldType>;
