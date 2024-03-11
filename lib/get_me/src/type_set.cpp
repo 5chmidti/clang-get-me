@@ -23,6 +23,40 @@ namespace {
   }
   return Type;
 }
+
+[[nodiscard]] TransparentType
+getAcquiredType(const clang::FunctionDecl *const FDecl, const Config &Conf) {
+  if (const auto *const Constructor =
+          llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
+      Constructor != nullptr) {
+    const auto *const Decl = Constructor->getParent();
+    return toTypeSetValueType(clang::QualType{Decl->getTypeForDecl(), 0},
+                              FDecl->getASTContext(), Conf);
+  }
+  return toTypeSetValueType(FDecl->getReturnType(), FDecl->getASTContext(),
+                            Conf);
+}
+
+[[nodiscard]] TypeSet getRequiredTypes(const clang::FunctionDecl *const FDecl,
+                                       const Config &Conf) {
+  const auto Parameters = FDecl->parameters();
+  auto Res =
+      Parameters |
+      ranges::views::transform([Conf](const clang::ParmVarDecl *const PVDecl) {
+        return toTypeSetValueType(PVDecl->getType(), PVDecl->getASTContext(),
+                                  Conf);
+      }) |
+      ranges::to<TypeSet>;
+  if (const auto *const Method = llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
+    if (!llvm::isa<clang::CXXConstructorDecl>(Method) && !Method->isStatic()) {
+      Res.emplace(toTypeSetValueType(
+          clang::QualType{Method->getParent()->getTypeForDecl(), 0},
+          FDecl->getASTContext(), Conf));
+    }
+  }
+  return Res;
+}
+
 } // namespace
 
 Type toTypeSetValue(const clang::QualType &QType, const Config &Conf) {
@@ -45,38 +79,7 @@ clang::QualType launderType(const clang::QualType &QType) {
 
 std::pair<TransparentType, TypeSet>
 toTypeSet(const clang::FunctionDecl *const FDecl, const Config &Conf) {
-  const auto AcquiredType = [FDecl, Conf]() {
-    if (const auto *const Constructor =
-            llvm::dyn_cast<clang::CXXConstructorDecl>(FDecl);
-        Constructor) {
-      const auto *const Decl = Constructor->getParent();
-      return toTypeSetValueType(clang::QualType{Decl->getTypeForDecl(), 0},
-                                FDecl->getASTContext(), Conf);
-    }
-    return toTypeSetValueType(FDecl->getReturnType(), FDecl->getASTContext(),
-                              Conf);
-  }();
-  const auto RequiredTypes = [FDecl, Conf]() {
-    const auto Parameters = FDecl->parameters();
-    auto Res = Parameters |
-               ranges::views::transform(
-                   [Conf](const clang::ParmVarDecl *const PVDecl) {
-                     return toTypeSetValueType(PVDecl->getType(),
-                                               PVDecl->getASTContext(), Conf);
-                   }) |
-               ranges::to<TypeSet>;
-    if (const auto *const Method =
-            llvm::dyn_cast<clang::CXXMethodDecl>(FDecl)) {
-      if (!llvm::isa<clang::CXXConstructorDecl>(Method) &&
-          !Method->isStatic()) {
-        Res.emplace(toTypeSetValueType(
-            clang::QualType{Method->getParent()->getTypeForDecl(), 0},
-            FDecl->getASTContext(), Conf));
-      }
-    }
-    return Res;
-  }();
-  return {{AcquiredType}, RequiredTypes};
+  return {getAcquiredType(FDecl, Conf), getRequiredTypes(FDecl, Conf)};
 }
 
 std::pair<TransparentType, TypeSet>
