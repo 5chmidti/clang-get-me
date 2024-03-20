@@ -3,6 +3,6 @@
 
 #include "get_me/graph.hpp"
 
-void runPathFinding(GraphData &Data);
+[[nodiscard]] PathContainer runPathFinding(GraphData &Data);
 
 #endif

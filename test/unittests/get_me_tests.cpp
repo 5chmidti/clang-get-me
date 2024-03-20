@@ -177,7 +177,7 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionData> &Transitions,
   auto Data = runGraphBuilding(Transitions, Query, std::move(Conf));
   const auto VertexDataSize = Data.VertexData.size();
   REQUIRE(VertexDataSize != 0);
-  runPathFinding(Data);
+  const auto Paths = runPathFinding(Data);
 
   // return instead of requires because querying all might query a type with no
   // edges/transitions that acquire it
@@ -185,5 +185,5 @@ buildGraphAndFindPaths(const std::shared_ptr<TransitionData> &Transitions,
     return {};
   }
 
-  return toStringExpanded(Data.Paths, Data) | ranges::to<ResultPaths>;
+  return toStringExpanded(Paths, Data) | ranges::to<ResultPaths>;
 }

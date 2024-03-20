@@ -90,10 +90,11 @@ struct IsPermutationComparator {
   }
 };
 
+using PathContainer =
+    boost::container::flat_set<PathType, IsPermutationComparator>;
+
 struct GraphData {
   using EdgeContainer = boost::container::flat_set<TransitionEdgeType>;
-  using PathContainer =
-      boost::container::flat_set<PathType, IsPermutationComparator>;
 
   GraphData(std::vector<TypeSet> VertexData, std::vector<size_t> VertexDepth,
             EdgeContainer Edges, std::shared_ptr<TransitionData> Transitions,
@@ -111,8 +112,6 @@ struct GraphData {
   std::vector<size_t> VertexDepth;
 
   EdgeContainer Edges;
-
-  PathContainer Paths{};
 
   std::shared_ptr<TransitionData> Transitions{};
 
@@ -169,27 +168,24 @@ public:
     case 'd':
       return fmt::format_to(Ctx.out(), "{}", toDotFormat(Val));
     case 's':
-      return fmt::format_to(Ctx.out(), R"(
+      return fmt::format_to(
+          Ctx.out(), R"(
   VertexData: {}
   VertexDepth: {}
   Edges: {}
-  Paths: {}
   Transitions: {}
   )",
-                            ranges::size(Val.VertexData),
-                            ranges::size(Val.VertexDepth),
-                            ranges::size(Val.Edges), ranges::size(Val.Paths),
-                            ranges::size(Val.Transitions->Data));
+          ranges::size(Val.VertexData), ranges::size(Val.VertexDepth),
+          ranges::size(Val.Edges), ranges::size(Val.Transitions->Data));
     }
     return fmt::format_to(Ctx.out(), R"(
   VertexData: {}
   VertexDepth: {}
   Edges: {}
-  Paths: {}
   Transitions:
     {}
   )",
-                          Val.VertexData, Val.VertexDepth, Val.Edges, Val.Paths,
+                          Val.VertexData, Val.VertexDepth, Val.Edges,
                           fmt::join(Val.Transitions->Data, "\n\t"));
   }
   // NOLINTEND(readability-convert-member-functions-to-static)

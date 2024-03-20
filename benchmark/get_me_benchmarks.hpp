@@ -23,7 +23,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   auto Data = runGraphBuilding(Transitions, Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
-  State.counters["paths"] = static_cast<double>(Data.Paths.size());
+  State.counters["paths"] = 0.0;
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
@@ -41,7 +41,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
       getQueriedTypesForInput(*Transitions, QueriedTypeAsString);              \
   auto Data = runGraphBuilding(Transitions, Query, Conf);
 
-#define BENCHMARK_PATH_FINDING runPathFinding(Data);
+#define BENCHMARK_PATH_FINDING const auto Paths = runPathFinding(Data);
 
 #define BENCHMARK_BODY_TRANSITIONS                                             \
   BENCHMARK_TRANSITIONS                                                        \
@@ -56,7 +56,7 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
 
 #define BENCHMARK_BODY_PATH_FINDING                                            \
   BENCHMARK_PATH_FINDING                                                       \
-  benchmark::DoNotOptimize(Data.Paths.begin());                                \
+  benchmark::DoNotOptimize(Paths.begin());                                     \
   benchmark::ClobberMemory();
 
 #define BENCHMARK_BODY_FULL                                                    \

@@ -33,9 +33,6 @@ void push(std::stack<TransitionEdgeType> &Stack, RangeType &&Range) {
 
 class StateType {
 public:
-  [[nodiscard]] explicit StateType(GraphData::PathContainer &Paths)
-      : Paths_(Paths) {}
-
   void addEdge(const TransitionEdgeType &Edge) {
     CurrentPath_.emplace_back(Edge);
   }
@@ -64,8 +61,10 @@ public:
 
   [[nodiscard]] size_t getNumPaths() const { return ranges::size(Paths_); }
 
+  [[nodiscard]] PathContainer takePaths() { return std::move(Paths_); }
+
 private:
-  GraphData::PathContainer &Paths_;
+  PathContainer Paths_{};
   PathType CurrentPath_{};
 
   [[nodiscard]] bool requiresRollback(const TransitionEdgeType &Edge) const {
@@ -89,7 +88,7 @@ private:
 
 } // namespace
 
-void runPathFinding(GraphData &Data) {
+PathContainer runPathFinding(GraphData &Data) {
   const auto &Edges = Data.Edges;
 
   const auto TargetVertices = getRootVertices(Data);
@@ -125,7 +124,7 @@ void runPathFinding(GraphData &Data) {
         push(EdgesStack, GetOutEdgesOfVertex(SourceVertex));
       };
 
-  auto State = StateType{Data.Paths};
+  auto State = StateType{};
 
   while (!EdgesStack.empty()) {
     const auto Edge = EdgesStack.top();
@@ -158,7 +157,5 @@ void runPathFinding(GraphData &Data) {
     }
   }
 
-  if (Data.VertexData.size() < 10) {
-    spdlog::trace("Data: {}", Data);
-  }
+  return State.takePaths();
 }

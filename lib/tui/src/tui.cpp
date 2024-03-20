@@ -102,10 +102,8 @@ void runTui(const std::shared_ptr<Config> Conf,
 
     auto Data =
         runGraphBuilding(CollectionState.getTransitionsPtr(), Query, Conf);
-    runPathFinding(Data);
-
     const auto Paths =
-        Data.Paths | ranges::to_vector |
+        runPathFinding(Data) |
         ranges::actions::sort([&Data](const PathType &Lhs,
                                       const PathType &Rhs) {
           if (const auto Comp = Lhs.size() <=> Rhs.size(); std::is_neq(Comp)) {
