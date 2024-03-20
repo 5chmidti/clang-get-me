@@ -31,15 +31,15 @@ class GetMe(ConanFile):
 
     def requirements(self):
         self.requires("benchmark/1.8.3")
-        self.requires("boost/1.83.0")
-        self.requires("catch2/3.4.0")
+        self.requires("boost/1.84.0")
+        self.requires("catch2/3.5.3")
         self.requires("ctre/3.8.1")
-        self.requires("fmt/10.1.1")
+        self.requires("fmt/10.2.1")
         self.requires("ftxui/4.1.1")
         self.requires("onetbb/2021.10.0")
         self.requires("range-v3/0.12.0")
-        self.requires("rapidfuzz/2.1.1")
-        self.requires("spdlog/1.12.0")
+        self.requires("rapidfuzz/3.0.2")
+        self.requires("spdlog/1.13.0")
 
     def layout(self):
         cmake_layout(self)
