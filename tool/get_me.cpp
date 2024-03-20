@@ -20,6 +20,7 @@
 #include <llvm/Support/Error.h>
 #include <llvm/Support/Signals.h>
 #include <llvm/Support/raw_ostream.h>
+#include <range/v3/action/sort.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/partial_sort.hpp>
 #include <range/v3/functional/bind_back.hpp>
