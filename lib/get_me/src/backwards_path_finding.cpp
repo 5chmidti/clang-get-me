@@ -8,6 +8,7 @@
 #include <range/v3/action/action.hpp>
 #include <range/v3/action/reverse.hpp>
 #include <range/v3/action/sort.hpp>
+#include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
@@ -49,6 +50,14 @@ public:
       return true;
     }
     return false;
+  }
+
+  [[nodiscard]] bool shouldIgnore(const TransitionEdgeType &Edge) const {
+    return ranges::any_of(
+        CurrentPath_, [&Edge](const TransitionEdgeType &EdgeInPath) {
+          return EdgeInPath.TransitionIndex == Edge.TransitionIndex ||
+                 Source(EdgeInPath) == Source(Edge);
+        });
   }
 
   [[nodiscard]] const PathType &getCurrentPath() const { return CurrentPath_; }
@@ -134,6 +143,10 @@ void runPathFinding(GraphData &Data) {
           Target(ranges::back(State.getCurrentPath())) == Target(Edge)) {
         continue;
       }
+    }
+
+    if (State.shouldIgnore(Edge)) {
+      continue;
     }
 
     State.addEdge(Edge);
