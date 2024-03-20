@@ -103,18 +103,14 @@ void propagateTypeConversions(TransitionData &Transitions) {
 
   ranges::for_each(ConversionMap | ranges::views::values, [&ConversionMap](
                                                               TypeSet &Val) {
-    Val.merge(Val | ranges::views::transform([](const TransparentType &TType) {
+    Val.merge(Val | ranges::views::transform([](TransparentType TType) {
                 const auto RemoveConst = Overloaded{
-                    [](const clang::QualType &QType) -> Type {
-                      auto NewType = QType;
-                      NewType.removeLocalConst();
-                      return NewType;
-                    },
-                    [](const auto &Default) -> Type { return Default; }};
+                    [](clang::QualType &QType) { QType.removeLocalConst(); },
+                    [](const auto &) {}};
 
-                return TransparentType{
-                    .Desugared = std::visit(RemoveConst, TType.Desugared),
-                    .Actual = std::visit(RemoveConst, TType.Actual)};
+                std::visit(RemoveConst, TType.Desugared);
+                std::visit(RemoveConst, TType.Actual);
+                return TType;
               }) |
               ranges::to<TypeSet>);
 
