@@ -96,17 +96,3 @@ std::pair<TransparentType, TypeSet> toTypeSet(const clang::VarDecl *const VDecl,
   return {{toTypeSetValueType(VDecl->getType(), VDecl->getASTContext(), Conf)},
           {}};
 }
-
-bool isSubset(const TypeSet &Superset, const TypeSet &Subset) {
-  if (Subset.size() > Superset.size()) {
-    return false;
-  }
-  auto SupersetIter = Superset.begin();
-  const auto SupersetEnd = Superset.end();
-  for (const auto &SubsetVal : Subset) {
-    for (; SupersetIter != SupersetEnd && *SupersetIter != SubsetVal;
-         ++SupersetIter) {
-    }
-  }
-  return SupersetIter != SupersetEnd;
-}

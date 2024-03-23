@@ -155,6 +155,4 @@ toTypeSet(const clang::FunctionDecl *FDecl, const Config &Conf);
                                                  const clang::ASTContext &Ctx,
                                                  const Config &Conf);
 
-[[nodiscard]] bool isSubset(const TypeSet &Superset, const TypeSet &Subset);
-
 #endif
