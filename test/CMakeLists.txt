@@ -7,7 +7,11 @@ set(CTEST_JOB_COUNT
     "${proc_count}"
     CACHE STRING "number of jobs that run the tests")
 
-set(check_args -j${CTEST_JOB_COUNT} --output-on-failure ${CTEST_EXTRA_ARGS})
+set(check_args
+    -j${CTEST_JOB_COUNT}
+    --progress
+    --output-on-failure
+    ${CTEST_EXTRA_ARGS})
 
 add_custom_target(
   check

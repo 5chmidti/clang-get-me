@@ -40,9 +40,7 @@ public:
             SizeTMappingType{"MaxGraphDepth", &Config::MaxGraphDepth},
             SizeTMappingType{"MaxRemainingTypes", &Config::MaxRemainingTypes},
             SizeTMappingType{"MaxPathLength", &Config::MaxPathLength},
-            SizeTMappingType{"MinPathCount", &Config::MinPathCount},
             SizeTMappingType{"MaxPathOutputCount", &Config::MaxPathOutputCount},
-            SizeTMappingType{"MaxLeafVertexSize", &Config::MaxLeafVertexSize},
         }};
   }
 
@@ -63,9 +61,7 @@ public:
   std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
   std::size_t MaxRemainingTypes = std::numeric_limits<std::size_t>::max();
   std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
-  std::size_t MinPathCount = 0U;
   std::size_t MaxPathOutputCount = 10U;
-  std::size_t MaxLeafVertexSize = 3U;
 
   // NOLINTEND(misc-non-private-member-variables-in-classes)
 };

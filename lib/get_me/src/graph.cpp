@@ -260,7 +260,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
   const auto NumGraphBuildingStepsLeft =
       Conf_->MaxGraphDepth - this->CurrentState_.IterationIndex;
   const auto MaxAllowedSizeOfTargetVertex =
-      (SafePlus(Conf_->MaxLeafVertexSize, NumGraphBuildingStepsLeft));
+      SafePlus(Conf_->MaxRemainingTypes, NumGraphBuildingStepsLeft);
 
   auto MaybeAddEdgeFrom = [this, MaxAllowedSizeOfTargetVertex](
                               const indexed_value<VertexType>
