@@ -395,7 +395,15 @@ std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
                 "\n"));
 
   return fmt::format(
-      "digraph D {{\n  layout = \"sfdp\";\n{}\n\n{}\n}}\n", Vertices,
+      R"(digraph D {{
+  layout = "sfdp";
+  graph [splines=true, overlap=scale];
+{}
+
+{}
+}}
+)",
+      Vertices,
       fmt::join(Data.Edges | ranges::views::transform(ToString), "\n"));
 }
 
