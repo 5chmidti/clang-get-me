@@ -1,6 +1,7 @@
 #include "get_me/query_all.hpp"
 
 #include <memory>
+#include <tuple>
 
 #include <oneapi/tbb/parallel_for_each.h>
 #include <oneapi/tbb/task_arena.h>

@@ -18,7 +18,7 @@
 
 #include "get_me/config.hpp"
 #include "get_me/formatting.hpp"
-#include "support/ranges/ranges.hpp"
+#include "support/ranges/ranges.hpp" // IWYU pragma: keep
 
 bool hasTypeNameContainingName(const clang::ValueDecl *const VDecl,
                                const std::string_view Name) {

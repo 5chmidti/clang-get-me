@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <functional>
 #include <stack>
+#include <utility>
 
 #include <range/v3/action/action.hpp>
 #include <range/v3/action/reverse.hpp>
@@ -12,14 +13,12 @@
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/find.hpp>
 #include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/functional/compose.hpp>
 #include <range/v3/iterator/operations.hpp>
 #include <range/v3/range/concepts.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
 #include <range/v3/range/primitives.hpp>
 #include <range/v3/view/filter.hpp>
-#include <spdlog/spdlog.h>
 
 #include "get_me/graph.hpp"
 #include "support/ranges/functional.hpp"

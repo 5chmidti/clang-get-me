@@ -13,7 +13,7 @@
 #include <boost/container/flat_set.hpp>
 #include <fmt/core.h>
 #include <fmt/format.h>
-#include <fmt/ranges.h>
+#include <fmt/ranges.h> // IWYU pragma: keep
 #include <range/v3/algorithm/lexicographical_compare.hpp>
 #include <range/v3/algorithm/permutation.hpp>
 #include <range/v3/functional/bind_back.hpp>

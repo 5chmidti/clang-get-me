@@ -10,6 +10,7 @@
 #include <range/v3/algorithm/contains.hpp>
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/functional/bind_back.hpp>
+#include <range/v3/functional/not_fn.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
 #include <range/v3/view/chunk_by.hpp>

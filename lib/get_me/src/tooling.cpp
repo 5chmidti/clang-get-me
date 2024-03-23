@@ -19,11 +19,10 @@
 #include <clang/AST/StmtIterator.h>
 #include <clang/AST/TemplateBase.h>
 #include <clang/AST/Type.h>
-#include <clang/Basic/LLVM.h>
 #include <clang/Basic/Specifiers.h>
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Sema/Sema.h>
-#include <fmt/ranges.h>
+#include <fmt/ranges.h> // IWYU pragma: keep
 #include <llvm/Support/Casting.h>
 #include <range/v3/action/remove_if.hpp>
 #include <range/v3/algorithm/contains.hpp>
@@ -43,7 +42,7 @@
 #include "get_me/type_set.hpp"
 #include "support/get_me_exception.hpp"
 #include "support/ranges/functional.hpp"
-#include "support/ranges/ranges.hpp"
+#include "support/ranges/ranges.hpp" // IWYU pragma: keep
 #include "support/variant.hpp"
 
 namespace {

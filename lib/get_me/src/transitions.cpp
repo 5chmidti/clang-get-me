@@ -18,7 +18,7 @@
 #include <range/v3/view/map.hpp>
 #include <range/v3/view/transform.hpp>
 
-#include "support/ranges/ranges.hpp"
+#include "support/ranges/ranges.hpp" // IWYU pragma: keep
 #include "support/variant.hpp"
 
 namespace {

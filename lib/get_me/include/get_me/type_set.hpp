@@ -13,7 +13,7 @@
 #include <fmt/core.h>
 
 #include "get_me/config.hpp"
-#include "get_me/formatting.hpp"
+#include "get_me/formatting.hpp" // IWYU pragma: keep
 
 namespace clang {
 class FieldDecl;

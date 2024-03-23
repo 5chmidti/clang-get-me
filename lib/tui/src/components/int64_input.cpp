@@ -4,7 +4,7 @@
 #include <string>
 #include <string_view>
 
-#include <ctre.hpp>
+#include <ctre.hpp> // IWYU pragma: keep
 #include <fmt/core.h>
 #include <ftxui/component/component.hpp>
 #include <ftxui/component/component_base.hpp>

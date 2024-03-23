@@ -24,6 +24,8 @@
 #include <range/v3/algorithm/for_each.hpp>
 #include <range/v3/algorithm/partial_sort.hpp>
 #include <range/v3/functional/bind_back.hpp>
+#include <range/v3/functional/comparisons.hpp>
+#include <range/v3/functional/compose.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/primitives.hpp>

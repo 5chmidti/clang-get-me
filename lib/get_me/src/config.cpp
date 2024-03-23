@@ -6,7 +6,7 @@
 #include <string>
 #include <system_error>
 
-#include <fmt/std.h>
+#include <fmt/std.h> // IWYU pragma: keep
 #include <llvm/Support/YAMLTraits.h>
 #include <llvm/Support/raw_ostream.h>
 #include <range/v3/algorithm/for_each.hpp>

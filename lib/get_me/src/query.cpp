@@ -6,7 +6,7 @@
 
 #include <clang/AST/Type.h>
 #include <fmt/core.h>
-#include <fmt/ranges.h>
+#include <fmt/ranges.h> // IWYU pragma: keep
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/find_if.hpp>
 #include <range/v3/functional/bind_back.hpp>

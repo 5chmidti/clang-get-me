@@ -18,6 +18,7 @@
 #include <range/v3/algorithm/any_of.hpp>
 #include <range/v3/algorithm/equal.hpp>
 #include <range/v3/algorithm/for_each.hpp>
+#include <range/v3/functional/compose.hpp>
 #include <range/v3/functional/not_fn.hpp>
 #include <range/v3/range/access.hpp>
 #include <range/v3/range/concepts.hpp>
