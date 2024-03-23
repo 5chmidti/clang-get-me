@@ -18,7 +18,7 @@ void queryAll(const std::shared_ptr<TransitionData> &Transitions,
     const auto Query =
         getQueriedTypesForInput(*Transitions, fmt::format("{}", QueriedType));
     auto Data = runGraphBuilding(Transitions, Query, Conf);
-    runPathFinding(Data);
+    std::ignore = runPathFinding(Data);
   };
 
   spdlog::trace("Running with {} threads",
