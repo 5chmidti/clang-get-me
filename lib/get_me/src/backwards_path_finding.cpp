@@ -64,8 +64,8 @@ public:
   [[nodiscard]] PathContainer takePaths() { return std::move(Paths_); }
 
 private:
-  PathContainer Paths_{};
-  PathType CurrentPath_{};
+  PathContainer Paths_;
+  PathType CurrentPath_;
 
   [[nodiscard]] bool requiresRollback(const TransitionEdgeType &Edge) const {
     return !CurrentPath_.empty() &&

@@ -79,8 +79,8 @@ private:
   std::shared_ptr<Config> Conf_;
   clang::tooling::ClangTool &Tool_;
   std::vector<std::unique_ptr<clang::ASTUnit>> ASTs_;
-  std::shared_ptr<TransitionData> Transitions_{};
-  std::vector<std::string> AcquiredTypeNames_{};
+  std::shared_ptr<TransitionData> Transitions_;
+  std::vector<std::string> AcquiredTypeNames_;
 };
 
 void runTui(const std::shared_ptr<Config> Conf,

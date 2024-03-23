@@ -40,8 +40,8 @@ public:
 
 private:
   std::string *QueryStr_;
-  std::string OldQuery_{};
-  std::vector<CallbackType> OnCommitCallbacks_{};
+  std::string OldQuery_;
+  std::vector<CallbackType> OnCommitCallbacks_;
 };
 
 class QueryComponent : public ftxui::ComponentBase {

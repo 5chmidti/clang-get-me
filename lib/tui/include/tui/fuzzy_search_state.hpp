@@ -38,7 +38,7 @@ public:
 
 private:
   const std::vector<std::string> *Original_;
-  std::vector<std::string> Values_{};
+  std::vector<std::string> Values_;
 };
 
 #endif

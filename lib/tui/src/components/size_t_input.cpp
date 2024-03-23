@@ -28,7 +28,7 @@ public:
   }
 
 private:
-  std::string ValueStr_{};
+  std::string ValueStr_;
   ftxui::Component Component_;
 };
 

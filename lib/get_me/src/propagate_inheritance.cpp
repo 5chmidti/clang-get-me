@@ -198,8 +198,8 @@ private:
     return false;
   }
 
-  indexed_set<TransparentType> Vertices_{};
-  indexed_set<DTDGraphData::EdgeType> Edges_{};
+  indexed_set<TransparentType> Vertices_;
+  indexed_set<DTDGraphData::EdgeType> Edges_;
   const Config &Conf_;
 };
 

@@ -43,7 +43,7 @@ using EdgeType = std::pair<size_t, size_t>;
 // make size_t the index of the transition for the permutation comparator
 
 struct TransitionEdgeType {
-  EdgeType Edge{};
+  EdgeType Edge;
   size_t TransitionIndex{};
 
   [[nodiscard]] friend constexpr auto
@@ -135,9 +135,9 @@ struct GraphData {
 
   EdgeContainer Edges;
 
-  std::shared_ptr<TransitionData> Transitions{};
+  std::shared_ptr<TransitionData> Transitions;
 
-  std::shared_ptr<Config> Conf{};
+  std::shared_ptr<Config> Conf;
   // NOLINTEND(misc-non-private-member-variables-in-classes)
 };
 
@@ -288,7 +288,7 @@ public:
 private:
   struct StepState {
     size_t IterationIndex{};
-    VertexSet InterestingVertices{};
+    VertexSet InterestingVertices;
   };
 
   class GraphBuilderImpl;
@@ -304,14 +304,14 @@ private:
   std::shared_ptr<TransitionData> Transitions_;
   TypeSet Query_;
   VertexSet::value_type::first_type EmptyTsIndex_;
-  VertexSet VertexData_{};
-  std::vector<size_t> VertexDepth_{};
-  GraphData::EdgeContainer Edges_{};
-  std::shared_ptr<Config> Conf_{};
+  VertexSet VertexData_;
+  std::vector<size_t> VertexDepth_;
+  GraphData::EdgeContainer Edges_;
+  std::shared_ptr<Config> Conf_;
 
   StepState CurrentState_{};
 
-  std::unique_ptr<GraphBuilderImpl> Impl_{};
+  std::unique_ptr<GraphBuilderImpl> Impl_;
 };
 
 [[nodiscard]] GraphData

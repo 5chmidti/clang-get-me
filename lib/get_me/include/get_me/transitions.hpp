@@ -81,10 +81,10 @@ struct TransitionData {
 
   void commit();
 
-  associative_container_type Data{};
-  bundeled_container_type BundeledData{};
-  flat_container_type FlatData{};
-  TypeConversionMap ConversionMap{};
+  associative_container_type Data;
+  bundeled_container_type BundeledData;
+  flat_container_type FlatData;
+  TypeConversionMap ConversionMap;
 };
 
 namespace detail {
