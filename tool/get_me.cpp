@@ -53,7 +53,7 @@
 // NOLINTBEGIN
 using namespace llvm::cl;
 
-static OptionCategory ToolCategory("get_me");
+static OptionCategory ToolCategory("get-me");
 const static opt<std::string> TypeName("t", desc("Name of the type to get"),
                                        ValueRequired, cat(ToolCategory));
 const static opt<std::string> ConfigPath("config", desc("Config file path"),
