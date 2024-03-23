@@ -364,15 +364,15 @@ std::string fmt::formatter<GraphData>::toDotFormat(const GraphData &Data) {
 
   const auto VertexToString = [](const auto &IndexedVertex) {
     return fmt::format("  {} [label=\"{}\"]", Index(IndexedVertex),
-                       Value(IndexedVertex));
+                       fmt::join(Value(IndexedVertex), "\n"));
   };
   const auto ToRootVertexModifier = [](const auto &IndexedVertex) {
     return fmt::format("  {} [color=red]", Index(IndexedVertex),
-                       Value(IndexedVertex));
+                       fmt::join(Value(IndexedVertex), "\n"));
   };
   const auto ToLeafVertexModifier = [](const auto &IndexedVertex) {
     return fmt::format("  {} [color=orange]", Index(IndexedVertex),
-                       Value(IndexedVertex));
+                       fmt::join(Value(IndexedVertex), "\n"));
   };
 
   const auto RootVertices =
