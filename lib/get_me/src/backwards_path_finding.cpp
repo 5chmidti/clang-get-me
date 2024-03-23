@@ -91,16 +91,16 @@ private:
 PathContainer runPathFinding(GraphData &Data) {
   const auto &Edges = Data.Edges;
 
-  const auto TargetVertices = getRootVertices(Data);
-  const auto StartVertices = getLeafVertices(Data);
+  const auto Roots = getRootVertices(Data);
+  const auto Leafs = getLeafVertices(Data);
+  const auto TerminatesInLeaf = [&Leafs](const TransitionEdgeType &Step) {
+    return ranges::contains(Leafs, Target(Step));
+  };
   const auto StartEdges =
       Edges |
       ranges::views::filter(Less(Data.Conf->MaxPathLength),
                             Lookup(Data.VertexDepth, Source)) |
-      ranges::views::filter([&StartVertices](const TransitionEdgeType &Step) {
-        return ranges::contains(StartVertices, Target(Step));
-      }) |
-      ranges::to_vector |
+      ranges::views::filter(TerminatesInLeaf) | ranges::to_vector |
       ranges::actions::sort(std::greater{}, Lookup(Data.VertexDepth, Target));
 
   const auto GetOutEdgesOfVertex =
@@ -150,7 +150,7 @@ PathContainer runPathFinding(GraphData &Data) {
 
     State.addEdge(Edge);
 
-    if (ranges::contains(TargetVertices, Source(Edge))) {
+    if (ranges::contains(Roots, Source(Edge))) {
       State.finishPath();
     } else {
       AddOutEdgesOfVertexToStack(Source(Edge));
