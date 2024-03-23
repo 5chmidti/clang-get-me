@@ -15,6 +15,7 @@
 #include <fmt/format.h>
 #include <fmt/os.h>
 #include <fmt/ranges.h>
+#include <fmt/std.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
@@ -64,6 +65,10 @@ const static opt<bool>
     QueryAll("query-all",
              desc("Query every type available (that has a transition)"),
              cat(ToolCategory));
+
+const static opt<bool> DumpConfig("dump-config",
+                                  desc("Dump the current configuration"),
+                                  cat(ToolCategory));
 // NOLINTEND
 
 int main(int argc, const char **argv) {
@@ -102,6 +107,14 @@ int main(int argc, const char **argv) {
   const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
   auto Conf = std::make_shared<Config>(
       ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath));
+
+  if (DumpConfig || Verbose) {
+    if (ConfigFilePath.empty()) {
+      spdlog::info("Loaded configuration: \n{}", *Conf);
+    } else {
+      spdlog::info("Loaded configuration from {}:\n{}", ConfigFilePath, *Conf);
+    }
+  }
 
   if (Interactive) {
     runTui(Conf, Tool);
