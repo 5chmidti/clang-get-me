@@ -93,6 +93,28 @@ struct IsPermutationComparator {
 using PathContainer =
     boost::container::flat_set<PathType, IsPermutationComparator>;
 
+struct FlatPathEdge {
+  FlatPathEdge(EdgeType Edge, FlatTransitionType FlatTransition)
+      : Edge(std::move(Edge)),
+        FlatTransition(std::move(FlatTransition)) {}
+
+  EdgeType Edge;
+  FlatTransitionType FlatTransition;
+};
+
+template <> class fmt::formatter<FlatPathEdge> {
+public:
+  [[nodiscard]] constexpr format_parse_context::iterator
+  parse(format_parse_context &Ctx) {
+    return Ctx.begin();
+  }
+
+  [[nodiscard]] format_context::iterator format(const FlatPathEdge &Val,
+                                                format_context &Ctx) const {
+    return fmt::format_to(Ctx.out(), "({}, {})", Val.Edge, Val.FlatTransition);
+  }
+};
+
 struct GraphData {
   using EdgeContainer = boost::container::flat_set<TransitionEdgeType>;
 
@@ -222,22 +244,26 @@ formatTransition(const TransitionEdgeType &Edge, const GraphData &Data) {
 
 template <typename RangeType>
   requires std::same_as<ranges::range_value_t<RangeType>, PathType>
-[[nodiscard]] auto formatPaths(RangeType &&Paths, const GraphData &Data) {
-  return std::forward<RangeType>(Paths) |
+[[nodiscard]] auto formatPaths(const RangeType &Paths, const GraphData &Data) {
+  return Paths |
          ranges::views::transform(ranges::bind_back(detail::formatPath, Data));
 }
 
-[[nodiscard]] std::vector<std::vector<FlatTransitionType>>
+[[nodiscard]] std::vector<std::vector<FlatPathEdge>>
 expandAndFlattenPath(const PathType &Path, const GraphData &Data);
 
 template <typename RangeType>
   requires std::same_as<ranges::range_value_t<RangeType>, PathType>
-[[nodiscard]] auto toStringExpanded(RangeType &&Paths, const GraphData &Data) {
-  const auto FormatPath = [](const std::vector<FlatTransitionType> &FlatPath) {
-    return fmt::format("{}", fmt::join(FlatPath, ", "));
+[[nodiscard]] auto toStringExpanded(const RangeType &Paths,
+                                    const GraphData &Data) {
+  const auto FormatPath = [](const std::vector<FlatPathEdge> &FlatPath) {
+    return fmt::format("{}",
+                       fmt::join(FlatPath | ranges::views::transform(
+                                                &FlatPathEdge::FlatTransition),
+                                 ", "));
   };
 
-  return std::forward<RangeType>(Paths) |
+  return Paths |
          ranges::views::for_each(
              ranges::bind_back(expandAndFlattenPath, Data)) |
          ranges::views::transform(FormatPath);

@@ -26,6 +26,7 @@
 #include <range/v3/range/conversion.hpp>
 #include <range/v3/range/operations.hpp>
 #include <range/v3/range/primitives.hpp>
+#include <range/v3/utility/tuple_algorithm.hpp>
 #include <range/v3/view/cartesian_product.hpp>
 #include <range/v3/view/concat.hpp>
 #include <range/v3/view/drop.hpp>
@@ -142,15 +143,17 @@ GraphData::GraphData(std::vector<TypeSet> VertexData,
       Transitions{std::move(Transitions)},
       Conf{std::move(Conf)} {}
 
-std::vector<std::vector<FlatTransitionType>>
+std::vector<std::vector<FlatPathEdge>>
 expandAndFlattenPath(const PathType &Path, const GraphData &Data) {
   const auto ExpandEdge =
       [&Data](const TransitionEdgeType &Edge) -> decltype(auto) {
     const auto &Transition =
         Data.Transitions->BundeledData[Edge.TransitionIndex];
-    return ranges::views::zip(ranges::views::repeat(ToAcquired(Transition)),
-                              ToTransitions(Transition) | ranges::views::values,
-                              ranges::views::repeat(ToRequired(Transition)));
+    return ranges::views::zip(
+        ranges::views::repeat(Edge.Edge),
+        ranges::views::zip(ranges::views::repeat(ToAcquired(Transition)),
+                           ToTransitions(Transition) | ranges::views::values,
+                           ranges::views::repeat(ToRequired(Transition))));
   };
   auto ExpandedPath =
       Path | ranges::views::transform(ExpandEdge) | ranges::to_vector;
@@ -160,15 +163,19 @@ expandAndFlattenPath(const PathType &Path, const GraphData &Data) {
   return ranges::fold_left(
       ExpandedPath | ranges::views::drop(1),
       ranges::front(ExpandedPath) |
-          ranges::views::transform(
-              [](const auto &Val) { return std::vector{Val}; }) |
-          ranges::to<std::vector<std::vector<FlatTransitionType>>>,
-      [](const std::vector<std::vector<FlatTransitionType>> &FoldRange,
+          ranges::views::transform([](const auto &Expanded) {
+            return std::vector{
+                ranges::tuple_apply(Construct<FlatPathEdge>, Expanded)};
+          }) |
+          ranges::to<std::vector<std::vector<FlatPathEdge>>>,
+      [](const std::vector<std::vector<FlatPathEdge>> &FoldRange,
          const auto &ExpandedPathStep) {
         return ranges::views::cartesian_product(FoldRange, ExpandedPathStep) |
                ranges::views::transform([](auto Pair) {
-                 return Copy(Element<0>(Pair)) |
-                        ranges::actions::push_back(Element<1>(Pair));
+                 auto &[Fold, Expanded] = Pair;
+                 return Copy(Fold) |
+                        ranges::actions::push_back(ranges::tuple_apply(
+                            Construct<FlatPathEdge>, Expanded));
                }) |
                ranges::to_vector;
       });

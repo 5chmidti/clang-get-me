@@ -165,11 +165,13 @@ int main(int argc, const char **argv) {
           ranges::views::for_each(
               ranges::bind_back(expandAndFlattenPath, Data)) |
           ranges::views::enumerate | ranges::views::take(OutputPathCount),
-      [](const auto IndexedPath) {
+      [&Data](const auto IndexedPath) {
         const auto &[Number, Path] = IndexedPath;
         spdlog::info(
             "path #{}: {} -> remaining: {}", Number,
-            fmt::join(Path | ranges::views::transform(ToTransition), ", "),
-            ToRequired(Path.back()));
+            fmt::join(Path | ranges::views::transform(ranges::compose(
+                                 ToTransition, &FlatPathEdge::FlatTransition)),
+                      ", "),
+            Data.VertexData[Target(Path.back().Edge)]);
       });
 }
