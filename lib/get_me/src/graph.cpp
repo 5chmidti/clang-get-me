@@ -326,7 +326,7 @@ bool GraphBuilder::buildStepFor(VertexSet InterestingVertices) {
         return ranges::fold_left(
             Transitions |
                 ranges::views::filter(
-                    Less(MaxAllowedTypeSetSize),
+                    LessEqual(MaxAllowedTypeSetSize),
                     ranges::compose(
                         ranges::bind_back(SafePlus, CurrentTypeSetSize),
                         ranges::compose(ranges::size, ToRequired))) |
