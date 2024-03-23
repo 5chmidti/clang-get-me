@@ -108,19 +108,6 @@ struct TransparentType {
                                         const TransparentType &Rhs) = default;
 };
 
-struct TypeSetValueTypeLessActual {
-  [[nodiscard]] static bool operator()(const TransparentType &Lhs,
-                                       const TransparentType &Rhs) {
-    return Lhs.Actual < Rhs.Actual;
-  }
-};
-struct TypeSetValueTypeLessDesugared {
-  [[nodiscard]] static bool operator()(const TransparentType &Lhs,
-                                       const TransparentType &Rhs) {
-    return Lhs.Desugared < Rhs.Desugared;
-  }
-};
-
 template <> class fmt::formatter<TransparentType> {
 public:
   // NOLINTBEGIN(readability-convert-member-functions-to-static)
