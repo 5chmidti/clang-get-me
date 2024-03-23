@@ -105,12 +105,7 @@ PathContainer runPathFinding(GraphData &Data) {
 
   const auto GetOutEdgesOfVertex =
       [&Edges, &Data](const VertexDescriptor SourceVertex) {
-        const auto SourceVertexDepth = Data.VertexDepth[SourceVertex];
         return Edges | ranges::views::filter(EqualTo(SourceVertex), Target) |
-               ranges::views::filter(
-                   LessEqual(Data.Conf->MaxPathLength),
-                   ranges::compose(Plus(SourceVertexDepth),
-                                   Lookup(Data.VertexDepth, Source))) |
                ranges::to_vector |
                ranges::actions::sort(std::greater{},
                                      Lookup(Data.VertexDepth, Target));
@@ -145,6 +140,12 @@ PathContainer runPathFinding(GraphData &Data) {
     }
 
     if (State.shouldIgnore(Edge)) {
+      continue;
+    }
+
+    if (const auto MinPathLengthWhenTakingEdge = SafePlus(
+            State.getCurrentPath().size(), Data.VertexDepth[Target(Edge)]);
+        MinPathLengthWhenTakingEdge > Data.Conf->MaxPathLength) {
       continue;
     }
 
