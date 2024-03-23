@@ -293,9 +293,6 @@ private:
 
   class GraphBuilderImpl;
 
-  [[nodiscard]] static std::int64_t
-  getVertexDepthDifference(size_t SourceDepth, size_t TargetDepth);
-
   [[nodiscard]] bool
   isEmptyTargetTS(const VertexSet::key_type::first_type VertexIndex) const {
     return VertexIndex == EmptyTsIndex_;
