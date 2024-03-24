@@ -23,7 +23,6 @@ inline void setupCounters(benchmark::State &State, clang::ASTUnit &Ast,
   auto Data = runGraphBuilding(Transitions, Query, Conf);
   State.counters["vertices"] = static_cast<double>(Data.VertexData.size());
   State.counters["edges"] = static_cast<double>(Data.Edges.size());
-  State.counters["paths"] = 0.0;
 }
 
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
