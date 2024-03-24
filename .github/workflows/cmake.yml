@@ -4,8 +4,6 @@ on: [push]
 
 jobs:
   build_and_test:
-    runs-on: ${{ matrix.os }}
-
     name: Build & Test
 
     strategy:
@@ -13,18 +11,18 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          # - windows-latest
         compiler:
-          - { name: llvm, version: 15.0.2 }
-          # - { name: gcc, version: 11 }
+          - { name: llvm, version: 17.0.6 }
+          # - { name: gcc, version: 13, llvm: 17.0.6 }
         build_type:
           - Release
-          - Debug
+          # - Debug
         sanitizers:
           - []
-          - ["address", "leak", "undefined_behavior"]
-        # include:
-        #   - compiler: { name: gcc, version: 11 }
-        #     llvm: 15.0.2
+          # - ["address", "leak", "undefined_behavior"]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v3
@@ -71,42 +69,30 @@ jobs:
           path: ~/.conan/
           key: ${{steps.cache-key.outputs.result}}
 
-      - if: ${{ matrix.llvm }}
+      - if: ${{ matrix.compiler.llvm }}
         name: Setup LLVM for GCC
         uses: aminya/setup-cpp@v1
         with:
-          llvm: ${{ matrix.llvm }}
+          llvm: ${{ matrix.compiler.llvm }}
 
       - name: Setup Build Tools
         uses: aminya/setup-cpp@v1
         with:
           cmake: true
-          conan: true
+          conan: 2.2.1
           ninja: true
           compiler: ${{ matrix.compiler.name }}-${{ matrix.compiler.version }}
 
-      - name: Create Build Environment
-        run: cmake -E make_directory ${{runner.workspace}}/build
-
-      - name: Configure CMake
-        # Use a bash shell so we can use the same syntax for environment variable
-        # access regardless of the host operating system
+      - name: Install numpy for boost
         shell: bash
-        working-directory: ${{runner.workspace}}/build
-        # Note the current convention is to use the -S and -B options here to specify source
-        # and build directories, but this is only available with CMake 3.13 and higher.
-        # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-        run: cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DENABLE_USER_LINKER=OFF ${{steps.cmake-sanitizer-defs.outputs.result}} -DCMAKE_PATH_PREFIX=~/llvm/ -G "Ninja"
+        run: pip install numpy
 
-      - name: Build
-        working-directory: ${{runner.workspace}}/build
+      - name: Detect default conan profile
         shell: bash
-        # Execute the build.  You can specify a specific target with "--target <NAME>"
-        run: cmake --build . --config ${{ matrix.build_type }}
+        run: conan profile detect
 
       - name: Test
-        working-directory: ${{runner.workspace}}/build
         shell: bash
         env:
           SPDLOG_LEVEL: "trace"
-        run: cmake --build . --target check
+        run: conan test . ./conanfile.py --build missing -pr:h default -pr:b default -c tools.build:defines='["ENABLE_USER_LINKER=OFF"]'
