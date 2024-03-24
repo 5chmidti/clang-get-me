@@ -81,13 +81,26 @@ int main(int argc, const char **argv) {
 
   spdlog::cfg::load_env_levels();
 
-  auto OptionsParser =
-      clang::tooling::CommonOptionsParser::create(argc, argv, ToolCategory);
+  auto OptionsParser = clang::tooling::CommonOptionsParser::create(
+      argc, argv, ToolCategory, llvm::cl::ZeroOrMore);
   if (!OptionsParser) {
     llvm::errs() << OptionsParser.takeError();
     return 1;
   }
   const auto &Sources = OptionsParser->getSourcePathList();
+
+  const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
+  auto Conf = std::make_shared<Config>(
+      ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath));
+
+  if (DumpConfig || Verbose) {
+    if (ConfigFilePath.empty()) {
+      spdlog::info("Loaded configuration: \n{}", *Conf);
+    } else {
+      spdlog::info("Loaded configuration from {}:\n{}", ConfigFilePath, *Conf);
+    }
+    return 0;
+  }
 
   GetMeException::verify(ranges::size(Sources) == 1,
                          "Built {} ASTs, expected 1", ranges::size(Sources));
@@ -102,18 +115,6 @@ int main(int argc, const char **argv) {
           Res.emplace_back("-v");
           return Res;
         });
-  }
-
-  const auto ConfigFilePath = std::filesystem::path{ConfigPath.getValue()};
-  auto Conf = std::make_shared<Config>(
-      ConfigFilePath.empty() ? Config{} : Config::parse(ConfigFilePath));
-
-  if (DumpConfig || Verbose) {
-    if (ConfigFilePath.empty()) {
-      spdlog::info("Loaded configuration: \n{}", *Conf);
-    } else {
-      spdlog::info("Loaded configuration from {}:\n{}", ConfigFilePath, *Conf);
-    }
   }
 
   if (Interactive) {
