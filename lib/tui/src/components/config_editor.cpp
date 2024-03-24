@@ -30,16 +30,10 @@ buildConfigComponent(ftxui::Ref<std::shared_ptr<Config>> Conf) {
     });
   };
 
-  const auto TransformToEntriesAndConcat = [&ToEntry](const auto Range,
-                                                      auto Mappings) {
-    return ranges::views::concat(Range,
-                                 Mappings | ranges::views::transform(ToEntry));
-  };
-
+  const auto &[Flags, Vals] = Config::getConfigMapping();
   const auto ConfigElements = ftxui::Container::Vertical(
-      ranges::tuple_foldl(Config::getConfigMapping(),
-                          ranges::views::empty<ftxui::Component>,
-                          TransformToEntriesAndConcat) |
+      ranges::views::concat(Flags | ranges::views::transform(ToEntry),
+                            Vals | ranges::views::transform(ToEntry)) |
       ranges::to_vector);
   return Renderer(ConfigElements, [ConfigElements] {
     return ftxui::vbox({
