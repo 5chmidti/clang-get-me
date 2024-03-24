@@ -71,7 +71,7 @@ B getB();
        {
            "(A, A getA(), {})",
            "(A, B getB(), {})",
-           "(A, A A(int, float), {int, float})",
+           "(A, A A(int, float), {arithmetic})",
        },
        PropagateInheritanceConfig);
 
@@ -247,7 +247,7 @@ TEST_CASE("propagate inheritance: constructors") {
     )",
        "B",
        {
-           "(B, B B(int), {int})",
+           "(B, B B(int), {arithmetic})",
        },
        PropagateInheritanceConfig);
 
@@ -262,7 +262,7 @@ TEST_CASE("propagate inheritance: constructors") {
     )",
        "B",
        {
-           "(B, B B(int), {int})",
+           "(B, B B(int), {arithmetic})",
            "(B, B B(), {})",
        },
        PropagateInheritanceConfig);
@@ -300,7 +300,7 @@ TEST_CASE("propagate inheritance: constructors") {
     )",
               "B",
               {
-                  "(B, A A(int), {int})",
+                  "(B, A A(int), {arithmetic})",
               },
               PropagateInheritanceConfig);
   test(R"(
@@ -314,7 +314,7 @@ TEST_CASE("propagate inheritance: constructors") {
     )",
        "B",
        {
-           "(B, B B(int), {int})",
+           "(B, B B(int), {arithmetic})",
        },
        PropagateInheritanceConfig);
 }

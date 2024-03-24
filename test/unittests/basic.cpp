@@ -23,7 +23,7 @@ A getA(int);
        "A",
        {
            "(A, A getA(), {})",
-           "(A, A getA(int), {int})",
+           "(A, A getA(int), {arithmetic})",
            "(A, A A(), {})",
        });
 
@@ -63,7 +63,7 @@ B getB();
        {
            "(A, A getA(), {})",
            "(A, A A(), {})",
-           "(A, A getA(int), {int})",
+           "(A, A getA(int), {arithmetic})",
            "(A, A MemberA(B), {B}), (B, B getB(), {})",
            "(A, A MemberA(B), {B}), (B, B B(), {})",
        });
@@ -110,7 +110,7 @@ struct A { explicit A(int); };
 )",
        "A",
        {
-           "(A, A A(int), {int})",
+           "(A, A A(int), {arithmetic})",
        });
 
   test(R"(
@@ -118,7 +118,7 @@ struct A { A(int, float); };
 )",
        "A",
        {
-           "(A, A A(int, float), {int, float})",
+           "(A, A A(int, float), {arithmetic})",
        });
 
   test(R"(
@@ -131,8 +131,8 @@ struct A {
        "A",
        {
            "(A, A A(), {})",
-           "(A, A A(int), {int})",
-           "(A, A A(int, float), {int, float})",
+           "(A, A A(int), {arithmetic})",
+           "(A, A A(int, float), {arithmetic})",
        });
 
   test(R"(
@@ -203,9 +203,8 @@ TEST_CASE("arithmetic") {
   )",
        "A",
        {
-           "(A, A A(int), {arithmetic}), (arithmetic, int getInt(), {})",
-       },
-       std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
+           "(A, A A(int), {arithmetic})",
+       });
 
   test(R"(
     struct A { A(int); };
@@ -213,9 +212,8 @@ TEST_CASE("arithmetic") {
   )",
        "A",
        {
-           "(A, A A(int), {arithmetic}), (arithmetic, float getFloat(), {})",
-       },
-       std::make_shared<Config>(Config{.EnableTruncateArithmetic = true}));
+           "(A, A A(int), {arithmetic})",
+       });
 }
 
 TEST_CASE("back edges") {

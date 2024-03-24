@@ -56,22 +56,21 @@ public:
 
   void save(const std::filesystem::path &File);
 
-  // NOLINTBEGIN(misc-non-private-member-variables-in-classes)
+  // NOLINTBEGIN(misc-non-private-member-variables-in-classes,*magic-numbers)
   bool EnableFilterOverloads = false;
   bool EnablePropagateInheritance = true;
   bool EnablePropagateTypeAlias = true;
-  bool EnableTruncateArithmetic = false;
-  bool EnableFilterArithmeticTransitions = false;
+  bool EnableTruncateArithmetic = true;
+  bool EnableFilterArithmeticTransitions = true;
   bool EnableFilterStd = false;
   bool EnableGraphBackwardsEdge = true;
   bool EnableVerboseTransitionCollection = false;
 
-  std::size_t MaxGraphDepth = std::numeric_limits<std::size_t>::max();
+  std::size_t MaxGraphDepth = 4UZ;
   std::size_t MaxRemainingTypes = std::numeric_limits<std::size_t>::max();
-  std::size_t MaxPathLength = std::numeric_limits<std::size_t>::max();
-  std::size_t MaxPathOutputCount = 10U;
-
-  // NOLINTEND(misc-non-private-member-variables-in-classes)
+  std::size_t MaxPathLength = 4UZ;
+  std::size_t MaxPathOutputCount = 10UZ;
+  // NOLINTEND(misc-non-private-member-variables-in-classes,*magic-numbers)
 };
 
 template <> struct llvm::yaml::MappingTraits<Config> {

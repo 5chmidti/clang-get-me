@@ -49,7 +49,7 @@ TEST_CASE("propagate type aliasing") {
   )",
        "B",
        {
-           "(A<int>, A A(int), {int})",
+           "(A<int>, A A(int), {arithmetic})",
            "(B, B getB(), {})",
        },
        PropagateTypeAliasConfig);
@@ -179,19 +179,19 @@ TEST_CASE("propagate type aliasing") {
        PropagateTypeAliasConfig);
 
   test(R"(
-       using A = int;
-       using B = unsigned int;
+       struct A;
+       struct B;
        using C = A;
        using D = C;
        using E = B;
 
-       int getInt();
+       A getA();
        D getD();
     )",
-       "int",
+       "A",
        {
            "(D, D getD(), {})",
-           "(int, int getInt(), {})",
+           "(A, A getA(), {})",
        },
        PropagateTypeAliasConfig);
 
