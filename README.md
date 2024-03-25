@@ -56,17 +56,15 @@ Note: I wanted to try out `ranges` in this project, so the only `for`-loop you w
 
 1. Install [Conan](https://conan.io/)
 2. Install clang trunk (clang-18 may also work)
-3.
+3. If you do not have a default profile, run `CC=clang CXX=clang++ conan profile detect` to make sure it is using clang, and add to your .conan2/profiles/default:
 
+```text
+ [conf]
+ tools.build:compiler_executables={'c': 'clang', 'cpp': 'clang++'}
+```
+4.  Get dependencies, build the tool and run the tests
 ```shell
-# if you do not have a default profile, run `conan profile detect`
-# but make sure it is using clang
-conan install ./conanfile.py --build missing -pr default
-cmake --preset conan-release
-cmake --build build/Release
-
-# run tests
-cmake --build build/Release --target check
+conan test . ./conanfile.py --build missing
 ```
 
 ## Usage
